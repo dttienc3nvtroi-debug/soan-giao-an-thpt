@@ -136,4 +136,4 @@ html_code = """
 """
 
 # Render nguyên bản HTML
-components.html(html_code, height=900, scrolling=True)Fgemin
+components.html(html_code, height=900, scrolling=True)
