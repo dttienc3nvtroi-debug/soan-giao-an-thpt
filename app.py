@@ -22,7 +22,7 @@ with st.sidebar:
     # Chọn mô hình Gemini
     model_name = st.selectbox(
         "Chọn phiên bản Gemini AI:",
-        ["gemini-3.6-flash", "ggemini-3.6-flash", "gemini-3.6-flash"],
+        ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
         index=0
     )
     
@@ -43,7 +43,6 @@ with col_grd:
 
 st.subheader("📖 BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN")
 
-# Nút lấy danh sách bài học tự động
 if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nxbgd.vn"):
     if not api_key:
         st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
@@ -76,10 +75,8 @@ if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nx
         except Exception as e:
             st.error(f"Lỗi khi tải danh mục bài học: {e}")
 
-# Hiển thị danh sách bài học đã tra cứu được
 if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
     lessons_data = st.session_state['fetched_lessons']
-    
     lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
     selected_idx = st.selectbox("👉 Chọn Bài học chuẩn từ danh sách vừa tải:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x])
     
@@ -118,16 +115,19 @@ integrations = st.multiselect(
 def generate_doc(content_text):
     doc = docx.Document()
 
+    # Cấu hình lề chuẩn A4 (Trên/Dưới 2cm, Trái 3cm, Phải 2cm)
     for section in doc.sections:
         section.top_margin = Inches(0.79)
         section.bottom_margin = Inches(0.79)
         section.left_margin = Inches(1.18)
         section.right_margin = Inches(0.79)
 
+    # Style chữ mặc định Times New Roman 13pt
     style = doc.styles['Normal']
     style.font.name = 'Times New Roman'
     style.font.size = Pt(13)
 
+    # 1. BẢNG TIÊU ĐỀ TRƯỜNG / TỔ / GIÁO VIÊN (ĐÃ SỬA LỖI DÍNH CHỮ)
     table = doc.add_table(rows=1, cols=2)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
@@ -137,20 +137,29 @@ def generate_doc(content_text):
 
     cell_left = table.cell(0, 0)
     p_left = cell_left.paragraphs[0]
-    p_left.add_run(f"Trường: {school_name}\n").bold = True
-    p_left.add_run(f"Tổ: {dept_name}").bold = True
+    p_left.paragraph_format.line_spacing = 1.15
+    run_school = p_left.add_run(f"TRƯỜNG: {school_name.upper()}\n")
+    run_school.bold = True
+    run_dept = p_left.add_run(f"TỔ: {dept_name.upper()}")
+    run_dept.bold = True
 
     cell_right = table.cell(0, 1)
     p_right = cell_right.paragraphs[0]
     p_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    p_right.add_run(f"Họ và tên giáo viên:\n{teacher_name}").bold = True
+    p_right.paragraph_format.line_spacing = 1.15
+    run_teacher_label = p_right.add_run("Họ và tên giáo viên:\n")
+    run_teacher_label.bold = True
+    run_teacher_val = p_right.add_run(teacher_name)
+    run_teacher_val.bold = True
 
+    # Khử viền bảng
     for row in table.rows:
         for cell in row.cells:
             tcPr = cell._tc.get_or_add_tcPr()
             tcBorders = parse_xml(r'<w:tcBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>' % nsdecls('w'))
             tcPr.append(tcBorders)
 
+    # 2. TÊN BÀI DẠY
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_title.paragraph_format.space_before = Pt(18)
@@ -159,35 +168,47 @@ def generate_doc(content_text):
     r_title.bold = True
     r_title.font.size = Pt(14)
 
+    # 3. THÔNG TIN CƠ BẢN
     p_sub = doc.add_paragraph()
     p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_sub.paragraph_format.space_after = Pt(12)
     r_sub = p_sub.add_run(f"Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade}\nThời gian thực hiện: ({duration} tiết)")
     r_sub.italic = True
 
+    # 4. CHUYỂN ĐỔI NỘI DUNG VĂN BẢN
     lines = content_text.split('\n')
     for line in lines:
         line_str = line.strip()
-        if not line_str:
+        if not line_str or line_str.startswith("---") or line_str.startswith("# "):
             continue
+            
         p = doc.add_paragraph()
         p.paragraph_format.line_spacing = 1.15
         p.paragraph_format.space_after = Pt(4)
 
-        if line_str.startswith("I. ") or line_str.startswith("II. ") or line_str.startswith("III. "):
+        # Xử lý thụt lề và in đậm các phân cấp Công văn 5512
+        if line_str.startswith("I. ") or line_str.startswith("II. ") or line_str.startswith("III. ") or line_str.startswith("IV. "):
             p.paragraph_format.space_before = Pt(12)
-            run = p.add_run(line_str)
+            run = p.add_run(line_str.replace("**", ""))
             run.bold = True
             run.font.size = Pt(13)
         elif line_str.startswith("1. ") or line_str.startswith("2. ") or line_str.startswith("3. ") or line_str.startswith("4. "):
             p.paragraph_format.space_before = Pt(6)
-            run = p.add_run(line_str)
+            run = p.add_run(line_str.replace("**", ""))
             run.bold = True
-        elif line_str.startswith("a)") or line_str.startswith("b)") or line_str.startswith("c)") or line_str.startswith("d)"):
-            run = p.add_run(line_str)
+        elif line_str.startswith("a)") or line_str.startswith("b)") or line_str.startswith("c)") or line_str.startswith("d)") or line_str.startswith("HOẠT ĐỘNG"):
+            p.paragraph_format.space_before = Pt(4)
+            run = p.add_run(line_str.replace("**", ""))
             run.bold = True
+        elif line_str.startswith("Bước 1:") or line_str.startswith("Bước 2:") or line_str.startswith("Bước 3:") or line_str.startswith("Bước 4:"):
+            p.paragraph_format.left_indent = Inches(0.25)
+            run = p.add_run(line_str.replace("**", ""))
+            run.bold = True
+        elif line_str.startswith("- "):
+            p.paragraph_format.left_indent = Inches(0.25)
+            p.add_run(line_str.replace("**", ""))
         else:
-            p.add_run(line_str)
+            p.add_run(line_str.replace("**", ""))
 
     bio = io.BytesIO()
     doc.save(bio)
@@ -215,10 +236,12 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary"):
             - Yêu cầu cần đạt: {requirements}
             - YẾU TỐ TÍCH HỢP: {integration_str}
 
-            ĐẦY ĐỦ 3 PHẦN CHUẨN 5512:
-            I. Mục tiêu (Kiến thức, Năng lực [Chung, Đặc thù, Tích hợp {integration_str}], Phẩm chất)
-            II. Thiết bị dạy học & Học liệu
-            III. Tiến trình dạy học (4 Hoạt động: Mở đầu, Hình thành kiến thức, Luyện tập, Vận dụng. Mỗi hoạt động đúng 4 bước: Chuyển giao, Thực hiện, Báo cáo, Kết luận).
+            YÊU CẦU ĐỊNH DẠNG VĂN BẢN:
+            - Xuất trực tiếp cấu trúc nội dung, không gửi lời chào, không kèm đường kẻ ngang (---).
+            - Trình bày đúng cấu trúc 3 Phần chuẩn 5512:
+              I. Mục tiêu (1. Kiến thức, 2. Năng lực [2.1 Năng lực toán học, 2.2 Năng lực chung, 2.3 Năng lực Số/CNTT], 3. Phẩm chất)
+              II. Thiết bị dạy học và học liệu (1. Giáo viên, 2. Học sinh)
+              III. Tiến trình dạy học (Các HOẠT ĐỘNG, mỗi hoạt động gồm 4 mục: a) Mục tiêu, b) Nội dung, c) Sản phẩm, d) Tổ chức thực hiện [Bước 1: Chuyển giao nhiệm vụ, Bước 2: Thực hiện nhiệm vụ, Bước 3: Báo cáo thảo luận, Bước 4: Kết luận nhận định]).
             """
 
             with st.spinner("✨ AI đang tạo Kế hoạch bài dạy 5512..."):
@@ -234,7 +257,19 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary"):
                 )
 
                 st.markdown("---")
-                st.write(response.text)
+                
+                # Căn chỉnh giao diện xem trước trực tiếp trên ứng dụng Streamlit
+                preview_header = f"""
+| TRƯỜNG: {school_name.upper()} <br> TỔ: {dept_name.upper()} | Họ và tên giáo viên: <br> **{teacher_name}** |
+| :--- | ---: |
+
+<h3 style="text-align: center; margin-top: 20px;">TÊN BÀI DẠY: {lesson_title.upper()}</h3>
+<p style="text-align: center; font-style: italic;">Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade}<br>Thời gian thực hiện: ({duration} tiết)</p>
+
+---
+                """
+                st.markdown(preview_header, unsafe_allow_html=True)
+                st.markdown(response.text)
 
         except Exception as e:
             st.error(f"Đã có lỗi xảy ra: {e}")
