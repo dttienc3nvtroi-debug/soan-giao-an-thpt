@@ -20,7 +20,7 @@ st.markdown("""
     <style>
     /* Điều chỉnh lề trên để tiêu đề không bị lấp sát mép màn hình */
     .block-container {
-        padding-top: 2.4rem !important;
+        padding-top: 2.6rem !important;
         padding-bottom: 2rem !important;
     }
 
@@ -69,7 +69,7 @@ st.markdown("""
     div[data-baseweb="input"] input, 
     div[data-baseweb="textarea"] textarea,
     div[data-baseweb="select"] div {
-        font-size: 21px !important;
+        font-size: 25px !important;
         font-weight: 500 !important;
     }
 
