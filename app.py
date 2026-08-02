@@ -137,7 +137,7 @@ st.markdown("""
     }
     
     .stButton button p {
-        font-size: 22px !important;
+        font-size: 21px !important;
         font-weight: 700 !important;
     }
     
@@ -167,7 +167,7 @@ with st.sidebar:
     
     model_name = st.selectbox(
         "Mô hình AI xử lý:",
-        ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
+        ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-1.5-flash"],
         index=0,
         help="Khuyên dùng gemini-3.6-flash cho tốc độ soạn thảo nhanh và tối ưu nhất"
     )
@@ -223,20 +223,85 @@ with col_grd:
     )
 
 # ==========================================
-# BƯỚC 2: TRA CỨU, CHỌN BÀI HỌC CHUẨN & CHỌN FILE SGV
+# BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN / CHỌN FILE SGV (ĐÃ ĐIỀU CHỈNH GIAO DIỆN)
 # ==========================================
 st.markdown('<div class="step-header">📖 BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN / CHỌN FILE SGV</div>', unsafe_allow_html=True)
 
-# 1. Bổ sung tính năng Tải file SGV
-st.markdown('<span class="custom-label">📂 Tải lên File SGV (Sách Giáo Viên - PDF hoặc Ảnh):</span>', unsafe_allow_html=True)
-uploaded_sgv_file = st.file_uploader(
-    "Tải lên File SGV:", 
-    type=["pdf", "png", "jpg", "jpeg"], 
-    label_visibility="collapsed"
-)
+# Khung 1: Tra cứu tự động hoặc Tải File SGV (Bố cục 2 cột cân đối)
+col_btn_sync, col_file_upload = st.columns([1, 1], gap="medium")
+
+with col_btn_sync:
+    st.markdown('<span class="custom-label">🌐 Tải danh mục bài học từ taphuan.nxbgd.vn:</span>', unsafe_allow_html=True)
+    if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nxbgd.vn", use_container_width=True):
+        if not api_key:
+            st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
+        else:
+            try:
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel(model_name)
+                
+                prompt_fetch = f"""
+                Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
+                Liệt kê ĐẦY ĐỦ, ĐÚNG THỨ TỰ tất cả các Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức/GDPT 2018).
+                
+                LƯU Ý ĐẶC BIỆT: Bắt buộc phải bao gồm đầy đủ cả các bài đánh số VÀ các bài "Bài tập cuối chương...", "Ôn tập chương..." ở cuối mỗi chương.
+                
+                Trả về duy nhất dạng JSON theo cấu trúc mảng:
+                [
+                  {{
+                    "chapter": "Tên Chương 1",
+                    "lesson": "Tên Bài 1 hoặc Bài tập cuối chương...",
+                    "duration": 2,
+                    "req": "Yêu cầu cần đạt chuẩn của bài"
+                  }}
+                ]
+                Chỉ trả về mã JSON nguyên bản trong mảng [ ... ], không thêm bất kỳ văn bản giải thích nào khác.
+                """
+                
+                with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade}..."):
+                    res = model.generate_content(prompt_fetch)
+                    raw_text = res.text.strip()
+                    json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
+                    clean_json = json_match.group(0) if json_match else raw_text
+                    st.session_state['fetched_lessons'] = json.loads(clean_json)
+                    st.success("🎉 Đã tải xong danh mục bài học chuẩn đầy đủ!")
+            except Exception as e:
+                err_msg = str(e)
+                if "429" in err_msg or "Quota exceeded" in err_msg:
+                    st.warning("⚠️ API Key của thầy đã chạm trần lượt gọi miễn phí (Quota 429). Hệ thống tự động chuyển sang dữ liệu bài học mẫu chuẩn!")
+                    st.session_state['fetched_lessons'] = [
+                        {
+                            "chapter": "Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số",
+                            "lesson": "Bài 1. Tính đơn điệu và cực trị của hàm số",
+                            "duration": 3,
+                            "req": "Nhận biết được tính đơn điệu, điểm cực trị của hàm số thông qua bảng biến thiên hoặc đồ thị."
+                        },
+                        {
+                            "chapter": "Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số",
+                            "lesson": "Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số",
+                            "duration": 3,
+                            "req": "Xác định được giá trị lớn nhất, giá trị nhỏ nhất của hàm số trên một đoạn."
+                        },
+                        {
+                            "chapter": "Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số",
+                            "lesson": "Bài tập cuối chương I",
+                            "duration": 2,
+                            "req": "Củng cố kiến thức về khảo sát và vẽ đồ thị hàm số, giải các bài toán thực tế liên quan."
+                        }
+                    ]
+                else:
+                    st.error(f"Lỗi khi tải danh mục bài học: {e}")
+
+with col_file_upload:
+    st.markdown('<span class="custom-label">📂 Hoặc tải lên File SGV (Sách Giáo Viên):</span>', unsafe_allow_html=True)
+    uploaded_sgv_file = st.file_uploader(
+        "Tải lên File SGV:", 
+        type=["pdf", "png", "jpg", "jpeg"], 
+        label_visibility="collapsed"
+    )
 
 if uploaded_sgv_file is not None:
-    if st.button("🔍 Đọc Yêu cầu cần đạt từ File SGV"):
+    if st.button("🔍 Đọc Yêu cầu cần đạt từ File SGV", use_container_width=True):
         if not api_key:
             st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
         else:
@@ -259,50 +324,12 @@ if uploaded_sgv_file is not None:
             except Exception as e:
                 st.error(f"Lỗi khi xử lý File SGV: {e}")
 
-st.markdown("<br>", unsafe_allow_html=True)
-
-# 2. Đồng bộ từ taphuan.nxbgd.vn
-if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nxbgd.vn", use_container_width=True):
-    if not api_key:
-        st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
-    else:
-        try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(model_name)
-            
-            prompt_fetch = f"""
-            Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
-            Liệt kê ĐẦY ĐỦ, ĐÚNG THỨ TỰ tất cả các Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức/GDPT 2018).
-            
-            LƯU Ý ĐẶC BIỆT: Bắt buộc phải bao gồm đầy đủ cả các bài đánh số VÀ các bài "Bài tập cuối chương...", "Ôn tập chương..." ở cuối mỗi chương.
-            
-            Trả về duy nhất dạng JSON theo cấu trúc mảng:
-            [
-              {{
-                "chapter": "Tên Chương 1",
-                "lesson": "Tên Bài 1 hoặc Bài tập cuối chương...",
-                "duration": 2,
-                "req": "Yêu cầu cần đạt chuẩn của bài"
-              }}
-            ]
-            Chỉ trả về mã JSON nguyên bản trong mảng [ ... ], không thêm bất kỳ văn bản giải thích nào khác.
-            """
-            
-            with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade}..."):
-                res = model.generate_content(prompt_fetch)
-                raw_text = res.text.strip()
-                
-                json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
-                clean_json = json_match.group(0) if json_match else raw_text
-                
-                st.session_state['fetched_lessons'] = json.loads(clean_json)
-                st.success("🎉 Đã tải xong danh mục bài học chuẩn đầy đủ!")
-        except Exception as e:
-            st.error(f"Lỗi khi tải danh mục bài học: {e}")
+st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
 # Lấy giá trị YCĐ ưu tiên từ file SGV vừa đọc (nếu có)
 req_default_value = st.session_state.get('req_from_sgv_file', '')
 
+# Khung 2: Hiển thị Selectbox và các Ô nhập liệu thông tin bài học
 if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
     lessons_data = st.session_state['fetched_lessons']
     lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
@@ -317,15 +344,15 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
     
     current_item = lessons_data[selected_idx]
     
-    col_i1, col_i2 = st.columns([1, 2])
+    col_i1, col_i2 = st.columns([1, 2], gap="large")
     with col_i1:
-        st.markdown('<span class="custom-label">Chương:</span>', unsafe_allow_html=True)
+        st.markdown('<span class="custom-label">Chương / Chủ đề:</span>', unsafe_allow_html=True)
         chapter_title = st.text_input("Chương:", value=current_item['chapter'], label_visibility="collapsed")
         
-        st.markdown('<span class="custom-label">Tên bài:</span>', unsafe_allow_html=True)
+        st.markdown('<span class="custom-label">Tên bài dạy:</span>', unsafe_allow_html=True)
         lesson_title = st.text_input("Tên bài:", value=current_item['lesson'], label_visibility="collapsed")
         
-        st.markdown('<span class="custom-label">Số tiết:</span>', unsafe_allow_html=True)
+        st.markdown('<span class="custom-label">Số tiết thực hiện:</span>', unsafe_allow_html=True)
         duration = st.number_input("Số tiết:", value=int(current_item['duration']), label_visibility="collapsed")
     
     with col_i2:
@@ -334,22 +361,22 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
         requirements = st.text_area("YCĐ:", value=final_req, height=230, label_visibility="collapsed")
 
 else:
-    st.info("💡 Thầy có thể tải **File SGV** ở trên hoặc bấm nút **'🔍 Cập nhật danh sách Chương & Bài học...'** để AI tự động tải bài học chuẩn!")
+    st.info("💡 Thầy có thể bấm nút **'🔍 Cập nhật danh sách Chương & Bài học...'** để AI tự động tải danh mục bài chuẩn hoặc **Tải file SGV** ở trên!")
     
-    col_i1, col_i2 = st.columns([1, 2])
+    col_i1, col_i2 = st.columns([1, 2], gap="large")
     with col_i1:
-        st.markdown('<span class="custom-label">Chương:</span>', unsafe_allow_html=True)
+        st.markdown('<span class="custom-label">Chương / Chủ đề:</span>', unsafe_allow_html=True)
         chapter_title = st.text_input("Chương:", value="", placeholder="Nhập tên chương...", label_visibility="collapsed")
         
-        st.markdown('<span class="custom-label">Tên bài:</span>', unsafe_allow_html=True)
+        st.markdown('<span class="custom-label">Tên bài dạy:</span>', unsafe_allow_html=True)
         lesson_title = st.text_input("Tên bài:", value="", placeholder="Nhập tên bài...", label_visibility="collapsed")
         
-        st.markdown('<span class="custom-label">Số tiết:</span>', unsafe_allow_html=True)
+        st.markdown('<span class="custom-label">Số tiết thực hiện:</span>', unsafe_allow_html=True)
         duration = st.number_input("Số tiết:", value=2, label_visibility="collapsed")
         
     with col_i2:
         st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt:</span>', unsafe_allow_html=True)
-        requirements = st.text_area("YCĐ:", value=req_default_value, placeholder="Nhập yêu cầu cần đạt hoặc đọc từ File SGV...", height=230, label_visibility="collapsed")
+        requirements = st.text_area("YCĐ:", value=req_default_value, placeholder="Nhập yêu cầu cần đạt hoặc đọc tự động từ File SGV...", height=230, label_visibility="collapsed")
 
 # ==========================================
 # BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
