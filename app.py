@@ -153,9 +153,9 @@ with st.sidebar:
     
     model_name = st.selectbox(
         "Mô hình AI xử lý:",
-        ["gemini-3.6-flash", "emini-3.6-flash", "emini-3.6-flash"],
+        ["gemini-gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
         index=0,
-        help="Khuyên dùng emini-3.6-flash cho tốc độ soạn thảo nhanh và tối ưu nhất"
+        help="Khuyên dùng gemini-3.6-flash cho tốc độ soạn thảo nhanh và tối ưu nhất"
     )
     
     st.markdown("---")
@@ -209,40 +209,44 @@ with col_grd:
     )
 
 # ==========================================
-# BƯỚC 2: CẬP NHẬT YÊU CẦU CẦN ĐẠT CHUẨN TỪ TAPHUAN.NXBGD.VN
+# BƯỚC 2: TRA CỨU & NHẬP NỘI DUNG SGV / CHỌN FILE SGV
 # ==========================================
 st.markdown('<div class="step-header">📖 BƯỚC 2: TRA CỨU & NHẬP NỘI DUNG SGV (TAPHUAN.NXBGD.VN)</div>', unsafe_allow_html=True)
 
-# Lựa chọn phương thức lấy dữ liệu SGV
-source_option = st.radio(
-    "👉 Chọn cách cung cấp tài liệu SGV từ taphuan.nxbgd.vn:",
-    ["Trích xuất tự động từ Ảnh/File PDF tải từ SGV taphuan.nxbgd.vn", "Dán trực tiếp văn bản từ taphuan.nxbgd.vn"],
-    horizontal=True
+# --- BỔ SUNG CHỌN FILE SGV ---
+st.markdown('<span class="custom-label">📂 Chọn File SGV (Tải từ taphuan.nxbgd.vn - PDF hoặc Ảnh):</span>', unsafe_allow_html=True)
+uploaded_sgv_file = st.file_uploader(
+    "Tải lên File SGV:", 
+    type=["pdf", "png", "jpg", "jpeg"], 
+    label_visibility="collapsed"
 )
 
-extracted_req = ""
-
-if source_option == "Trích xuất tự động từ Ảnh/File PDF tải từ SGV taphuan.nxbgd.vn":
-    uploaded_file = st.file_uploader("📂 Tải lên Ảnh chụp màn hình trang SGV hoặc File PDF từ taphuan.nxbgd.vn:", type=["png", "jpg", "jpeg", "pdf"])
-    
-    if uploaded_file and st.button("📄 Đọc chính xác YCĐ từ trang SGV này"):
+if uploaded_sgv_file is not None:
+    if st.button("🔍 Đọc Yêu cầu cần đạt từ File SGV"):
         if not api_key:
             st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh bên trái!")
         else:
             try:
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel("gemini-2.5-flash")
-                
-                with st.spinner("🔍 AI đang OCR trích xuất nguyên văn Yêu cầu cần đạt từ tài liệu SGV..."):
-                    if uploaded_file.type in ["image/png", "image/jpeg", "image/jpg"]:
-                        image = Image.open(uploaded_file)
-                        ocr_prompt = "Hãy đọc và trích xuất NGUYÊN VĂN 100% phần Yêu cầu cần đạt / Mục tiêu bài học trong ảnh SGV này. Không tự ý sửa đổi từ ngữ."
-                        response = model.generate_content([ocr_prompt, image])
-                        extracted_req = response.text
-                        st.session_state['extracted_req'] = extracted_req
-                        st.success("🎉 Đã trích xuất chính xác 100% YCĐ từ tài liệu SGV!")
+                model = genai.GenerativeModel(model_name)
+                with st.spinner("AI đang đọc và trích xuất YCĐ chính xác từ File SGV..."):
+                    if uploaded_sgv_file.type in ["image/png", "image/jpeg", "image/jpg"]:
+                        img = Image.open(uploaded_sgv_file)
+                        res = model.generate_content(["Hãy trích xuất NGUYÊN VĂN toàn bộ phần Yêu cầu cần đạt / Mục tiêu bài học trong file ảnh SGV này:", img])
+                        st.session_state['req_from_file'] = res.text
+                    else:
+                        # Với file PDF SGV
+                        pdf_bytes = uploaded_sgv_file.read()
+                        res = model.generate_content([
+                            "Hãy trích xuất NGUYÊN VĂN toàn bộ phần Yêu cầu cần đạt / Mục tiêu bài học trong tài liệu SGV này:",
+                            {"mime_type": "application/pdf", "data": pdf_bytes}
+                        ])
+                        st.session_state['req_from_file'] = res.text
+                st.success("🎉 Đã đọc thành công YCĐ từ File SGV!")
             except Exception as e:
-                st.error(f"Lỗi khi đọc file: {e}")
+                st.error(f"Lỗi khi đọc file SGV: {e}")
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 col_i1, col_i2 = st.columns([1, 2])
 
@@ -257,14 +261,16 @@ with col_i1:
     duration = st.number_input("Số tiết:", value=2, label_visibility="collapsed")
 
 with col_i2:
-    st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt (Bản quyền SGV NXB Giáo dục - taphuan.nxbgd.vn):</span>', unsafe_allow_html=True)
+    st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt (Trích từ SGV - taphuan.nxbgd.vn):</span>', unsafe_allow_html=True)
     
-    default_val = st.session_state.get('extracted_req', '')
+    # Lấy nội dung tự động nếu vừa trích xuất từ file SGV
+    default_req_val = st.session_state.get('req_from_file', '')
+    
     requirements = st.text_area(
         "YCĐ:", 
-        value=default_val, 
-        placeholder="Coppy văn bản từ taphuan.nxbgd.vn hoặc dùng nút trích xuất ở trên để dán YCĐ chuẩn vào đây...", 
-        height=230, 
+        value=default_req_val, 
+        placeholder="Nội dung YCĐ sẽ tự động điền khi đọc File SGV ở trên, hoặc thầy có thể copy/paste trực tiếp từ taphuan.nxbgd.vn vào đây...", 
+        height=210, 
         label_visibility="collapsed"
     )
 
@@ -405,7 +411,7 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
     elif not lesson_title:
         st.error("⚠️ Vui lòng chọn hoặc nhập tên Bài dạy!")
     elif not requirements:
-        st.error("⚠️ Vui lòng nhập hoặc trích xuất Yêu cầu cần đạt từ SGV!")
+        st.error("⚠️ Vui lòng nhập hoặc tải file SGV để trích xuất Yêu cầu cần đạt!")
     else:
         try:
             genai.configure(api_key=api_key)
@@ -413,31 +419,30 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
 
             integration_str = ", ".join(integrations) if integrations else "Không"
 
-            # PROMPT ÉP CHẶT DÙNG NGUYÊN VĂN TỪ TAPHUAN.NXBGD.VN
             prompt = f"""
-            Bạn là trợ lý biên soạn giáo án. Hãy sử dụng NGUYÊN VĂN dữ liệu Yêu cầu cần đạt từ Sách Giáo Viên (taphuan.nxbgd.vn) do giáo viên cung cấp dưới đây để lập Kế hoạch bài dạy chuẩn Công văn 5512:
+            Bạn là trợ lý biên soạn giáo án chuyên nghiệp. Hãy sử dụng NGUYÊN VĂN dữ liệu Yêu cầu cần đạt từ Sách Giáo Viên (taphuan.nxbgd.vn) dưới đây để lập Kế hoạch bài dạy chuẩn Công văn 5512:
 
             - Môn: {subject} ({grade})
             - Chương/Chủ đề: {chapter_title}
             - Bài dạy: {lesson_title}
             - Thời lượng: {duration} tiết
-            - YÊU CẦU CẦN ĐẠT CHUẨN SGV (TAPHUAN.NXBGD.VN): 
+            - YÊU CẦU CẦN ĐẠT CHUẨN SGV: 
             {requirements}
             
             - YẾU TỐ TÍCH HỢP: {integration_str}
 
-            RÀNG BUỘC TẠO PHẦN "I. MỤC TIÊU":
-            Bắt buộc phải giữ NGUYÊN VĂN các ý Yêu cầu cần đạt chuẩn SGV được cung cấp ở trên, tuyệt đối không tự thêm bớt hay dùng từ ngoài:
-            1. Kiến thức: Nêu chính xác các nội dung từ YCĐ.
-            2. Năng lực:
-               - 2.1. Năng lực đặc thù ({subject}): Diễn giải dựa trên YCĐ chuẩn SGV.
-               - 2.2. Năng lực chung: Tự chủ & tự học, giao tiếp & hợp tác, giải quyết vấn đề.
-               - 2.3. Năng lực Số / Ứng dụng CNTT và AI: (Nếu có).
-            3. Phẩm chất: Yêu nước, nhân ái, chăm chỉ, trung thực, trách nhiệm.
-
-            QUY ĐỊNH ĐỊNH DẠNG VĂN BẢN TRẢ VỀ:
-            - Xuất nội dung trực tiếp, không có lời chào hỏi.
-            - Cấu trúc chuẩn Công văn 5512 (I. MỤC TIÊU, II. THIẾT BỊ DẠY HỌC..., III. TIẾN TRÌNH DẠY HỌC với 4 bước cho mỗi hoạt động).
+            YÊU CẦU NỘI DUNG VÀ CẤU TRÚC:
+            I. MỤC TIÊU:
+               1. Kiến thức: Nêu chính xác các nội dung kiến thức dựa theo YCĐ chuẩn SGV.
+               2. Năng lực:
+                  - 2.1. Năng lực đặc thù ({subject}): Bám sát YCĐ từ SGV.
+                  - 2.2. Năng lực chung: Tự chủ & tự học, giao tiếp & hợp tác, giải quyết vấn đề sáng tạo.
+                  - 2.3. Năng lực Số / Ứng dụng CNTT và AI: Chi tiết các công cụ sử dụng.
+               3. Phẩm chất: Yêu nước, nhân ái, chăm chỉ, trung thực, trách nhiệm.
+            II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
+            III. TIẾN TRÌNH DẠY HỌC (Chia rõ từng tiết, mỗi hoạt động đủ 4 bước: Chuyển giao -> Thực hiện -> Báo cáo -> Kết luận).
+            
+            Quy định: Trả về văn bản Markdown rõ ràng, không kèm lời chào.
             """
 
             with st.spinner("✨ AI đang tạo Kế hoạch bài dạy chuẩn SGV 5512..."):
