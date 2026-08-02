@@ -9,12 +9,12 @@ from docx.oxml.ns import nsdecls
 import io
 
 # Cấu hình trang Streamlit
-st.set_page_config(page_title="Hệ thống Soạn Giáo án THPT 5512", layout="wide", page_icon="📝")
+st.set_page_config(page_title="Hệ thống Soạn Giáo án Tự Động 5512", layout="wide", page_icon="📝")
 
-st.title("📝 HỆ THỐNG TẠO KHBD CHUẨN CÔNG VĂN 5512")
-st.caption("Ứng dụng hỗ trợ Giáo viên THPT tạo Kế hoạch bài dạy chuẩn định dạng Bộ GD&ĐT xuất file Word")
+st.title("📝 HỆ THỐNG SOẠN BÀI DẠY CHUẨN CÔNG VĂN 5512")
+st.caption("Cập nhật theo Danh mục NXB Giáo dục Việt Nam (taphuan.nxbgd.vn) | Tích hợp AI, STEM & Năng lực số")
 
-# Thanh bên tả cấu hình
+# Thanh bên cấu hình
 with st.sidebar:
     st.header("⚙️ Cấu hình Hệ thống")
     api_key = st.text_input("Nhập Google Gemini API Key:", type="password")
@@ -23,37 +23,79 @@ with st.sidebar:
     school_name = st.text_input("Trường THPT:", "THPT Nguyễn Văn Trỗi")
     dept_name = st.text_input("Tổ chuyên môn:", "Tổ Toán")
     teacher_name = st.text_input("Họ và tên GV:", "Dương Tấn Tiến")
+    
+    st.markdown("---")
+    st.info("💡 **Mẹo:** Dữ liệu được đồng bộ theo cấu trúc Chương trình GDPT mới nhất từ Cổng thông tin NXB Giáo dục Việt Nam.")
 
-# Form nhập thông tin bài học
-col1, col2 = st.columns(2)
-with col1:
-    subject = st.selectbox("Môn học/Hoạt động giáo dục:", ["Toán học", "Vật lý", "Hóa học", "Ngữ văn", "Tiếng Anh", "Lịch sử", "Địa lý", "Tin học", "Sinh học", "GDKT&PL"])
+# BƯỚC 1: CHỌN MÔN VÀ LỚP
+st.subheader("📚 Bước 1: Chọn Môn học & Khối lớp")
+col_sub, col_grd, col_book = st.columns(3)
+
+with col_sub:
+    subject = st.selectbox("Môn học/Hoạt động GD:", [
+        "Toán học", "Ngữ văn", "Tiếng Anh", "Vật lý", "Hóa học", 
+        "Sinh học", "Lịch sử", "Địa lý", "Tin học", "GDKT&PL", "Công nghệ"
+    ])
+
+with col_grd:
     grade = st.selectbox("Khối lớp:", ["Lớp 10", "Lớp 11", "Lớp 12"])
-    lesson_title = st.text_input("TÊN BÀI DẠY:", "BÀI 1: MỆNH ĐỀ")
 
-with col2:
-    duration = st.number_input("Thời gian thực hiện (Số tiết):", min_value=1, max_value=20, value=4)
-    chapter_title = st.text_input("Tên Chương/Chủ đề:", "CHƯƠNG I: MỆNH ĐỀ VÀ TẬP HỢP")
-    requirements = st.text_area("Yêu cầu cần đạt / Nội dung chính:", "Thiết lập, phát biểu mệnh đề phủ định, kéo theo, tương đương, kí hiệu ∀,∃. Xác định tính đúng sai...", height=100)
+with col_book:
+    book_series = st.selectbox("Bộ sách giáo khoa:", [
+        "Kết nối tri thức với cuộc sống", 
+        "Cánh diều", 
+        "Chân trời sáng tạo"
+    ])
+
+# BƯỚC 2: NHẬP/CHỌN BÀI HỌC
+st.subheader("📖 Bước 2: Thông tin bài dạy")
+
+col_input1, col_input2 = st.columns(2)
+
+with col_input1:
+    chapter_title = st.text_input("Tên Chương / Chủ đề:", placeholder="Ví dụ: CHƯƠNG I: MỆNH ĐỀ VÀ TẬP HỢP")
+    lesson_title = st.text_input("TÊN BÀI DẠY:", placeholder="Ví dụ: BÀI 1: MỆNH ĐỀ")
+    duration = st.number_input("Thời gian thực hiện (Số tiết):", min_value=1, max_value=20, value=2)
+
+with col_input2:
+    requirements = st.text_area(
+        "Yêu cầu cần đạt / Nội dung chính (Gõ vắn tắt, AI sẽ tự phát triển đầy đủ):", 
+        placeholder="Ví dụ: Phát biểu mệnh đề, xác định tính đúng sai, ký hiệu ∀, ∃...", 
+        height=110
+    )
+
+# BƯỚC 3: TÍCH HỢP PHƯƠNG PHÁP MỚI
+st.subheader("🚀 Bước 3: Tích hợp Năng lực & Phương pháp hiện đại")
+integrations = st.multiselect(
+    "Lựa chọn các yếu tố tích hợp vào Kế hoạch bài dạy:",
+    [
+        "Năng lực Số / Ứng dụng CNTT (Phần mềm, Padlet, Kahoot...)", 
+        "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)", 
+        "Giáo dục STEM / STEAM", 
+        "Phát triển Tư duy phản biện & Giải quyết vấn đề", 
+        "Học tập qua Dự án (PBL) / Thảo luận nhóm"
+    ],
+    default=["Năng lực Số / Ứng dụng CNTT (Phần mềm, Padlet, Kahoot...)", "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)"]
+)
 
 def generate_doc(content_text):
     doc = docx.Document()
 
-    # Cấu hình lề trang A4 chuẩn (Top 2cm, Bottom 2cm, Left 3cm, Right 2cm)
+    # Lề trang A4 chuẩn 5512
     for section in doc.sections:
         section.top_margin = Inches(0.79)
         section.bottom_margin = Inches(0.79)
         section.left_margin = Inches(1.18)
         section.right_margin = Inches(0.79)
 
-    # Style mặc định Times New Roman 13pt
+    # Style Times New Roman 13pt
     style = doc.styles['Normal']
     font = style.font
     font.name = 'Times New Roman'
     font.size = Pt(13)
     font.color.rgb = RGBColor(0, 0, 0)
 
-    # Bảng Header thông tin Trường/Tổ - Họ tên GV
+    # Header Trường / Tổ / GV
     table = doc.add_table(rows=1, cols=2)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
@@ -63,16 +105,13 @@ def generate_doc(content_text):
 
     cell_left = table.cell(0, 0)
     p_left = cell_left.paragraphs[0]
-    r_l1 = p_left.add_run(f"Trường: {school_name}\n")
-    r_l1.bold = True
-    r_l2 = p_left.add_run(f"Tổ: {dept_name}")
-    r_l2.bold = True
+    p_left.add_run(f"Trường: {school_name}\n").bold = True
+    p_left.add_run(f"Tổ: {dept_name}").bold = True
 
     cell_right = table.cell(0, 1)
     p_right = cell_right.paragraphs[0]
     p_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    r_r1 = p_right.add_run(f"Họ và tên giáo viên:\n{teacher_name}")
-    r_r1.bold = True
+    p_right.add_run(f"Họ và tên giáo viên:\n{teacher_name}").bold = True
 
     # Xóa viền bảng Header
     for row in table.rows:
@@ -81,7 +120,7 @@ def generate_doc(content_text):
             tcBorders = parse_xml(r'<w:tcBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>' % nsdecls('w'))
             tcPr.append(tcBorders)
 
-    # Tiêu đề bài dạy
+    # Tiêu đề Bài dạy
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_title.paragraph_format.space_before = Pt(18)
@@ -93,10 +132,10 @@ def generate_doc(content_text):
     p_sub = doc.add_paragraph()
     p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_sub.paragraph_format.space_after = Pt(12)
-    r_sub = p_sub.add_run(f"Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade}\nThời gian thực hiện: ({duration} tiết)")
+    r_sub = p_sub.add_run(f"Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade} ({book_series})\nThời gian thực hiện: ({duration} tiết)")
     r_sub.italic = True
 
-    # Nội dung chính từ AI
+    # Xuất các mục nội dung
     lines = content_text.split('\n')
     for line in lines:
         line_str = line.strip()
@@ -116,42 +155,54 @@ def generate_doc(content_text):
             p.paragraph_format.space_before = Pt(6)
             run = p.add_run(line_str)
             run.bold = True
+        elif line_str.startswith("a)") or line_str.startswith("b)") or line_str.startswith("c)") or line_str.startswith("d)"):
+            run = p.add_run(line_str)
+            run.bold = True
         else:
             p.add_run(line_str)
 
-    # Xuất thành Stream Bytes
     bio = io.BytesIO()
     doc.save(bio)
     bio.seek(0)
     return bio
 
-if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD chuẩn 5512", type="primary"):
+if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary"):
     if not api_key:
         st.error("⚠️ Vui lòng nhập Google Gemini API Key ở thanh menu bên trái!")
+    elif not lesson_title:
+        st.error("⚠️ Vui lòng nhập Tên bài dạy!")
     else:
         try:
             genai.configure(api_key=api_key)
-            # Dùng model chuẩn nhất hiện nay
-            model = genai.GenerativeModel('gemini-3.6-flash')
+            model = genai.GenerativeModel('gemini-1.5-flash-latest')
+
+            integration_str = ", ".join(integrations) if integrations else "Không"
 
             prompt = f"""
-            Hãy đóng vai là một Chuyên gia Giáo dục THPT tại Việt Nam. Hãy soạn Kế hoạch bài dạy (KHBD) chuẩn 100% theo định dạng CÔNG VĂN 5512/BGDĐT cho bài học sau:
+            Bạn là một Chuyên gia Giáo dục THPT hàng đầu tại Việt Nam, am hiểu sâu sắc Chương trình GDPT 2018 và tài liệu từ Cổng thông tin Tập huấn Nhà xuất bản Giáo dục Việt Nam (taphuan.nxbgd.vn).
+
+            Hãy soạn một Kế hoạch bài dạy (KHBD) hoàn chỉnh, chi tiết và chuẩn 100% theo CÔNG VĂN 5512/BGDĐT cho bài học sau:
             - Môn học: {subject} ({grade})
+            - Bộ sách giáo khoa: {book_series}
             - Chương/Chủ đề: {chapter_title}
             - Tên bài dạy: {lesson_title}
             - Thời lượng: {duration} tiết
-            - Yêu cầu cần đạt: {requirements}
+            - Yêu cầu cần đạt cơ bản: {requirements}
+            - CÁC YẾU TỐ TÍCH HỢP BẮT BUỘC: {integration_str}
 
-            TRÌNH BÀY CHÍNH XÁC THEO KHUNG CẤU TRÚC SAU (Không thêm bớt tiêu đề mục lớn):
+            YÊU CẦU TRÌNH BÀY CHUẨN KHUNG CÔNG VĂN 5512:
 
             I. Mục tiêu
-            1. Về kiến thức: (Nêu cụ thể nội dung kiến thức học sinh cần học theo YCĐ).
-            2. Về năng lực: (Nêu cụ thể năng lực chung và năng lực đặc thù môn học).
-            3. Về phẩm chất: (Nêu cụ thể các phẩm chất gắn với bài dạy).
+            1. Về kiến thức: (Bám sát chuẩn YCĐ của Bộ GD&ĐT cho bài học này trong bộ sách {book_series}).
+            2. Về năng lực:
+               - Năng lực chung: Tự chủ và tự học, giao tiếp và hợp tác, giải quyết vấn đề và sáng tạo.
+               - Năng lực đặc thù môn học: (Nêu rõ các biểu hiện năng lực môn {subject}).
+               - Năng lực tích hợp ({integration_str}): Mô tả cụ thể hoạt động học sinh thực hiện (sử dụng công cụ số, AI, STEM...).
+            3. Về phẩm chất: (Yêu nước, nhân ái, chăm chỉ, trung thực, trách nhiệm).
 
             II. Thiết bị dạy học và học liệu
-            - Giáo viên: (Màn hình chiếu, phiếu học tập, SGK,...)
-            - Học sinh: (Vở ghi, SGK,...)
+            - Giáo viên: Kế hoạch bài dạy, bài giảng điện tử, thiết bị công nghệ, phần mềm hỗ trợ, phiếu học tập...
+            - Học sinh: SGK {subject} {grade} ({book_series}), vở ghi, dụng cụ học tập...
 
             III. Tiến trình dạy học
             1. Hoạt động 1: Xác định vấn đề/nhiệm vụ học tập/Mở đầu
@@ -168,27 +219,26 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD chuẩn 5512", type="primary"):
             a) Mục tiêu: ...
             b) Nội dung: ...
             c) Sản phẩm: ...
-            d) Tổ chức thực hiện: (Ghi rõ 4 bước: Chuyển giao, Thực hiện, Báo cáo, Kết luận)
+            d) Tổ chức thực hiện: (Trình bày đầy đủ 4 bước: Chuyển giao, Thực hiện, Báo cáo, Kết luận. Lồng ghép các hoạt động tích hợp đã chọn).
 
             3. Hoạt động 3: Luyện tập
             a) Mục tiêu: ...
             b) Nội dung: ...
             c) Sản phẩm: ...
-            d) Tổ chức thực hiện: (Ghi rõ 4 bước)
+            d) Tổ chức thực hiện: (Trình bày đầy đủ 4 bước).
 
             4. Hoạt động 4: Vận dụng và tìm tòi mở rộng
             a) Mục tiêu: ...
             b) Nội dung: ...
             c) Sản phẩm: ...
-            d) Tổ chức thực hiện: (Ghi rõ 4 bước)
+            d) Tổ chức thực hiện: (Trình bày đầy đủ 4 bước, giao nhiệm vụ ứng dụng thực tế hoặc tra cứu công nghệ).
             """
 
-            with st.spinner("✨ Hệ thống đang soạn thảo KHBD chuẩn 5512, thầy vui lòng đợi giây lát..."):
+            with st.spinner("✨ AI đang tra cứu chuẩn NXB Giáo dục và soạn thảo bài dạy 5512, thầy vui lòng đợi giây lát..."):
                 response = model.generate_content(prompt)
                 
                 st.success("🎉 Đã tạo thành công Kế hoạch bài dạy!")
                 
-                # Tạo file docx
                 doc_file = generate_doc(response.text)
                 
                 st.download_button(
