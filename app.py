@@ -14,10 +14,16 @@ import re
 st.set_page_config(page_title="Hệ thống Soạn Giáo án Tự Động 5512", layout="wide", page_icon="📝")
 
 # ==========================================
-# CẤU HÌNH GIAO DIỆN & TÙY CHỈNH STYLES
+# CẤU HÌNH GIAO DIỆN & TÙY CHỈNH STYLES (ĐẨY LÊN TẬN MÉP TRÊN + TĂNG FONT)
 # ==========================================
 st.markdown("""
     <style>
+    /* Đưa giao diện lên sát mép trên cùng của màn hình */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 2rem !important;
+    }
+
     /* Font chữ mặc định hệ thống */
     html, body, [class*="css"] {
         font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -26,7 +32,7 @@ st.markdown("""
     /* Trang trí Sidebar */
     .sidebar-title {
         color: #1e293b;
-        font-size: 18px !important;
+        font-size: 21px !important;
         font-weight: 700;
         margin-bottom: 12px;
         display: flex;
@@ -34,34 +40,34 @@ st.markdown("""
         gap: 8px;
     }
     
-    /* Định dạng Tiêu đề các BƯỚC (Màu đỏ, size 18px) */
+    /* Định dạng Tiêu đề các BƯỚC (Màu đỏ, size 21px - Tăng +3pt) */
     .step-header {
         color: #DC2626 !important;
-        font-size: 18px !important;
+        font-size: 21px !important;
         font-weight: 700 !important;
         margin-top: 15px !important;
         margin-bottom: 10px !important;
     }
 
-    /* Định dạng các Nhãn (Labels) in đậm (size 18px) */
+    /* Định dạng các Nhãn (Labels) in đậm (size 21px - Tăng +3pt) */
     .custom-label {
-        font-size: 18px !important;
+        font-size: 21px !important;
         font-weight: 700 !important;
         color: #1E293B !important;
         margin-bottom: 4px !important;
         display: block !important;
     }
     
-    /* Đẩy style vào nhãn mặc định của Streamlit (size 17px) */
+    /* Đẩy style vào nhãn mặc định của Streamlit (size 20px - Tăng +3pt) */
     div[data-testid="stWidgetLabel"] p {
-        font-size: 17px !important;
+        font-size: 20px !important;
         font-weight: 700 !important;
         color: #0F172A !important;
     }
 
-    /* Kích thước chữ trên các nút bấm */
+    /* Kích thước chữ trên các nút bấm (size 21px - Tăng +3pt) */
     .stButton button p {
-        font-size: 18px !important;
+        font-size: 21px !important;
         font-weight: 700 !important;
     }
     </style>
@@ -88,7 +94,7 @@ with st.sidebar:
         "Mô hình AI xử lý:",
         ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
         index=0,
-        help="Khuyên dùng 2.5-flash cho tốc độ soạn thảo nhanh nhất"
+        help="Khuyên dùng 2.6-flash cho tốc độ soạn thảo nhanh nhất"
     )
     
     st.markdown("---")
@@ -107,15 +113,15 @@ with st.sidebar:
     st.caption("🟢 **Trạng thái:** Hệ thống sẵn sàng")
 
 # ==========================================
-# TIÊU ĐỀ ỨNG DỤNG (30px & 20px)
+# TIÊU ĐỀ ỨNG DỤNG (37px SÁT MÉP TRÊN, TÁC GIẢ 23px)
 # ==========================================
 st.markdown("""
-    <div style="text-align: center; margin-bottom: 25px;">
-        <div style="font-size: 30px; font-weight: 800; color: #1E293B; line-height: 1.3;">
-             HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)
+    <div style="text-align: center; margin-top: 0px; margin-bottom: 20px;">
+        <div style="font-size: 37px; font-weight: 800; color: #1E293B; line-height: 1.2;">
+            📝 HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)
         </div>
-        <div style="font-size: 20px; font-weight: 600; color: #2563EB; margin-top: 6px;">
-           📝 Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
+        <div style="font-size: 23px; font-weight: 600; color: #2563EB; margin-top: 8px;">
+            Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -251,7 +257,7 @@ integrations = st.multiselect(
 )
 
 # ==========================================
-# XỬ LÝ XUẤT FILE WORD 5512 (FONTS GIỮ NGUYÊN 13pt & 14pt)
+# XỬ LÝ XUẤT FILE WORD 5512 (FONTS GIỮ NGUYÊN 13pt & 14pt CHUẨN)
 # ==========================================
 def generate_doc(content_text):
     doc = docx.Document()
@@ -264,7 +270,7 @@ def generate_doc(content_text):
 
     style = doc.styles['Normal']
     style.font.name = 'Times New Roman'
-    style.font.size = Pt(13) # Giữ nguyên 13pt chuẩn
+    style.font.size = Pt(13)
 
     table = doc.add_table(rows=1, cols=2)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -302,7 +308,7 @@ def generate_doc(content_text):
     p_title.paragraph_format.space_after = Pt(4)
     r_title = p_title.add_run(f"TÊN BÀI DẠY: {lesson_title.upper()}")
     r_title.bold = True
-    r_title.font.size = Pt(14) # Giữ nguyên 14pt cho Tiêu đề Bài dạy
+    r_title.font.size = Pt(14)
 
     p_sub = doc.add_paragraph()
     p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -326,7 +332,7 @@ def generate_doc(content_text):
             p.paragraph_format.space_before = Pt(12)
             run = p.add_run(clean_text)
             run.bold = True
-            run.font.size = Pt(14) # Giữ nguyên 14pt cho các mục lớn I, II, III
+            run.font.size = Pt(14)
         elif clean_text.startswith("TIẾT ") or clean_text.startswith("HOẠT ĐỘNG ") or clean_text.startswith("Nội dung ") or clean_text.startswith("Khối kiến thức "):
             p.paragraph_format.space_before = Pt(8)
             run = p.add_run(clean_text)
