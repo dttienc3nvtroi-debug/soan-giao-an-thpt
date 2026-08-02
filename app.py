@@ -20,7 +20,7 @@ st.markdown("""
     <style>
     /* Điều chỉnh lề trên để tiêu đề không bị lấp sát mép màn hình */
     .block-container {
-        padding-top: 2.2rem !important;
+        padding-top: 2.4rem !important;
         padding-bottom: 2rem !important;
     }
 
