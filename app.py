@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# CẤU HÌNH GIAO DIỆN & TÙY CHỈNH STYLES (ĐÃ TĂNG FONT CHO CÁC DỮ LIỆU BÀI HỌC)
+# CẤU HÌNH GIAO DIỆN & OVERRIDE FONT SÂU CHO CÁC Ô KHUNG ĐỎ
 # ==========================================
 st.markdown("""
     <style>
@@ -71,29 +71,47 @@ st.markdown("""
         margin-bottom: 6px !important;
     }
 
-    /* 6. TĂNG KÍCH THƯỚC CHỮ TẤT CẢ Ô INPUT, DROPDOWN, DỮ LIỆU TẢI VỀ (~24PX) */
-    div[data-baseweb="input"] input, 
-    div[data-baseweb="textarea"] textarea,
+    /* ========================================================
+       6. OVERRIDE SÂU CHO CÁC Ô TRONG KHUNG ĐỎ (+7PT -> 24PX)
+       ======================================================== */
+    /* A. Chữ bên trong tất cả ô Selectbox (Môn học, Khối lớp, Chọn bài học chuẩn) */
+    div[data-baseweb="select"] *, 
+    div[data-baseweb="select"] div, 
     div[data-baseweb="select"] span,
-    div[data-baseweb="select"] div,
     ul[role="listbox"] li,
-    .stSelectbox div[role="button"] {
-        font-size: 24px !important; /* +7pt */
+    ul[role="listbox"] li * {
+        font-size: 24px !important;
         font-weight: 700 !important;
-        color: #1e3a8a !important; /* Màu xanh đậm cho Tên bài, Tên chương... */
+        color: #1e3a8a !important;
         line-height: 1.4 !important;
     }
 
-    /* Tùy chỉnh riêng cho ô Textarea Yêu cầu cần đạt */
-    div[data-baseweb="textarea"] textarea {
-        font-size: 22px !important;
-        font-weight: 600 !important;
+    /* B. Chữ bên trong ô Input (Chương, Tên bài, Số tiết,...) */
+    div[data-baseweb="input"] input,
+    .stTextInput input,
+    .stNumberInput input {
+        font-size: 24px !important;
+        font-weight: 700 !important;
+        color: #1e3a8a !important;
+        padding-top: 10px !important;
+        padding-bottom: 10px !important;
     }
 
-    /* Tăng độ cao ô nhập để chữ lớn không bị đè */
-    div[data-baseweb="input"] input {
-        padding-top: 8px !important;
-        padding-bottom: 8px !important;
+    /* C. Chữ bên trong ô Textarea (Yêu cầu cần đạt) */
+    div[data-baseweb="textarea"] textarea,
+    .stTextArea textarea {
+        font-size: 24px !important;
+        font-weight: 600 !important;
+        color: #1e3a8a !important;
+        line-height: 1.5 !important;
+    }
+
+    /* D. Nút tăng giảm số tiết (+ / -) */
+    .stNumberInput button {
+        height: 100% !important;
+    }
+    .stNumberInput button * {
+        font-size: 22px !important;
     }
 
     /* 7. Thiết kế Nút Bấm chữ lớn */
