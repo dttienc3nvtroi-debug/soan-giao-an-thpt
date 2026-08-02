@@ -100,9 +100,9 @@ with st.sidebar:
     # Chuẩn hóa danh sách mô hình AI ổn định nhất
     model_name = st.selectbox(
         "Mô hình AI xử lý:",
-        ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-exp"],
+        ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
         index=0,
-        help="Khuyên dùng gemini-1.5-flash để ổn định nhất"
+        help="Khuyên dùng gemini-3.6-flash để ổn định nhất"
     )
     st.markdown("---")
     
