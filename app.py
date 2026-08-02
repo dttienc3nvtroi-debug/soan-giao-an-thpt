@@ -90,7 +90,7 @@ with st.sidebar:
 # ==========================================
 st.markdown("""
     <div style="font-size: 20px; font-weight: bold; margin-bottom: 5px;">
-        📝 HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)
+        HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)
     </div>
     <div style="font-size: 20px; font-weight: bold; color: #007BFF; margin-bottom: 25px;">
         📝 Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
