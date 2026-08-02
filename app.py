@@ -18,9 +18,9 @@ st.set_page_config(page_title="Hệ thống Soạn Giáo án Tự Động 5512",
 # ==========================================
 st.markdown("""
     <style>
-    /* Điều chỉnh lề trên để tiêu đề không bị lấp sát mép màn hình */
+    /* Điều chỉnh lề trên để tiêu đề hiển thị thoáng đẹp */
     .block-container {
-        padding-top: 2.8rem !important;
+        padding-top: 1.5rem !important;
         padding-bottom: 2rem !important;
     }
 
@@ -65,12 +65,15 @@ st.markdown("""
         color: #0F172A !important;
     }
 
-    /* TĂNG 5PT CHO CÁC Ô NHẬP LIỆU (INPUT, TEXTAREA, SELECTBOX) */
+    /* TĂNG THÊM 5PT CHO CHỮ TRONG Ô NHẬP LIỆU & DANH SÁCH CHỌN (CHỮ XANH ĐẬM, SIZE 26PX) */
     div[data-baseweb="input"] input, 
     div[data-baseweb="textarea"] textarea,
-    div[data-baseweb="select"] div {
-        font-size: 25px !important;
-        font-weight: 500 !important;
+    div[data-baseweb="select"] span,
+    div[data-baseweb="select"] div,
+    ul[role="listbox"] li {
+        font-size: 26px !important;
+        font-weight: 700 !important;
+        color: #1E3A8A !important; /* Màu xanh đậm */
     }
 
     /* Kích thước chữ trên các nút bấm */
@@ -121,15 +124,15 @@ with st.sidebar:
     st.caption("🟢 **Trạng thái:** Hệ thống sẵn sàng")
 
 # ==========================================
-# TIÊU ĐỀ ỨNG DỤNG (RÕ RÀNG, KHÔNG BỊ KHUẤT)
+# TIÊU ĐỀ ỨNG DỤNG
 # ==========================================
 st.markdown("""
     <div style="text-align: center; margin-bottom: 20px;">
-        <div style="font-size: 42px; font-weight: 800; color: #1E293B; line-height: 1.2;">
-             HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)
+        <div style="font-size: 37px; font-weight: 800; color: #1E293B; line-height: 1.2;">
+            📝 HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)
         </div>
         <div style="font-size: 23px; font-weight: 600; color: #2563EB; margin-top: 8px;">
-          📝  Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
+            Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -265,7 +268,7 @@ integrations = st.multiselect(
 )
 
 # ==========================================
-# XỬ LÝ XUẤT FILE WORD 5512 (FONTS GIỮ NGUYÊN 13pt & 14pt CHUẨN)
+# XỬ LÝ XUẤT FILE WORD 5512
 # ==========================================
 def generate_doc(content_text):
     doc = docx.Document()
