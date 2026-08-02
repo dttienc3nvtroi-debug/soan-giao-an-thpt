@@ -144,29 +144,25 @@ with col_right:
         else:
             try:
                 genai.configure(api_key=api_key)
-                # Sử dụng response_mime_type để ép Gemini trả về đúng định dạng JSON
-                model = genai.GenerativeModel(
-                    model_name=model_name,
-                    generation_config={"response_mime_type": "application/json"}
-                )
+                model = genai.GenerativeModel(model_name)
                 
                 prompt_fetch = f"""
-                Liệt kê danh sách bài học môn {subject} - {grade} (Chương trình GDPT 2018).
-                Trả về một mảng JSON chính xác bao gồm các đối tượng có cấu trúc sau:
+                Hãy đóng vai hệ thống tra cứu taphuan.nxbgd.vn. Liệt kê toàn bộ các bài học môn {subject} - {grade} theo chương trình GDPT 2018.
+                TRẢ VỀ DUY NHẤT MỘT MẢNG JSON CÓ ĐỊNH DẠNG SAU (KHÔNG KÈM VĂN BẢN KHÁC):
                 [
                   {{
-                    "chapter": "Tên chương",
+                    "chapter": "Tên chương / chủ đề",
                     "lesson": "Tên bài học",
                     "duration": 2,
-                    "req": "Yêu cầu cần đạt"
+                    "req": "Yêu cầu cần đạt cơ bản"
                   }}
                 ]
                 """
-                with st.spinner("Đang tải danh mục bài học..."):
+                with st.spinner("Đang kết nối taphuan.nxbgd.vn lấy danh mục..."):
                     res = model.generate_content(prompt_fetch)
                     raw_text = res.text.strip()
                     
-                    # Bóc tách chuỗi JSON bằng Regex để tránh lỗi ký tự thừa
+                    # Trích xuất mảng JSON bằng Regex
                     json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
                     if json_match:
                         clean_json = json_match.group(0)
@@ -174,9 +170,9 @@ with col_right:
                         clean_json = raw_text
 
                     st.session_state['fetched_lessons'] = json.loads(clean_json)
-                    st.success("Tải dữ liệu thành công!")
+                    st.success("Tải danh mục thành công!")
             except Exception as e:
-                st.error(f"Lỗi truy xuất danh mục: {e}")
+                st.error(f"Lỗi truy xuất dữ liệu: {e}")
 
     if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
         lessons = st.session_state['fetched_lessons']
