@@ -20,7 +20,7 @@ st.markdown("""
     <style>
     /* Điều chỉnh lề trên để tiêu đề hiển thị thoáng đẹp */
     .block-container {
-        padding-top: 1.5rem !important;
+        padding-top: 2.8rem !important;
         padding-bottom: 2rem !important;
     }
 
@@ -129,10 +129,10 @@ with st.sidebar:
 st.markdown("""
     <div style="text-align: center; margin-bottom: 20px;">
         <div style="font-size: 37px; font-weight: 800; color: #1E293B; line-height: 1.2;">
-            📝 HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)
+             HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)
         </div>
-        <div style="font-size: 23px; font-weight: 600; color: #2563EB; margin-top: 8px;">
-            Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
+        <div style="font-size: 28px; font-weight: 600; color: #2563EB; margin-top: 8px;">
+            📝 Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
         </div>
     </div>
 """, unsafe_allow_html=True)
