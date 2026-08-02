@@ -72,10 +72,7 @@ st.markdown("""
         margin-bottom: 6px !important;
     }
 
-    /* ========================================================
-       6. ĐẶC TRỊ TĂNG FONT CHO 3 Ô SELECTBOX VÀ MULTISELECT
-       ======================================================== */
-    /* Ép tất cả văn bản bên trong các ô Selectbox (Môn học, Khối lớp, Bài học chuẩn) */
+    /* 6. ĐẶC TRỊ TĂNG FONT CHO SELECTBOX VÀ INPUT */
     .stSelectbox div[data-baseweb="select"] *,
     .stSelectbox [data-testid="stMarkdownContainer"] p,
     div[data-baseweb="select"] div,
@@ -87,20 +84,17 @@ st.markdown("""
         line-height: 1.4 !important;
     }
 
-    /* Tăng font danh sách sổ xuống khi click vào Selectbox */
     ul[role="listbox"] li,
     ul[role="listbox"] li * {
         font-size: 21px !important;
         font-weight: 600 !important;
     }
 
-    /* Thẻ Tag Tích hợp năng lực (Multiselect ở Bước 3) */
     span[data-baseweb="tag"] * {
         font-size: 18px !important;
         font-weight: 700 !important;
     }
 
-    /* B. Chữ bên trong ô Input (Chương, Tên bài, Số tiết,...) */
     div[data-baseweb="input"] input,
     .stTextInput input,
     .stNumberInput input {
@@ -111,7 +105,6 @@ st.markdown("""
         padding-bottom: 8px !important;
     }
 
-    /* C. Chữ bên trong ô Textarea (Yêu cầu cần đạt) */
     div[data-baseweb="textarea"] textarea,
     .stTextArea textarea {
         font-size: 21px !important;
@@ -120,7 +113,6 @@ st.markdown("""
         line-height: 1.4 !important;
     }
 
-    /* D. Nút tăng giảm số tiết (+ / -) */
     .stNumberInput button {
         height: 100% !important;
     }
@@ -128,7 +120,6 @@ st.markdown("""
         font-size: 19px !important;
     }
 
-    /* 7. Thiết kế Nút Bấm */
     .stButton button {
         border-radius: 8px !important;
         font-weight: 700 !important;
@@ -141,7 +132,6 @@ st.markdown("""
         font-weight: 700 !important;
     }
     
-    /* Chữ ghi chú caption & thông báo */
     .stCaption, .stAlert p {
         font-size: 18px !important;
     }
@@ -223,45 +213,11 @@ with col_grd:
     )
 
 # ==========================================
-# BƯỚC 2: TRA CỨU, CHỌN BÀI HỌC CHUẨN & CHỌN FILE SGV
+# BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN / CHỌN FILE SGV
 # ==========================================
 st.markdown('<div class="step-header">📖 BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN / CHỌN FILE SGV</div>', unsafe_allow_html=True)
 
-# 1. Bổ sung tính năng Tải file SGV
-st.markdown('<span class="custom-label">📂 Tải lên File SGV (Sách Giáo Viên - PDF hoặc Ảnh):</span>', unsafe_allow_html=True)
-uploaded_sgv_file = st.file_uploader(
-    "Tải lên File SGV:", 
-    type=["pdf", "png", "jpg", "jpeg"], 
-    label_visibility="collapsed"
-)
-
-if uploaded_sgv_file is not None:
-    if st.button("🔍 Đọc Yêu cầu cần đạt từ File SGV"):
-        if not api_key:
-            st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
-        else:
-            try:
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel(model_name)
-                with st.spinner("✨ AI đang trích xuất Yêu cầu cần đạt từ File SGV..."):
-                    if uploaded_sgv_file.type in ["image/png", "image/jpeg", "image/jpg"]:
-                        img = Image.open(uploaded_sgv_file)
-                        res = model.generate_content(["Trích xuất chính xác Yêu cầu cần đạt / Mục tiêu bài học trong file ảnh SGV này:", img])
-                        st.session_state['req_from_sgv_file'] = res.text
-                    else:
-                        pdf_bytes = uploaded_sgv_file.read()
-                        res = model.generate_content([
-                            "Trích xuất chính xác Yêu cầu cần đạt / Mục tiêu bài học trong file PDF SGV này:",
-                            {"mime_type": "application/pdf", "data": pdf_bytes}
-                        ])
-                        st.session_state['req_from_sgv_file'] = res.text
-                st.success("🎉 Đã trích xuất Yêu cầu cần đạt từ File SGV thành công!")
-            except Exception as e:
-                st.error(f"Lỗi khi xử lý File SGV: {e}")
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# 2. Đồng bộ từ taphuan.nxbgd.vn
+# HÀNG 1: Nút Cập nhật danh sách từ taphuan.nxbgd.vn
 if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nxbgd.vn", use_container_width=True):
     if not api_key:
         st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
@@ -300,56 +256,97 @@ if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nx
         except Exception as e:
             st.error(f"Lỗi khi tải danh mục bài học: {e}")
 
-# Lấy giá trị YCĐ ưu tiên từ file SGV vừa đọc (nếu có)
-req_default_value = st.session_state.get('req_from_sgv_file', '')
+st.markdown("<br>", unsafe_allow_html=True)
 
-if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
-    lessons_data = st.session_state['fetched_lessons']
-    lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
-    
-    st.markdown('<span class="custom-label">👉 Chọn Bài học chuẩn từ danh sách vừa tải:</span>', unsafe_allow_html=True)
-    selected_idx = st.selectbox(
-        "👉 Chọn Bài học chuẩn từ danh sách vừa tải:", 
-        range(len(lesson_titles)), 
-        format_func=lambda x: lesson_titles[x],
+# HÀNG 2: Chia 2 Cột (Trái: File Uploader - Phải: Selectbox Bài học)
+col_b2_left, col_b2_right = st.columns(2)
+
+with col_b2_left:
+    st.markdown('<span class="custom-label">📂 Tải lên File SGV (Sách Giáo Viên - PDF hoặc Ảnh):</span>', unsafe_allow_html=True)
+    uploaded_sgv_file = st.file_uploader(
+        "Tải lên File SGV:", 
+        type=["pdf", "png", "jpg", "jpeg"], 
         label_visibility="collapsed"
     )
-    
-    current_item = lessons_data[selected_idx]
-    
-    col_i1, col_i2 = st.columns([1, 2])
-    with col_i1:
-        st.markdown('<span class="custom-label">Chương:</span>', unsafe_allow_html=True)
-        chapter_title = st.text_input("Chương:", value=current_item['chapter'], label_visibility="collapsed")
-        
-        st.markdown('<span class="custom-label">Tên bài:</span>', unsafe_allow_html=True)
-        lesson_title = st.text_input("Tên bài:", value=current_item['lesson'], label_visibility="collapsed")
-        
-        st.markdown('<span class="custom-label">Số tiết:</span>', unsafe_allow_html=True)
-        duration = st.number_input("Số tiết:", value=int(current_item['duration']), label_visibility="collapsed")
-    
-    with col_i2:
-        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt (Quy định chuẩn NXB Giáo dục / SGV):</span>', unsafe_allow_html=True)
-        final_req = req_default_value if req_default_value else current_item['req']
-        requirements = st.text_area("YCĐ:", value=final_req, height=230, label_visibility="collapsed")
+    if uploaded_sgv_file is not None:
+        if st.button("🔍 Đọc YCĐ từ File SGV", use_container_width=True):
+            if not api_key:
+                st.error("⚠️ Vui lòng nhập Gemini API Key!")
+            else:
+                try:
+                    genai.configure(api_key=api_key)
+                    model = genai.GenerativeModel(model_name)
+                    with st.spinner("✨ AI đang đọc YCĐ từ File SGV..."):
+                        if uploaded_sgv_file.type in ["image/png", "image/jpeg", "image/jpg"]:
+                            img = Image.open(uploaded_sgv_file)
+                            res = model.generate_content(["Trích xuất Yêu cầu cần đạt trong file ảnh SGV này:", img])
+                            st.session_state['req_from_sgv_file'] = res.text
+                        else:
+                            pdf_bytes = uploaded_sgv_file.read()
+                            res = model.generate_content([
+                                "Trích xuất Yêu cầu cần đạt trong file PDF SGV này:",
+                                {"mime_type": "application/pdf", "data": pdf_bytes}
+                            ])
+                            st.session_state['req_from_sgv_file'] = res.text
+                    st.success("🎉 Đã trích xuất YCĐ thành công!")
+                except Exception as e:
+                    st.error(f"Lỗi đọc file: {e}")
 
-else:
-    st.info("💡 Thầy có thể tải **File SGV** ở trên hoặc bấm nút **'🔍 Cập nhật danh sách Chương & Bài học...'** để AI tự động tải bài học chuẩn!")
-    
-    col_i1, col_i2 = st.columns([1, 2])
-    with col_i1:
-        st.markdown('<span class="custom-label">Chương:</span>', unsafe_allow_html=True)
-        chapter_title = st.text_input("Chương:", value="", placeholder="Nhập tên chương...", label_visibility="collapsed")
-        
-        st.markdown('<span class="custom-label">Tên bài:</span>', unsafe_allow_html=True)
-        lesson_title = st.text_input("Tên bài:", value="", placeholder="Nhập tên bài...", label_visibility="collapsed")
-        
-        st.markdown('<span class="custom-label">Số tiết:</span>', unsafe_allow_html=True)
-        duration = st.number_input("Số tiết:", value=2, label_visibility="collapsed")
-        
-    with col_i2:
-        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt:</span>', unsafe_allow_html=True)
-        requirements = st.text_area("YCĐ:", value=req_default_value, placeholder="Nhập yêu cầu cần đạt hoặc đọc từ File SGV...", height=230, label_visibility="collapsed")
+with col_b2_right:
+    st.markdown('<span class="custom-label">👉 Chọn Bài học chuẩn từ danh sách vừa tải:</span>', unsafe_allow_html=True)
+    if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
+        lessons_data = st.session_state['fetched_lessons']
+        lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
+        selected_idx = st.selectbox(
+            "👉 Chọn Bài học chuẩn từ danh sách vừa tải:", 
+            range(len(lesson_titles)), 
+            format_func=lambda x: lesson_titles[x],
+            label_visibility="collapsed"
+        )
+        current_item = lessons_data[selected_idx]
+        default_chap = current_item['chapter']
+        default_less = current_item['lesson']
+        default_dur = int(current_item['duration'])
+        default_req = current_item['req']
+    else:
+        st.selectbox(
+            "👉 Chọn Bài học chuẩn từ danh sách vừa tải:",
+            ["(Bấm nút Cập nhật ở trên để tải danh sách)"],
+            disabled=True,
+            label_visibility="collapsed"
+        )
+        default_chap = ""
+        default_less = ""
+        default_dur = 2
+        default_req = ""
+
+# Lấy YCĐ ưu tiên từ file SGV nếu có tải lên
+req_from_file = st.session_state.get('req_from_sgv_file', '')
+if req_from_file:
+    default_req = req_from_file
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# HÀNG 3: Chia 3 Cột (Chương, Tên bài, Số tiết)
+col_c1, col_c2, col_c3 = st.columns([2.5, 2.5, 1])
+
+with col_c1:
+    st.markdown('<span class="custom-label">Chương:</span>', unsafe_allow_html=True)
+    chapter_title = st.text_input("Chương:", value=default_chap, placeholder="Nhập tên chương...", label_visibility="collapsed")
+
+with col_c2:
+    st.markdown('<span class="custom-label">Tên bài:</span>', unsafe_allow_html=True)
+    lesson_title = st.text_input("Tên bài:", value=default_less, placeholder="Nhập tên bài...", label_visibility="collapsed")
+
+with col_c3:
+    st.markdown('<span class="custom-label">Số tiết:</span>', unsafe_allow_html=True)
+    duration = st.number_input("Số tiết:", value=default_dur, min_value=1, label_visibility="collapsed")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# HÀNG 4: Yêu cầu cần đạt
+st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt (Chuẩn SGV / taphuan.nxbgd.vn):</span>', unsafe_allow_html=True)
+requirements = st.text_area("YCĐ:", value=default_req, placeholder="Nội dung Yêu cầu cần đạt sẽ tự động hiển thị khi chọn bài hoặc đọc từ File SGV...", height=180, label_visibility="collapsed")
 
 # ==========================================
 # BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
