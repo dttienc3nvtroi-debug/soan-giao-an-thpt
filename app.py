@@ -8,6 +8,7 @@ from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 import io
 import json
+import re
 
 # Cấu hình trang Streamlit
 st.set_page_config(page_title="Hệ thống Soạn Giáo án Tự Động 5512", layout="wide", page_icon="📝")
@@ -86,7 +87,7 @@ with st.sidebar:
     st.caption("🟢 **Trạng thái:** Hệ thống sẵn sàng")
 
 # ==========================================
-# TIÊU ĐỀ ỨNG DỤNG (CÙNG KÍCH THƯỚC, TÁC GIẢ MÀU XANH)
+# TIÊU ĐỀ ỨNG DỤNG
 # ==========================================
 st.markdown("""
     <div style="font-size: 20px; font-weight: bold; margin-bottom: 5px;">
@@ -121,23 +122,30 @@ if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nx
             Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
             Liệt kê ĐẦY ĐỦ, ĐÚNG THỨ TỰ tất cả các Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức/GDPT 2018).
             
-            Trả về duy nhất dạng JSON theo cấu trúc:
+            LƯU Ý ĐẶC BIỆT: Bắt buộc phải bao gồm đầy đủ cả các bài đánh số VÀ các bài "Bài tập cuối chương...", "Ôn tập chương..." ở cuối mỗi chương.
+            
+            Trả về duy nhất dạng JSON theo cấu trúc mảng:
             [
               {{
                 "chapter": "Tên Chương 1",
-                "lesson": "Tên Bài 1",
+                "lesson": "Tên Bài 1 hoặc Bài tập cuối chương...",
                 "duration": 2,
-                "req": "Yêu cầu cần đạt chuẩn của bài 1"
+                "req": "Yêu cầu cần đạt chuẩn của bài"
               }}
             ]
-            Chỉ trả về mã JSON nguyên bản, không thêm văn bản giải thích hay định dạng markdown khác.
+            Chỉ trả về mã JSON nguyên bản trong mảng [ ... ], không thêm bất kỳ văn bản giải thích nào khác.
             """
             
-            with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade} từ taphuan.nxbgd.vn..."):
+            with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade} (bao gồm Bài tập cuối chương)..."):
                 res = model.generate_content(prompt_fetch)
-                clean_json = res.text.replace("```json", "").replace("```", "").strip()
+                raw_text = res.text.strip()
+                
+                # Bóc tách JSON an toàn bằng Regex
+                json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
+                clean_json = json_match.group(0) if json_match else raw_text
+                
                 st.session_state['fetched_lessons'] = json.loads(clean_json)
-                st.success("🎉 Đã tải xong danh mục bài học chuẩn!")
+                st.success("🎉 Đã tải xong danh mục bài học chuẩn đầy đủ!")
         except Exception as e:
             st.error(f"Lỗi khi tải danh mục bài học: {e}")
 
@@ -152,7 +160,7 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
     with col_i1:
         chapter_title = st.text_input("Chương:", value=current_item['chapter'])
         lesson_title = st.text_input("Tên bài:", value=current_item['lesson'])
-        duration = st.number_input("Số tiết:", value=current_item['duration'])
+        duration = st.number_input("Số tiết:", value=int(current_item['duration']))
     with col_i2:
         st.markdown("**📌 Yêu cầu cần đạt (Quy định chuẩn NXB Giáo dục):**")
         requirements = st.text_area("YCĐ:", value=current_item['req'], height=120)
@@ -312,7 +320,7 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary"):
             - Trình bày chính xác theo cấu trúc mục tiêu và tiến trình chuẩn Công văn 5512:
               I. MỤC TIÊU (In hoa hoàn toàn)
               1. Kiến thức:
-              2. Năng lực: (2.1. Năng lực toán học, 2.2. Năng lực chung, 2.3. Năng lực Số / Ứng dụng CNTT và AI)
+              2. Năng lực: (2.1. Năng lực toán học/chuyên môn, 2.2. Năng lực chung, 2.3. Năng lực Số / Ứng dụng CNTT và AI)
               3. Phẩm chất:
               II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU (In hoa hoàn toàn)
               1. Giáo viên:
