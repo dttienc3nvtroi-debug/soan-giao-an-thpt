@@ -8,6 +8,7 @@ from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 import io
 import json
+import re
 
 # Cấu hình trang Streamlit
 st.set_page_config(page_title="Hệ Thống Soạn KHBD", layout="wide", page_icon="📝")
@@ -24,7 +25,6 @@ st.markdown("""
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* Áp dụng phông chữ Inter và màu nền gốc */
         html, body, [class*="css"] {
             font-family: 'Inter', sans-serif !important;
         }
@@ -36,13 +36,11 @@ st.markdown("""
             padding-bottom: 3rem !important;
             max-width: 64rem !important;
         }
-        /* Custom styling cho Input và Selectbox giống Tailwind */
         div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
             background-color: #FFFFFF !important;
             border-color: #E5E7EB !important;
             border-radius: 0.75rem !important;
         }
-        /* Style cho nút Gradient chính */
         div.stButton > button[kind="primary"] {
             background: linear-gradient(to right, #2563EB, #4F46E5) !important;
             color: white !important;
@@ -146,26 +144,50 @@ with col_right:
         else:
             try:
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel(model_name)
-                prompt_fetch = f"Liệt kê danh sách bài học môn {subject} {grade} (Bộ sách GDPT 2018) dạng JSON: [{{'chapter':'', 'lesson':'', 'duration':2, 'req':''}}]"
+                # Sử dụng response_mime_type để ép Gemini trả về đúng định dạng JSON
+                model = genai.GenerativeModel(
+                    model_name=model_name,
+                    generation_config={"response_mime_type": "application/json"}
+                )
+                
+                prompt_fetch = f"""
+                Liệt kê danh sách bài học môn {subject} - {grade} (Chương trình GDPT 2018).
+                Trả về một mảng JSON chính xác bao gồm các đối tượng có cấu trúc sau:
+                [
+                  {{
+                    "chapter": "Tên chương",
+                    "lesson": "Tên bài học",
+                    "duration": 2,
+                    "req": "Yêu cầu cần đạt"
+                  }}
+                ]
+                """
                 with st.spinner("Đang tải danh mục bài học..."):
                     res = model.generate_content(prompt_fetch)
-                    clean_json = res.text.replace("```json", "").replace("```", "").strip()
+                    raw_text = res.text.strip()
+                    
+                    # Bóc tách chuỗi JSON bằng Regex để tránh lỗi ký tự thừa
+                    json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
+                    if json_match:
+                        clean_json = json_match.group(0)
+                    else:
+                        clean_json = raw_text
+
                     st.session_state['fetched_lessons'] = json.loads(clean_json)
                     st.success("Tải dữ liệu thành công!")
             except Exception as e:
-                st.error(f"Lỗi: {e}")
+                st.error(f"Lỗi truy xuất danh mục: {e}")
 
     if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
         lessons = st.session_state['fetched_lessons']
-        titles = [f"{i['chapter']} - {i['lesson']}" for i in lessons]
-        sel_idx = st.selectbox("Chọn bài học:", range(len(titles)), format_func=lambda x: titles[x])
+        titles = [f"{i.get('chapter', '')} - {i.get('lesson', '')}" for i in lessons]
+        sel_idx = st.selectbox("👉 Chọn bài học chuẩn:", range(len(titles)), format_func=lambda x: titles[x])
         curr = lessons[sel_idx]
-        chapter_title = st.text_input("Tên Chương/Chủ đề", value=curr['chapter'])
-        lesson_title = st.text_input("Tên Bài dạy", value=curr['lesson'])
+        chapter_title = st.text_input("Tên Chương/Chủ đề", value=curr.get('chapter', ''))
+        lesson_title = st.text_input("Tên Bài dạy", value=curr.get('lesson', ''))
         c_dur, c_req = st.columns([1, 2])
-        with c_dur: duration = st.number_input("Số tiết", value=curr['duration'])
-        with c_req: requirements = st.text_input("Yêu cầu cần đạt", value=curr['req'])
+        with c_dur: duration = st.number_input("Số tiết", value=int(curr.get('duration', 2)))
+        with c_req: requirements = st.text_input("Yêu cầu cần đạt", value=curr.get('req', ''))
     else:
         chapter_title = st.text_input("Tên Chương/Chủ đề", placeholder="Nhập tên chương...")
         lesson_title = st.text_input("Tên Bài dạy", placeholder="Nhập tên bài dạy...")
@@ -211,7 +233,6 @@ def create_word_document(content_text):
     style.font.name = 'Times New Roman'
     style.font.size = Pt(13)
 
-    # Header Table
     table = doc.add_table(rows=1, cols=2)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.columns[0].width = Inches(3.2)
@@ -230,7 +251,6 @@ def create_word_document(content_text):
             tcBorders = parse_xml(r'<w:tcBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>' % nsdecls('w'))
             tcPr.append(tcBorders)
 
-    # Title
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_title = p_title.add_run(f"\nTÊN BÀI DẠY: {lesson_title.upper()}\n")
@@ -242,7 +262,6 @@ def create_word_document(content_text):
     r_sub = p_sub.add_run(f"Môn học: {subject}; Lớp: {grade}\nThời gian thực hiện: ({duration} tiết)\n")
     r_sub.italic = True
 
-    # Main Body Text
     for line in content_text.split('\n'):
         clean_line = line.strip().replace("**", "").replace("*", "")
         if not clean_line or clean_line.startswith("---"): continue
