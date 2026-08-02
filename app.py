@@ -14,13 +14,13 @@ import re
 st.set_page_config(page_title="Hệ thống Soạn Giáo án Tự Động 5512", layout="wide", page_icon="📝")
 
 # ==========================================
-# CẤU HÌNH GIAO DIỆN & TÙY CHỈNH STYLES (ĐẨY LÊN TẬN MÉP TRÊN + TĂNG FONT)
+# CẤU HÌNH GIAO DIỆN & TÙY CHỈNH STYLES
 # ==========================================
 st.markdown("""
     <style>
-    /* Đưa giao diện lên sát mép trên cùng của màn hình */
+    /* Điều chỉnh lề trên để tiêu đề không bị lấp sát mép màn hình */
     .block-container {
-        padding-top: 1rem !important;
+        padding-top: 1.5rem !important;
         padding-bottom: 2rem !important;
     }
 
@@ -40,7 +40,7 @@ st.markdown("""
         gap: 8px;
     }
     
-    /* Định dạng Tiêu đề các BƯỚC (Màu đỏ, size 21px - Tăng +3pt) */
+    /* Định dạng Tiêu đề các BƯỚC */
     .step-header {
         color: #DC2626 !important;
         font-size: 21px !important;
@@ -49,7 +49,7 @@ st.markdown("""
         margin-bottom: 10px !important;
     }
 
-    /* Định dạng các Nhãn (Labels) in đậm (size 21px - Tăng +3pt) */
+    /* Định dạng các Nhãn (Labels) */
     .custom-label {
         font-size: 21px !important;
         font-weight: 700 !important;
@@ -58,14 +58,22 @@ st.markdown("""
         display: block !important;
     }
     
-    /* Đẩy style vào nhãn mặc định của Streamlit (size 20px - Tăng +3pt) */
+    /* Đẩy style vào nhãn mặc định của Streamlit */
     div[data-testid="stWidgetLabel"] p {
         font-size: 20px !important;
         font-weight: 700 !important;
         color: #0F172A !important;
     }
 
-    /* Kích thước chữ trên các nút bấm (size 21px - Tăng +3pt) */
+    /* TĂNG 5PT CHO CÁC Ô NHẬP LIỆU (INPUT, TEXTAREA, SELECTBOX) */
+    div[data-baseweb="input"] input, 
+    div[data-baseweb="textarea"] textarea,
+    div[data-baseweb="select"] div {
+        font-size: 21px !important;
+        font-weight: 500 !important;
+    }
+
+    /* Kích thước chữ trên các nút bấm */
     .stButton button p {
         font-size: 21px !important;
         font-weight: 700 !important;
@@ -94,7 +102,7 @@ with st.sidebar:
         "Mô hình AI xử lý:",
         ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
         index=0,
-        help="Khuyên dùng 2.6-flash cho tốc độ soạn thảo nhanh nhất"
+        help="Khuyên dùng gemini-3.6-flash cho tốc độ soạn thảo nhanh nhất"
     )
     
     st.markdown("---")
@@ -113,10 +121,10 @@ with st.sidebar:
     st.caption("🟢 **Trạng thái:** Hệ thống sẵn sàng")
 
 # ==========================================
-# TIÊU ĐỀ ỨNG DỤNG (37px SÁT MÉP TRÊN, TÁC GIẢ 23px)
+# TIÊU ĐỀ ỨNG DỤNG (RÕ RÀNG, KHÔNG BỊ KHUẤT)
 # ==========================================
 st.markdown("""
-    <div style="text-align: center; margin-top: 0px; margin-bottom: 20px;">
+    <div style="text-align: center; margin-bottom: 20px;">
         <div style="font-size: 37px; font-weight: 800; color: #1E293B; line-height: 1.2;">
             📝 HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)
         </div>
