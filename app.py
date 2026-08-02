@@ -165,9 +165,9 @@ with st.sidebar:
     )
     model_name = st.selectbox(
         "Mô hình AI xử lý:",
-        ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.5-pro"],
+        ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
         index=0,
-        help="Khuyên dùng gemini-2.5-flash để tốc độ xử lý nhanh và tối ưu nhất"
+        help="Khuyên dùng gemini-3.6-flash để tốc độ xử lý nhanh và tối ưu nhất"
     )
     st.markdown("---")
     
