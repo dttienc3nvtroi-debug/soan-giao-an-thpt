@@ -10,90 +10,70 @@ import io
 import json
 
 # Cấu hình trang Streamlit
-st.set_page_config(page_title="Hệ thống Soạn Giáo án Tự Động 5512", layout="wide", page_icon="📝")
+st.set_page_config(page_title="Hệ Thống Soạn KHBD", layout="wide", page_icon="📝")
 
 # ==========================================
-# CẤU HÌNH GIAO DIỆN CHUẨN DASHBOARD MODERN (THEO ẢNH MẪU)
+# NHÚNG TAILWIND CSS & FONTAWESOME TRỰC TIẾP
 # ==========================================
 st.markdown("""
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
-    /* Font chữ mặc định */
-    html, body, [class*="css"] {
-        font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
-    }
-    
-    /* Nền tổng thể xám xịn hiện đại */
-    .stApp {
-        background-color: #F4F6F9;
-    }
-    
-    /* Định dạng Khung / Card trắng bo tròn bóng đổ */
-    div[data-testid="stVerticalBlock"] > div.element-container {
-        font-family: 'Segoe UI', Roboto, sans-serif;
-    }
-
-    /* Tùy chỉnh các khối container chính */
-    .stCard {
-        background-color: #FFFFFF;
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-        border: 1px solid #E2E8F0;
-        margin-bottom: 20px;
-    }
-    
-    /* Căn giữa tiêu đề chính */
-    .main-header {
-        text-align: center;
-        margin-top: -20px;
-        margin-bottom: 30px;
-    }
-    .main-title {
-        font-size: 28px;
-        font-weight: 800;
-        color: #1E293B;
-        letter-spacing: -0.5px;
-    }
-    .author-title {
-        font-size: 18px;
-        font-weight: 700;
-        color: #007BFF;
-        margin-top: 5px;
-    }
-
-    /* Thiết kế nút bấm chuyển màu Gradient sinh động */
-    div.stButton > button[kind="primary"] {
-        background: linear-gradient(90deg, #FF4B4B 0%, #007BFF 100%) !important;
-        color: white !important;
-        font-weight: 800 !important;
-        font-size: 18px !important;
-        border-radius: 30px !important;
-        padding: 12px 35px !important;
-        border: none !important;
-        box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3) !important;
-        display: block !important;
-        margin: 0 auto !important;
-        transition: all 0.3s ease !important;
-    }
-    div.stButton > button[kind="primary"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(0, 123, 255, 0.5) !important;
-    }
-
-    /* Tùy chỉnh Nút bấm thường */
-    div.stButton > button:not([kind="primary"]) {
-        background-color: #3B82F6 !important;
-        color: white !important;
-        font-weight: 600 !important;
-        border-radius: 8px !important;
-        width: 100% !important;
-        border: none !important;
-    }
-
-    /* Ẩn viền cạnh mặc định */
-    header[data-testid="stHeader"] {
-        background-color: transparent;
-    }
+        /* Ghi đè phông chữ và nền Streamlit theo mẫu Tailwind */
+        html, body, [class*="css"] {
+            font-family: 'Inter', sans-serif !important;
+        }
+        .stApp {
+            background-color: #F8FAFC !important;
+        }
+        /* Tùy chỉnh Sidebar sang trọng */
+        [data-testid="stSidebar"] {
+            background-color: #FFFFFF !important;
+            border-right: 1px solid #E5E7EB !important;
+        }
+        /* Tùy chỉnh Nút bấm Streamlit theo chuẩn Tailwind */
+        div.stButton > button[kind="primary"] {
+            background: linear-gradient(to right, #2563EB, #4F46E5) !important;
+            color: white !important;
+            font-weight: 700 !important;
+            font-size: 16px !important;
+            border-radius: 16px !important;
+            padding: 14px 32px !important;
+            border: none !important;
+            box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3) !important;
+            transition: all 0.2s ease-in-out !important;
+            width: 100% !important;
+        }
+        div.stButton > button[kind="primary"]:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 20px 25px -5px rgba(37, 99, 235, 0.4) !important;
+        }
+        /* CSS cho nút cập nhật danh sách */
+        div.stButton > button:not([kind="primary"]) {
+            background-color: #2563EB !important;
+            color: white !important;
+            font-weight: 600 !important;
+            font-size: 14px !important;
+            border-radius: 12px !important;
+            padding: 10px 16px !important;
+            border: none !important;
+            width: 100% !important;
+            transition: background-color 0.2s !important;
+        }
+        div.stButton > button:not([kind="primary"]):hover {
+            background-color: #1D4ED8 !important;
+        }
+        /* Bỏ khoảng cách thừa của Streamlit */
+        .block-container {
+            padding-top: 2rem !important;
+            padding-bottom: 3rem !important;
+            max-width: 64rem !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -101,7 +81,14 @@ st.markdown("""
 # THANH BÊN (SIDEBAR) ĐĂNG NHẬP & CẤU HÌNH
 # ==========================================
 with st.sidebar:
-    st.markdown("### 🔑 ĐĂNG NHẬP & CẤU HÌNH")
+    st.markdown("""
+        <div class="space-y-4">
+            <div class="flex items-center gap-2 text-slate-800 font-bold text-base border-b pb-3">
+                <i class="fa-solid fa-key text-blue-600"></i>
+                <span>ĐĂNG NHẬP & CẤU HÌNH</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
     
     api_key = st.text_input(
         "Google Gemini API Key:", 
@@ -117,121 +104,183 @@ with st.sidebar:
         help="Khuyên dùng 2.5-flash cho tốc độ soạn thảo nhanh nhất"
     )
     
-    st.markdown("---")
-    st.markdown("### 👤 THÔNG TIN GIÁO VIÊN")
+    st.markdown("""
+        <div class="pt-4 space-y-4">
+            <div class="flex items-center gap-2 text-slate-800 font-bold text-base border-b pb-3">
+                <i class="fa-solid fa-user-gear text-blue-600"></i>
+                <span>THÔNG TIN GIÁO VIÊN</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
     
     school_name = st.text_input("Trường THPT:", "THPT NGUYỄN VĂN TRỖI")
     dept_name = st.text_input("Tổ chuyên môn:", "TỔ TOÁN")
     teacher_name = st.text_input("Họ và tên GV:", "Dương Tấn Tiến")
     
     st.markdown("---")
-    st.caption("🟢 **Trạng thái:** Hệ thống sẵn sàng")
+    st.markdown("""
+        <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+            <span class="w-2 h-2 rounded-full bg-green-500"></span> Hệ thống sẵn sàng
+        </div>
+    """, unsafe_allow_html=True)
 
 # ==========================================
-# TIÊU ĐỀ CHÍNH GIỮA (GIỐNG HÌNH MẪU)
+# HEADER TIÊU ĐỀ
 # ==========================================
 st.markdown("""
-    <div class="main-header">
-        <div class="main-title">HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)</div>
-        <div class="author-title">Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI</div>
-    </div>
+    <header class="text-center space-y-2 mb-8">
+        <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-[#1F2937]">
+            HỆ THỐNG SOẠN KHBD <span class="text-lg md:text-2xl font-semibold text-gray-600">(có tích hợp NLS, AI, STEM,...)</span>
+        </h1>
+        <p class="text-sm md:text-base font-semibold text-[#2563EB]">
+            Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
+        </p>
+    </header>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# KHỐI BƯỚC 1 & BƯỚC 2 (CHIA 2 CỘT NHƯ HÌNH)
+# KHỐI BƯỚC 1 & BƯỚC 2 (ĐỊNH DẠNG TAILWIND CARD)
 # ==========================================
-col_left, col_right = st.columns(2, gap="large")
+col_left, col_right = st.columns(2, gap="medium")
 
 with col_left:
-    with st.container():
-        st.markdown("<h4 style='color: #1E293B; margin-bottom: 15px;'>📚 BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP</h4>", unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        with c1:
-            subject = st.selectbox("Môn học/Hoạt động GD", [
-                "Toán học", "Ngữ văn", "Tiếng Anh", "Vật lý", "Hóa học", 
-                "Sinh học", "Lịch sử", "Địa lý", "Tin học", "GDKT&PL", "Công nghệ"
-            ])
-        with c2:
-            grade = st.selectbox("Khối lớp", ["Lớp 10", "Lớp 11", "Lớp 12"])
+    st.markdown("""
+        <div class="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-sm hover:shadow-md transition-shadow mb-6">
+            <h2 class="text-lg font-bold text-[#1F2937] flex items-center gap-2 mb-4">
+                <span>📚</span> BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP
+            </h2>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    c1, c2 = st.columns(2)
+    with c1:
+        subject = st.selectbox("Môn học/Hoạt động GD", [
+            "Vật lí", "Toán học", "Ngữ văn", "Tiếng Anh", "Hóa học", 
+            "Sinh học", "Lịch sử", "Địa lý", "Tin học", "GDKT&PL", "Công nghệ"
+        ])
+    with c2:
+        grade = st.selectbox("Khối lớp", ["Khối 10", "Khối 11", "Khối 12"])
+
+    # TRẠNG THÁI HỆ THỐNG CARD
+    st.markdown("""
+        <div class="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-sm mt-6 space-y-3">
+            <div class="flex items-center justify-between border-b pb-3">
+                <span class="text-xs font-semibold uppercase text-gray-400">Trạng thái hệ thống</span>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                    <span class="w-2 h-2 rounded-full bg-green-500"></span> Sẵn sàng
+                </span>
+            </div>
+            <p class="text-sm text-gray-500">
+                Vui lòng hoàn tất các bước tra cứu và tích hợp năng lực trước khi tiến hành xuất file Word chuẩn 5512.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
 
 with col_right:
-    with st.container():
-        st.markdown("<h4 style='color: #1E293B; margin-bottom: 15px;'>📖 BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN</h4>", unsafe_allow_html=True)
-        
-        btn_fetch = st.button("Cập nhật danh sách Chương & Bài học từ taphuan.nxbgd.vn")
-        
-        if btn_fetch:
-            if not api_key:
-                st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
-            else:
-                try:
-                    genai.configure(api_key=api_key)
-                    model = genai.GenerativeModel(model_name)
-                    
-                    prompt_fetch = f"""
-                    Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
-                    Liệt kê ĐẦY ĐỦ, ĐÚNG THỨ TỰ tất cả các Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức/GDPT 2018).
-                    
-                    Trả về duy nhất dạng JSON theo cấu trúc:
-                    [
-                      {{
-                        "chapter": "Tên Chương 1",
-                        "lesson": "Tên Bài 1",
-                        "duration": 2,
-                        "req": "Yêu cầu cần đạt chuẩn của bài 1"
-                      }}
-                    ]
-                    Chỉ trả về mã JSON nguyên bản, không thêm văn bản giải thích hay định dạng markdown khác.
-                    """
-                    
-                    with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade}..."):
-                        res = model.generate_content(prompt_fetch)
-                        clean_json = res.text.replace("```json", "").replace("```", "").strip()
-                        st.session_state['fetched_lessons'] = json.loads(clean_json)
-                        st.success("🎉 Đã tải xong danh mục bài học chuẩn!")
-                except Exception as e:
-                    st.error(f"Lỗi khi tải danh mục bài học: {e}")
+    st.markdown("""
+        <div class="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-sm hover:shadow-md transition-shadow space-y-4">
+            <h2 class="text-lg font-bold text-[#1F2937] flex items-center gap-2">
+                <span>📖</span> BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN
+            </h2>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    btn_fetch = st.button("Cập nhật danh sách Chương & Bài học từ taphuan.nxbgd.vn")
+    
+    st.markdown("""
+        <div class="p-3.5 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-2.5 text-xs text-blue-900 my-3">
+            <i class="fa-regular fa-lightbulb text-blue-600 text-base shrink-0 mt-0.5"></i>
+            <span><strong>Gợi ý:</strong> Hãy chọn Môn học và Khối lớp trước để xem danh sách.</span>
+        </div>
+    """, unsafe_allow_html=True)
 
-        if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
-            lessons_data = st.session_state['fetched_lessons']
-            lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
-            selected_idx = st.selectbox("👉 Chọn Bài học chuẩn:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x])
-            
-            current_item = lessons_data[selected_idx]
-            chapter_title = st.text_input("Tên Chương/Chủ đề", value=current_item['chapter'])
-            lesson_title = st.text_input("Tên Bài dạy", value=current_item['lesson'])
-            duration = st.number_input("Số tiết", value=current_item['duration'])
-            requirements = st.text_area("Yêu cầu cần đạt", value=current_item['req'], height=100)
+    if btn_fetch:
+        if not api_key:
+            st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
         else:
-            st.info("💡 <b>Gợi ý:</b> Hãy bấm nút cập nhật ở trên để tự động tải danh mục bài học.", icon="💡")
-            chapter_title = st.text_input("Tên Chương/Chủ đề", placeholder="Nhập tên chương...")
-            lesson_title = st.text_input("Tên Bài dạy", placeholder="Nhập tên bài dạy...")
+            try:
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel(model_name)
+                
+                prompt_fetch = f"""
+                Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
+                Liệt kê ĐẦY ĐỦ, ĐÚNG THỨ TỰ tất cả các Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức/GDPT 2018).
+                
+                Trả về duy nhất dạng JSON theo cấu trúc:
+                [
+                  {{
+                    "chapter": "Tên Chương 1",
+                    "lesson": "Tên Bài 1",
+                    "duration": 2,
+                    "req": "Yêu cầu cần đạt chuẩn của bài 1"
+                  }}
+                ]
+                Chỉ trả về mã JSON nguyên bản, không thêm văn bản giải thích hay định dạng markdown khác.
+                """
+                
+                with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade}..."):
+                    res = model.generate_content(prompt_fetch)
+                    clean_json = res.text.replace("```json", "").replace("```", "").strip()
+                    st.session_state['fetched_lessons'] = json.loads(clean_json)
+                    st.success("🎉 Đã tải xong danh mục bài học chuẩn!")
+            except Exception as e:
+                st.error(f"Lỗi khi tải danh mục bài học: {e}")
+
+    if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
+        lessons_data = st.session_state['fetched_lessons']
+        lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
+        selected_idx = st.selectbox("👉 Chọn Bài học chuẩn từ danh sách:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x])
+        
+        current_item = lessons_data[selected_idx]
+        chapter_title = st.text_input("Tên Chương/Chủ đề", value=current_item['chapter'])
+        lesson_title = st.text_input("Tên Bài dạy", value=current_item['lesson'])
+        
+        c_dur, c_req = st.columns([1, 2])
+        with c_dur:
+            duration = st.number_input("Số tiết", value=current_item['duration'])
+        with c_req:
+            requirements = st.text_input("Yêu cầu cần đạt", value=current_item['req'])
+    else:
+        chapter_title = st.text_input("Tên Chương/Chủ đề", placeholder="Nhập tên chương...")
+        lesson_title = st.text_input("Tên Bài dạy", placeholder="Nhập tên bài dạy...")
+        
+        c_dur, c_req = st.columns([1, 2])
+        with c_dur:
             duration = st.number_input("Số tiết", value=2)
-            requirements = st.text_area("Yêu cầu cần đạt", placeholder="Nhập yêu cầu cần đạt...", height=80)
+        with c_req:
+            requirements = st.text_input("Yêu cầu cần đạt", placeholder="Yêu cầu...")
 
 # ==========================================
-# KHỐI BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
+# KHỐI BƯỚC 3: TÍCH HỢP NĂNG LỰC
 # ==========================================
 st.markdown("<br>", unsafe_allow_html=True)
-with st.container():
-    st.markdown("<h4 style='color: #1E293B; margin-bottom: 15px;'>🚀 BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ</h4>", unsafe_allow_html=True)
-    integrations = st.multiselect(
-        "Lựa chọn các yếu tố tích hợp:",
-        [
-            "Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", 
-            "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)", 
-            "Giáo dục STEM / STEAM", 
-            "Phát triển Tư duy phản biện", 
-            "Học tập qua Dự án (PBL)"
-        ],
-        default=["Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)"]
-    )
+st.markdown("""
+    <div class="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-sm hover:shadow-md transition-shadow space-y-4">
+        <h2 class="text-lg font-bold text-[#1F2937] flex items-center gap-2">
+            <span>🚀</span> BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
+        </h2>
+    </div>
+""", unsafe_allow_html=True)
+
+integrations = st.multiselect(
+    "Lựa chọn các yếu tố tích hợp:",
+    [
+        "Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", 
+        "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)", 
+        "Năng lực Hợp tác & Tự học",
+        "Giáo dục STEM / STEAM", 
+        "Phát triển Tư duy phản biện"
+    ],
+    default=[
+        "Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", 
+        "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)"
+    ]
+)
 
 # ==========================================
-# NÚT BẮT ĐẦU TẠO KHBD NẰM CHÍNH GIỮA (GRADIENT)
+# NÚT BẮT ĐẦU TẠO KHBD WORD (GRADIENT CÓ TÊN CỦA THẦY)
 # ==========================================
-st.markdown("<br><br>", unsafe_allow_html=True)
-col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+st.markdown("<br>", unsafe_allow_html=True)
 
 def generate_doc(content_text):
     doc = docx.Document()
@@ -341,8 +390,7 @@ def generate_doc(content_text):
     bio.seek(0)
     return bio
 
-with col_btn2:
-    submit = st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary")
+submit = st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary")
 
 if submit:
     if not api_key:
