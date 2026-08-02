@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# CẤU HÌNH GIAO DIỆN & TĂNG KÍCH THƯỚC TRIỆT ĐỂ CHO SELECTBOX
+# CẤU HÌNH GIAO DIỆN & TĂNG KÍCH THƯỚC CSS
 # ==========================================
 st.markdown("""
     <style>
@@ -71,10 +71,7 @@ st.markdown("""
         margin-bottom: 6px !important;
     }
 
-    /* ========================================================
-       6. ĐẶC TRỊ TĂNG FONT CHO 3 Ô SELECTBOX VÀ MULTISELECT
-       ======================================================== */
-    /* Ép tất cả văn bản bên trong các ô Selectbox (Môn học, Khối lớp, Bài học chuẩn) */
+    /* 6. ĐẶC TRỊ TĂNG FONT CHO CÁC Ô SELECTBOX VÀ INPUT */
     .stSelectbox div[data-baseweb="select"] *,
     .stSelectbox [data-testid="stMarkdownContainer"] p,
     div[data-baseweb="select"] div,
@@ -86,20 +83,17 @@ st.markdown("""
         line-height: 1.4 !important;
     }
 
-    /* Tăng font danh sách sổ xuống khi click vào Selectbox */
     ul[role="listbox"] li,
     ul[role="listbox"] li * {
         font-size: 21px !important;
         font-weight: 600 !important;
     }
 
-    /* Thẻ Tag Tích hợp năng lực (Multiselect ở Bước 3) */
     span[data-baseweb="tag"] * {
         font-size: 18px !important;
         font-weight: 700 !important;
     }
 
-    /* B. Chữ bên trong ô Input (Chương, Tên bài, Số tiết,...) */
     div[data-baseweb="input"] input,
     .stTextInput input,
     .stNumberInput input {
@@ -110,7 +104,6 @@ st.markdown("""
         padding-bottom: 8px !important;
     }
 
-    /* C. Chữ bên trong ô Textarea (Yêu cầu cần đạt) */
     div[data-baseweb="textarea"] textarea,
     .stTextArea textarea {
         font-size: 21px !important;
@@ -119,20 +112,14 @@ st.markdown("""
         line-height: 1.4 !important;
     }
 
-    /* D. Nút tăng giảm số tiết (+ / -) */
-    .stNumberInput button {
-        height: 100% !important;
-    }
     .stNumberInput button * {
         font-size: 19px !important;
     }
 
-    /* 7. Thiết kế Nút Bấm */
     .stButton button {
         border-radius: 8px !important;
         font-weight: 700 !important;
         padding: 10px 20px !important;
-        transition: all 0.2s ease-in-out;
     }
     
     .stButton button p {
@@ -140,7 +127,6 @@ st.markdown("""
         font-weight: 700 !important;
     }
     
-    /* Chữ ghi chú caption & thông báo */
     .stCaption, .stAlert p {
         font-size: 18px !important;
     }
@@ -235,10 +221,12 @@ if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nx
             model = genai.GenerativeModel(model_name)
             
             prompt_fetch = f"""
-            Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
-            Liệt kê ĐẦY ĐỦ, ĐÚNG THỨ TỰ tất cả các Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức/GDPT 2018).
+            Hãy đóng vai Cơ sở dữ liệu chính thức từ Sách Giáo Viên (SGV) của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
+            Liệt kê ĐẦY ĐỦ, ĐÚNG THỨ TỰ tất cả các Bài học thuộc môn {subject} - {grade} (Bộ sách GDPT 2018).
             
-            LƯU Ý ĐẶC BIỆT: Bắt buộc phải bao gồm đầy đủ cả các bài đánh số VÀ các bài "Bài tập cuối chương...", "Ôn tập chương..." ở cuối mỗi chương.
+            LƯU Ý ĐẶC BIỆT: 
+            - Trích xuất CHÍNH XÁC Yêu cầu cần đạt (YCĐ) chuẩn theo đúng quy định SGV của NXB Giáo dục Việt Nam.
+            - Bắt buộc phải bao gồm đầy đủ cả các bài đánh số VÀ các bài "Bài tập cuối chương...", "Ôn tập chương...".
             
             Trả về duy nhất dạng JSON theo cấu trúc mảng:
             [
@@ -246,13 +234,13 @@ if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nx
                 "chapter": "Tên Chương 1",
                 "lesson": "Tên Bài 1 hoặc Bài tập cuối chương...",
                 "duration": 2,
-                "req": "Yêu cầu cần đạt chuẩn của bài"
+                "req": "Nêu chính xác Yêu cầu cần đạt chuẩn từ SGV của NXB Giáo dục"
               }}
             ]
             Chỉ trả về mã JSON nguyên bản trong mảng [ ... ], không thêm bất kỳ văn bản giải thích nào khác.
             """
             
-            with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade}..."):
+            with st.spinner(f"✨ Đang đồng bộ danh mục bài học SGV {subject} {grade}..."):
                 res = model.generate_content(prompt_fetch)
                 raw_text = res.text.strip()
                 
@@ -260,7 +248,7 @@ if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nx
                 clean_json = json_match.group(0) if json_match else raw_text
                 
                 st.session_state['fetched_lessons'] = json.loads(clean_json)
-                st.success("🎉 Đã tải xong danh mục bài học chuẩn đầy đủ!")
+                st.success("🎉 Đã tải xong danh mục bài học & YCĐ chuẩn SGV NXB Giáo dục!")
         except Exception as e:
             st.error(f"Lỗi khi tải danh mục bài học: {e}")
 
@@ -290,11 +278,11 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
         duration = st.number_input("Số tiết:", value=int(current_item['duration']), label_visibility="collapsed")
     
     with col_i2:
-        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt (Quy định chuẩn NXB Giáo dục):</span>', unsafe_allow_html=True)
+        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt (Quy định chuẩn SGV - NXB Giáo dục):</span>', unsafe_allow_html=True)
         requirements = st.text_area("YCĐ:", value=current_item['req'], height=230, label_visibility="collapsed")
 
 else:
-    st.info("💡 Thầy vui lòng bấm nút **'🔍 Cập nhật danh sách Chương & Bài học...'** ở trên để AI tự động tải toàn bộ bài học chuẩn nhé!")
+    st.info("💡 Thầy vui lòng bấm nút **'🔍 Cập nhật danh sách Chương & Bài học...'** ở trên để AI tự động tải toàn bộ bài học chuẩn SGV nhé!")
     
     col_i1, col_i2 = st.columns([1, 2])
     with col_i1:
@@ -309,7 +297,7 @@ else:
         
     with col_i2:
         st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt:</span>', unsafe_allow_html=True)
-        requirements = st.text_area("YCĐ:", value="", placeholder="Nhập yêu cầu cần đạt...", height=230, label_visibility="collapsed")
+        requirements = st.text_area("YCĐ:", value="", placeholder="Nhập yêu cầu cần đạt chuẩn SGV...", height=230, label_visibility="collapsed")
 
 # ==========================================
 # BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
@@ -454,21 +442,32 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
 
             integration_str = ", ".join(integrations) if integrations else "Không"
 
+            # PROMPT ĐÃ ĐƯỢC SIẾT CHẶT VÀ CĂN CỨ VÀO SGV CHUẨN NXB GIÁO DỤC
             prompt = f"""
+            Hãy đóng vai Chuyên gia Giáo dục & Tác giả Sách giáo viên (SGV) của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
             Hãy soạn Kế hoạch bài dạy chuẩn 100% CÔNG VĂN 5512/BGDĐT:
             - Môn: {subject} ({grade})
             - Chương/Chủ đề: {chapter_title}
             - Bài dạy: {lesson_title}
             - Thời lượng: {duration} tiết
-            - Yêu cầu cần đạt: {requirements}
+            - YÊU CẦU CẦN ĐẠT CHUẨN SGV: {requirements}
             - YẾU TỐ TÍCH HỢP: {integration_str}
 
-            QUY ĐỊNH ĐỊNH DẠNG VĂN BẢN TRẢ VỀ (RẤT QUAN TRỌNG):
+            RÀNG BUỘC TẠO PHẦN "I. MỤC TIÊU" (CỰC KỲ QUAN TRỌNG):
+            Bắt buộc phải căn cứ 100% vào "YÊU CẦU CẦN ĐẠT CHUẨN SGV" được cung cấp ở trên ({requirements}) để viết phần I. MỤC TIÊU, tuyệt đối không bịa đặt hay sử dụng nguồn ngoài:
+            1. Kiến thức: Nêu rõ các kiến thức học sinh cần nắm được căn cứ trực tiếp từ YCĐ.
+            2. Năng lực:
+               - 2.1. Năng lực đặc thù ({subject}): Diễn giải chi tiết các biểu hiện năng lực dựa chính xác vào YCĐ của bài.
+               - 2.2. Năng lực chung: Tự chủ & tự học, giao tiếp & hợp tác, giải quyết vấn đề.
+               - 2.3. Năng lực Số / Ứng dụng CNTT và AI: (Nếu có tích hợp).
+            3. Phẩm chất: Yêu nước, nhân ái, chăm chỉ, trung thực, trách nhiệm (gắn liền với nội dung bài học).
+
+            QUY ĐỊNH ĐỊNH DẠNG VĂN BẢN TRẢ VỀ:
             - Xuất nội dung trực tiếp, không có lời chào hỏi, không dùng ký tự kẻ ngang (---).
             - Trình bày chính xác theo cấu trúc mục tiêu và tiến trình chuẩn Công văn 5512:
               I. MỤC TIÊU (In hoa hoàn toàn)
               1. Kiến thức:
-              2. Năng lực: (2.1. Năng lực toán học/chuyên môn, 2.2. Năng lực chung, 2.3. Năng lực Số / Ứng dụng CNTT và AI)
+              2. Năng lực: 
               3. Phẩm chất:
               II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU (In hoa hoàn toàn)
               1. Giáo viên:
@@ -479,7 +478,7 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
               Trong phần d) Tổ chức thực hiện trình bày rõ 4 bước: - Bước 1: Chuyển giao nhiệm vụ, - Bước 2: Thực hiện nhiệm vụ, - Bước 3: Báo cáo, thảo luận, - Bước 4: Kết luận, nhận định.
             """
 
-            with st.spinner("✨ AI đang tạo Kế hoạch bài dạy 5512..."):
+            with st.spinner("✨ AI đang tạo Kế hoạch bài dạy chuẩn SGV 5512..."):
                 response = model.generate_content(prompt)
                 st.success("🎉 Tạo giáo án thành công!")
                 doc_file = generate_doc(response.text)
