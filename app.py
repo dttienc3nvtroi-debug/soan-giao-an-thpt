@@ -86,11 +86,63 @@ with col_grd:
     grade = st.selectbox("Khối lớp:", ["Lớp 10", "Lớp 11", "Lớp 12"], index=2, label_visibility="collapsed")
 
 # ==========================================
-# BƯỚC 2: SỬA LẠI LAYOUT BỎ VÀO CỘT NẰM NGANG
+# BƯỚC 2: TỐI ƯU GIAO DIỆN CHÍNH XÁC THEO MẪU
 # ==========================================
-st.markdown('<div class="step-header">📖 BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN / CHỌN FILE SGV</div>', unsafe_allow_html=True)
 
-# 1. Hàng 1: Nút Cập nhật chạy rộng full dòng
+# CSS ĐẶC BIỆT DÀNH RIÊNG CHO BƯỚC 2 ĐỂ GIỐNG 100% ẢNH MẪU
+st.markdown("""
+    <style>
+    /* Import font hẹp/đậm giống hình gốc */
+    @import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700&display=swap');
+
+    /* 1. Tiêu đề Bước 2 */
+    .step2-header {
+        color: #dc2626 !important;
+        font-size: 22px !important;
+        font-weight: 800 !important;
+        font-family: 'Roboto Condensed', sans-serif, Arial !important;
+        margin-top: 10px !important;
+        margin-bottom: 12px !important;
+        padding-left: 8px;
+        border-left: 5px solid #dc2626;
+        display: flex;
+        align-items: center;
+    }
+
+    /* 2. Nhãn (Labels) hàng 2 & hàng 3: Chữ đen, đậm, phong cách Condensed */
+    .custom-label {
+        font-family: 'Roboto Condensed', sans-serif, Arial !important;
+        font-size: 18px !important;
+        font-weight: 700 !important;
+        color: #000000 !important;
+        margin-bottom: 4px !important;
+        display: block;
+        white-space: nowrap;
+    }
+
+    /* 3. Màu chữ XANH DƯƠNG ĐẬM + BOLD bên trong các ô nhập liệu */
+    div[data-baseweb="select"] span,
+    div[data-baseweb="select"] p,
+    div[data-baseweb="input"] input,
+    .stTextInput input,
+    .stNumberInput input {
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        color: #1e3a8a !important; /* Xanh Navy đậm */
+    }
+
+    /* Thu hẹp khoảng cách giữa các hàng cho gọn giống hình */
+    .element-container {
+        margin-bottom: 4px !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- TIÊU ĐỀ BƯỚC 2 ---
+st.markdown('<div class="step2-header">📖 BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN / CHỌN FILE SGV</div>', unsafe_allow_html=True)
+
+# --- HÀNG 1: NÚT CẬP NHẬT FULL CHIỀU RỘNG ---
 if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nxbgd.vn", use_container_width=True):
     if not api_key:
         st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
@@ -110,19 +162,18 @@ if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nx
         except Exception as e:
             st.error(f"Lỗi khi tải danh mục bài học: {e}")
 
-st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-# 2. Hàng 2: ĐẶT 2 Ô CÙNG TRÊN 1 HÀNG (SGV bên Trái | Bài học bên Phải)
-col_b2_left, col_b2_right = st.columns(2)
+# --- HÀNG 2: CHIA 2 CỘT SONG SONG (TẢI FILE SGV | CHỌN BÀI HỌC) ---
+col_sgv, col_select = st.columns(2)
 
-with col_b2_left:
-    st.markdown('<span class="field-label">📁 Tải lên File SGV (Sách Giáo Viên - PDF hoặc Ảnh):</span>', unsafe_allow_html=True)
+with col_sgv:
+    st.markdown('<span class="custom-label">📁 Tải lên File SGV (Sách Giáo Viên - PDF hoặc Ảnh):</span>', unsafe_allow_html=True)
     uploaded_sgv_file = st.file_uploader("Upload SGV", type=["pdf", "png", "jpg", "jpeg"], label_visibility="collapsed")
 
-with col_b2_right:
-    st.markdown('<span class="field-label">👉 Chọn Bài học chuẩn từ danh sách vừa tải:</span>', unsafe_allow_html=True)
+with col_select:
+    st.markdown('<span class="custom-label">👉 Chọn Bài học chuẩn từ danh sách vừa tải:</span>', unsafe_allow_html=True)
     
-    # Giữ nguyên toàn bộ logic đọc dữ liệu session_state của thầy
     val_chap = "Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số"
     val_less = "Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số"
     val_dur = 3
@@ -140,28 +191,28 @@ with col_b2_right:
     else:
         st.selectbox("Select lesson default", ["Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số - Bài 1. Tính đơn điệu và cực trị của hàm số"], label_visibility="collapsed")
 
-st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-# 3. Hàng 3: Chia 3 cột (Chương | Tên Bài | Số tiết)
-c_chap, c_less, c_dur = st.columns([4.2, 4.2, 1.6])
+# --- HÀNG 3: CHIA 3 CỘT TỶ LỆ (CHƯƠNG | TÊN BÀI | SỐ TIẾT) ---
+col_c1, col_c2, col_c3 = st.columns([4.2, 4.2, 1.6])
 
-with c_chap:
-    st.markdown('<span class="field-label">Chương:</span>', unsafe_allow_html=True)
+with col_c1:
+    st.markdown('<span class="custom-label">Chương:</span>', unsafe_allow_html=True)
     chapter_title = st.text_input("Chương", value=val_chap, label_visibility="collapsed")
 
-with c_less:
-    st.markdown('<span class="field-label">Tên bài:</span>', unsafe_allow_html=True)
+with col_c2:
+    st.markdown('<span class="custom-label">Tên bài:</span>', unsafe_allow_html=True)
     lesson_title = st.text_input("Tên bài", value=val_less, label_visibility="collapsed")
 
-with c_dur:
-    st.markdown('<span class="field-label">Số tiết:</span>', unsafe_allow_html=True)
+with col_c3:
+    st.markdown('<span class="custom-label">Số tiết:</span>', unsafe_allow_html=True)
     duration = st.number_input("Số tiết", value=val_dur, min_value=1, label_visibility="collapsed")
 
-st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-# 4. Hàng 4: Yêu cầu cần đạt
-st.markdown('<span class="field-label">📌 Yêu cầu cần đạt:</span>', unsafe_allow_html=True)
-requirements = st.text_area("YCĐ", value=val_req, height=120, label_visibility="collapsed")
+# --- HÀNG 4: YÊU CẦU CẦN ĐẠT ---
+st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt:</span>', unsafe_allow_html=True)
+requirements = st.text_area("YCĐ", value=val_req, height=100, label_visibility="collapsed")
 
 # --- BƯỚC 3: TÍCH HỢP NĂNG LỰC (GIỮ NGUYÊN CODE CỦA THẦY) ---
 st.markdown('<div class="step-header">🚀 BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ</div>', unsafe_allow_html=True)
