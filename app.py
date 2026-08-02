@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# CẤU HÌNH GIAO DIỆN & TÙY CHỈNH STYLES (ĐÃ TĂNG CÁC FONT LÊN ~7PT)
+# CẤU HÌNH GIAO DIỆN & TÙY CHỈNH STYLES (ĐÃ TĂNG FONT CHO CÁC DỮ LIỆU BÀI HỌC)
 # ==========================================
 st.markdown("""
     <style>
@@ -42,7 +42,7 @@ st.markdown("""
 
     .sidebar-title {
         color: #0f172a;
-        font-size: 25px !important; /* +7pt */
+        font-size: 25px !important;
         font-weight: 700;
         margin-bottom: 14px;
         display: flex;
@@ -55,7 +55,7 @@ st.markdown("""
     /* 4. Định dạng Tiêu đề các BƯỚC */
     .step-header {
         color: #dc2626 !important;
-        font-size: 27px !important; /* +7pt */
+        font-size: 27px !important;
         font-weight: 700 !important;
         margin-top: 24px !important;
         margin-bottom: 14px !important;
@@ -65,22 +65,29 @@ st.markdown("""
 
     /* 5. Định dạng Nhãn (Labels) cho các Input/Select */
     div[data-testid="stWidgetLabel"] p, .custom-label {
-        font-size: 24px !important; /* +7pt */
+        font-size: 24px !important;
         font-weight: 700 !important;
         color: #1e293b !important;
         margin-bottom: 6px !important;
     }
 
-    /* 6. TĂNG KÍCH THƯỚC CHỮ TRONG CÁC Ô NHẬP LIỆU & DROPDOWN LÊN ~7PT (24PX) */
+    /* 6. TĂNG KÍCH THƯỚC CHỮ TẤT CẢ Ô INPUT, DROPDOWN, DỮ LIỆU TẢI VỀ (~24PX) */
     div[data-baseweb="input"] input, 
     div[data-baseweb="textarea"] textarea,
     div[data-baseweb="select"] span,
     div[data-baseweb="select"] div,
-    ul[role="listbox"] li {
+    ul[role="listbox"] li,
+    .stSelectbox div[role="button"] {
         font-size: 24px !important; /* +7pt */
         font-weight: 700 !important;
-        color: #1e3a8a !important; /* Màu xanh đậm */
+        color: #1e3a8a !important; /* Màu xanh đậm cho Tên bài, Tên chương... */
         line-height: 1.4 !important;
+    }
+
+    /* Tùy chỉnh riêng cho ô Textarea Yêu cầu cần đạt */
+    div[data-baseweb="textarea"] textarea {
+        font-size: 22px !important;
+        font-weight: 600 !important;
     }
 
     /* Tăng độ cao ô nhập để chữ lớn không bị đè */
@@ -98,13 +105,13 @@ st.markdown("""
     }
     
     .stButton button p {
-        font-size: 25px !important; /* +7pt */
+        font-size: 25px !important;
         font-weight: 700 !important;
     }
     
-    /* Chữ ghi chú caption */
-    .stCaption {
-        font-size: 18px !important;
+    /* Chữ ghi chú caption & thông báo */
+    .stCaption, .stAlert p {
+        font-size: 20px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -253,7 +260,7 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
     
     with col_i2:
         st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt (Quy định chuẩn NXB Giáo dục):</span>', unsafe_allow_html=True)
-        requirements = st.text_area("YCĐ:", value=current_item['req'], height=220, label_visibility="collapsed")
+        requirements = st.text_area("YCĐ:", value=current_item['req'], height=230, label_visibility="collapsed")
 
 else:
     st.info("💡 Thầy vui lòng bấm nút **'🔍 Cập nhật danh sách Chương & Bài học...'** ở trên để AI tự động tải toàn bộ bài học chuẩn nhé!")
@@ -271,7 +278,7 @@ else:
         
     with col_i2:
         st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt:</span>', unsafe_allow_html=True)
-        requirements = st.text_area("YCĐ:", value="", placeholder="Nhập yêu cầu cần đạt...", height=220, label_visibility="collapsed")
+        requirements = st.text_area("YCĐ:", value="", placeholder="Nhập yêu cầu cần đạt...", height=230, label_visibility="collapsed")
 
 # ==========================================
 # BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
