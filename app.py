@@ -164,8 +164,7 @@ with st.sidebar:
         placeholder="Dán mã API Key vào đây...",
         help="Nhập API Key để kích hoạt trợ lý AI"
     )
-    
-   model_name = st.selectbox(
+    model_name = st.selectbox(
         "Mô hình AI xử lý:",
         ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"],
         index=0,
