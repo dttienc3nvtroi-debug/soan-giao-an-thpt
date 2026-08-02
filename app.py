@@ -22,7 +22,7 @@ with st.sidebar:
     # Chọn mô hình Gemini
     model_name = st.selectbox(
         "Chọn phiên bản Gemini AI:",
-        ["gemini-2.6-flash", "ggemini-2.6-flash", "gemini-2.6-flash"],
+        ["gemini-3.6-flash", "ggemini-3.6-flash", "gemini-3.6-flash"],
         index=0
     )
     
