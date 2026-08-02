@@ -92,7 +92,7 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD", type="primary"):
         try:
             with st.spinner("AI đang soạn thảo Kế hoạch bài dạy đúng chuẩn... Vui lòng đợi trong giây lát!"):
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-2.5-flash')
+                model = genai.GenerativeModel('gemini-1.5-flash')
                 
                 # Gọi AI sinh nội dung
                 prompt = build_prompt(subject, grade, chapter, lesson_name, total_periods, integrated_skills, lesson_content_summary)
