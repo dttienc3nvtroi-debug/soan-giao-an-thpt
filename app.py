@@ -11,8 +11,11 @@ import json
 
 st.set_page_config(page_title="Hệ thống Soạn Giáo án Tự Động 5512", layout="wide", page_icon="📝")
 
-st.title("📝 HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...))
-st.title("📝Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI")
+# Tiêu đề chính của ứng dụng
+st.title("📝 HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)")
+
+# Dùng st.caption hoặc st.subheader cho dòng Tác giả để giao diện cân đối và đẹp mắt
+st.caption("📝 Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI")
 st.caption("Đồng bộ danh mục Chương/Bài chuẩn NXB Giáo dục Việt Nam (taphuan.nxbgd.vn)")
 
 # Thanh bên cấu hình
