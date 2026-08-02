@@ -26,7 +26,7 @@ st.markdown("""
     /* Trang trí Sidebar */
     .sidebar-title {
         color: #1e293b;
-        font-size: 16px;
+        font-size: 18px !important;
         font-weight: 700;
         margin-bottom: 12px;
         display: flex;
@@ -34,29 +34,35 @@ st.markdown("""
         gap: 8px;
     }
     
-    /* Định dạng Tiêu đề các BƯỚC (Chữ nhỏ hơn, màu đỏ) */
+    /* Định dạng Tiêu đề các BƯỚC (Màu đỏ, size 18px) */
     .step-header {
         color: #DC2626 !important;
-        font-size: 16px !important;
+        font-size: 18px !important;
         font-weight: 700 !important;
         margin-top: 15px !important;
         margin-bottom: 10px !important;
     }
 
-    /* Định dạng các Nhãn (Labels) in đậm, size lớn hơn */
+    /* Định dạng các Nhãn (Labels) in đậm (size 18px) */
     .custom-label {
-        font-size: 16px !important;
+        font-size: 18px !important;
         font-weight: 700 !important;
         color: #1E293B !important;
         margin-bottom: 4px !important;
         display: block !important;
     }
     
-    /* Đẩy style vào nhãn mặc định của Streamlit */
+    /* Đẩy style vào nhãn mặc định của Streamlit (size 17px) */
     div[data-testid="stWidgetLabel"] p {
-        font-size: 15px !important;
+        font-size: 17px !important;
         font-weight: 700 !important;
         color: #0F172A !important;
+    }
+
+    /* Kích thước chữ trên các nút bấm */
+    .stButton button p {
+        font-size: 18px !important;
+        font-weight: 700 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -101,15 +107,15 @@ with st.sidebar:
     st.caption("🟢 **Trạng thái:** Hệ thống sẵn sàng")
 
 # ==========================================
-# TIÊU ĐỀ ỨNG DỤNG (CANH GIỮA, CỠ CHỮ CHUẨN)
+# TIÊU ĐỀ ỨNG DỤNG (30px & 20px)
 # ==========================================
 st.markdown("""
     <div style="text-align: center; margin-bottom: 25px;">
-        <div style="font-size: 26px; font-weight: 800; color: #1E293B; line-height: 1.3;">
-            📝 HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)
+        <div style="font-size: 30px; font-weight: 800; color: #1E293B; line-height: 1.3;">
+             HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)
         </div>
-        <div style="font-size: 15px; font-weight: 600; color: #2563EB; margin-top: 6px;">
-            T tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
+        <div style="font-size: 20px; font-weight: 600; color: #2563EB; margin-top: 6px;">
+           📝 Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -245,7 +251,7 @@ integrations = st.multiselect(
 )
 
 # ==========================================
-# XỬ LÝ XUẤT FILE WORD 5512
+# XỬ LÝ XUẤT FILE WORD 5512 (FONTS GIỮ NGUYÊN 13pt & 14pt)
 # ==========================================
 def generate_doc(content_text):
     doc = docx.Document()
@@ -258,7 +264,7 @@ def generate_doc(content_text):
 
     style = doc.styles['Normal']
     style.font.name = 'Times New Roman'
-    style.font.size = Pt(13)
+    style.font.size = Pt(13) # Giữ nguyên 13pt chuẩn
 
     table = doc.add_table(rows=1, cols=2)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -296,7 +302,7 @@ def generate_doc(content_text):
     p_title.paragraph_format.space_after = Pt(4)
     r_title = p_title.add_run(f"TÊN BÀI DẠY: {lesson_title.upper()}")
     r_title.bold = True
-    r_title.font.size = Pt(14)
+    r_title.font.size = Pt(14) # Giữ nguyên 14pt cho Tiêu đề Bài dạy
 
     p_sub = doc.add_paragraph()
     p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -320,7 +326,7 @@ def generate_doc(content_text):
             p.paragraph_format.space_before = Pt(12)
             run = p.add_run(clean_text)
             run.bold = True
-            run.font.size = Pt(13)
+            run.font.size = Pt(14) # Giữ nguyên 14pt cho các mục lớn I, II, III
         elif clean_text.startswith("TIẾT ") or clean_text.startswith("HOẠT ĐỘNG ") or clean_text.startswith("Nội dung ") or clean_text.startswith("Khối kiến thức "):
             p.paragraph_format.space_before = Pt(8)
             run = p.add_run(clean_text)
