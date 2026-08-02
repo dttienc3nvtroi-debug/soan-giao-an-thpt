@@ -9,9 +9,85 @@ from docx.oxml.ns import nsdecls
 import io
 import json
 
+# Cấu hình trang Streamlit
 st.set_page_config(page_title="Hệ thống Soạn Giáo án Tự Động 5512", layout="wide", page_icon="📝")
 
-# Tiêu đề ứng dụng & Thông tin Tác giả (Kích thước bằng nhau, dòng tác giả màu xanh)
+# ==========================================
+# CẤU HÌNH GIAO DIỆN VÀ PHÔNG CHỮ SANG TRỌNG
+# ==========================================
+st.markdown("""
+    <style>
+    /* Font chữ mặc định hệ thống */
+    html, body, [class*="css"] {
+        font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    
+    /* Trang trí khung Đăng nhập / Cấu hình Sidebar */
+    .sidebar-card {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.04);
+    }
+    .sidebar-title {
+        color: #1e293b;
+        font-size: 16px;
+        font-weight: 700;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# ==========================================
+# THANH BÊN (SIDEBAR) ĐĂNG NHẬP & CẤU HÌNH
+# ==========================================
+with st.sidebar:
+    st.markdown("""
+        <div class="sidebar-title">
+            🔑 ĐĂNG NHẬP & CẤU HÌNH
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # 1. Khóa API Gemini
+    api_key = st.text_input(
+        "Google Gemini API Key:", 
+        type="password", 
+        placeholder="Dán mã AI Key vào đây...",
+        help="Nhập API Key để kích hoạt trợ lý AI"
+    )
+    
+    # 2. Phiên bản Mô hình AI
+    model_name = st.selectbox(
+        "Mô hình AI xử lý:",
+        ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
+        index=0,
+        help="Khuyên dùng 2.5-flash cho tốc độ soạn thảo nhanh nhất"
+    )
+    
+    st.markdown("---")
+    
+    st.markdown("""
+        <div class="sidebar-title">
+            👤 THÔNG TIN GIÁO VIÊN
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # 3. Thông tin đơn vị & Giáo viên
+    school_name = st.text_input("Trường THPT:", "THPT NGUYỄN VĂN TRỖI")
+    dept_name = st.text_input("Tổ chuyên môn:", "TỔ TOÁN")
+    teacher_name = st.text_input("Họ và tên GV:", "Dương Tấn Tiến")
+    
+    st.markdown("---")
+    st.caption("🟢 **Trạng thái:** Hệ thống sẵn sàng")
+
+# ==========================================
+# TIÊU ĐỀ ỨNG DỤNG (CÙNG KÍCH THƯỚC, TÁC GIẢ MÀU XANH)
+# ==========================================
 st.markdown("""
     <div style="font-size: 20px; font-weight: bold; margin-bottom: 5px;">
         📝 HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)
@@ -20,25 +96,6 @@ st.markdown("""
         📝 Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
     </div>
 """, unsafe_allow_html=True)
-
-st.caption("Đồng bộ danh mục Chương/Bài chuẩn NXB Giáo dục Việt Nam (taphuan.nxbgd.vn)")
-
-# Thanh bên cấu hình
-with st.sidebar:
-    st.header("⚙️ Cấu hình Hệ thống")
-    api_key = st.text_input("Nhập Google Gemini API Key:", type="password")
-    
-    # Chọn mô hình Gemini
-    model_name = st.selectbox(
-        "Chọn phiên bản Gemini AI:",
-        ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
-        index=0
-    )
-    
-    st.markdown("---")
-    school_name = st.text_input("Trường THPT:", "THPT NGUYỄN VĂN TRỖI")
-    dept_name = st.text_input("Tổ chuyên môn:", "TỔ TOÁN")
-    teacher_name = st.text_input("Họ và tên GV:", "Dương Tấn Tiến")
 
 st.subheader("📚 BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP")
 col_sub, col_grd = st.columns(2)
@@ -124,19 +181,16 @@ integrations = st.multiselect(
 def generate_doc(content_text):
     doc = docx.Document()
 
-    # Cấu hình lề chuẩn A4 (Trên/Dưới 2cm, Trái 3cm, Phải 2cm)
     for section in doc.sections:
         section.top_margin = Inches(0.79)
         section.bottom_margin = Inches(0.79)
         section.left_margin = Inches(1.18)
         section.right_margin = Inches(0.79)
 
-    # Style chữ mặc định Times New Roman 13pt
     style = doc.styles['Normal']
     style.font.name = 'Times New Roman'
     style.font.size = Pt(13)
 
-    # 1. BẢNG TIÊU ĐỀ TRƯỜNG / TỔ / GIÁO VIÊN (ĐÚNG CHUẨN ĐỊNH DẠNG)
     table = doc.add_table(rows=1, cols=2)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
@@ -161,14 +215,12 @@ def generate_doc(content_text):
     run_teacher_val = p_right.add_run(teacher_name)
     run_teacher_val.bold = True
 
-    # Ẩn đường viền bảng
     for row in table.rows:
         for cell in row.cells:
             tcPr = cell._tc.get_or_add_tcPr()
             tcBorders = parse_xml(r'<w:tcBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>' % nsdecls('w'))
             tcPr.append(tcBorders)
 
-    # 2. TÊN BÀI DẠY
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_title.paragraph_format.space_before = Pt(18)
@@ -177,14 +229,12 @@ def generate_doc(content_text):
     r_title.bold = True
     r_title.font.size = Pt(14)
 
-    # 3. THÔNG TIN CƠ BẢN
     p_sub = doc.add_paragraph()
     p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_sub.paragraph_format.space_after = Pt(12)
     r_sub = p_sub.add_run(f"Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade}\nThời gian thực hiện: ({duration} tiết)")
     r_sub.italic = True
 
-    # 4. BỔ SUNG XỬ LÝ NỘI DUNG CHUẨN ĐỊNH DẠNG 5512
     lines = content_text.split('\n')
     for line in lines:
         line_str = line.strip()
@@ -197,7 +247,6 @@ def generate_doc(content_text):
 
         clean_text = line_str.replace("**", "").replace("*", "")
 
-        # Xử lý phân cấp công văn 5512
         if clean_text.startswith("I. ") or clean_text.startswith("II. ") or clean_text.startswith("III. ") or clean_text.startswith("IV. "):
             p.paragraph_format.space_before = Pt(12)
             run = p.add_run(clean_text)
@@ -288,7 +337,6 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary"):
 
                 st.markdown("---")
                 
-                # Hiển thị bản xem trước trực quan chuẩn định dạng hành chính
                 preview_header = f"""
 <table style="width:100%; border:none; margin-bottom: 20px;">
   <tr>
