@@ -11,74 +11,95 @@ import json
 import re
 
 # Cấu hình trang Streamlit
-st.set_page_config(page_title="Hệ thống Soạn Giáo án Tự Động 5512", layout="wide", page_icon="📝")
+st.set_page_config(
+    page_title="Hệ thống Soạn Giáo án Tự Động 5512", 
+    layout="wide", 
+    page_icon="📝"
+)
 
 # ==========================================
-# CẤU HÌNH GIAO DIỆN & TÙY CHỈNH STYLES
+# CẤU HÌNH GIAO DIỆN & TÙY CHỈNH STYLES (ĐÃ TỐI ƯU KÍCH THƯỚC CÂN ĐỐI)
 # ==========================================
 st.markdown("""
     <style>
-    /* Điều chỉnh lề trên để tiêu đề hiển thị thoáng đẹp */
+    /* 1. Khoảng cách tổng thể trang */
     .block-container {
-        padding-top: 2.8rem !important;
+        padding-top: 2rem !important;
         padding-bottom: 2rem !important;
+        max-width: 1200px;
     }
 
-    /* Font chữ mặc định hệ thống */
+    /* 2. Font chữ mặc định hệ thống */
     html, body, [class*="css"] {
-        font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
     }
     
-    /* Trang trí Sidebar */
+    /* 3. Tùy chỉnh thanh Sidebar đăng nhập */
+    section[data-testid="stSidebar"] {
+        background-color: #f8fafc;
+        border-right: 1px solid #e2e8f0;
+    }
+    
+    .sidebar-card {
+        background-color: #ffffff;
+        padding: 16px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 15px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
     .sidebar-title {
-        color: #1e293b;
-        font-size: 21px !important;
+        color: #0f172a;
+        font-size: 16px !important;
         font-weight: 700;
         margin-bottom: 12px;
         display: flex;
         align-items: center;
         gap: 8px;
+        border-bottom: 2px solid #2563eb;
+        padding-bottom: 6px;
     }
     
-    /* Định dạng Tiêu đề các BƯỚC */
+    /* 4. Định dạng Tiêu đề các BƯỚC */
     .step-header {
-        color: #DC2626 !important;
-        font-size: 21px !important;
+        color: #dc2626 !important;
+        font-size: 18px !important;
         font-weight: 700 !important;
-        margin-top: 15px !important;
-        margin-bottom: 10px !important;
+        margin-top: 20px !important;
+        margin-bottom: 12px !important;
+        padding-left: 8px;
+        border-left: 4px solid #dc2626;
     }
 
-    /* Định dạng các Nhãn (Labels) */
-    .custom-label {
-        font-size: 21px !important;
-        font-weight: 700 !important;
-        color: #1E293B !important;
+    /* 5. Định dạng Nhãn (Labels) cho các Input/Select */
+    div[data-testid="stWidgetLabel"] p, .custom-label {
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        color: #334155 !important;
         margin-bottom: 4px !important;
-        display: block !important;
-    }
-    
-    /* Đẩy style vào nhãn mặc định của Streamlit */
-    div[data-testid="stWidgetLabel"] p {
-        font-size: 20px !important;
-        font-weight: 700 !important;
-        color: #0F172A !important;
     }
 
-    /* TĂNG THÊM 5PT CHO CHỮ TRONG Ô NHẬP LIỆU & DANH SÁCH CHỌN (CHỮ XANH ĐẬM, SIZE 26PX) */
+    /* 6. ĐIỀU CHỈNH KÍCH THƯỚC CHỮ TRONG CÁC Ô NHẬP LIỆU & DROPDOWN (CÂN ĐỐI 15-16PX) */
     div[data-baseweb="input"] input, 
     div[data-baseweb="textarea"] textarea,
     div[data-baseweb="select"] span,
     div[data-baseweb="select"] div,
     ul[role="listbox"] li {
-        font-size: 26px !important;
-        font-weight: 700 !important;
-        color: #1E3A8A !important; /* Màu xanh đậm */
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        color: #1e3a8a !important; /* Màu xanh đậm thanh lịch */
     }
 
-    /* Kích thước chữ trên các nút bấm */
+    /* 7. Thiết kế Nút Bấm đẹp mắt */
+    .stButton button {
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease-in-out;
+    }
+    
     .stButton button p {
-        font-size: 21px !important;
+        font-size: 16px !important;
         font-weight: 700 !important;
     }
     </style>
@@ -97,7 +118,7 @@ with st.sidebar:
     api_key = st.text_input(
         "Google Gemini API Key:", 
         type="password", 
-        placeholder="Dán mã AI Key vào đây...",
+        placeholder="Dán mã API Key vào đây...",
         help="Nhập API Key để kích hoạt trợ lý AI"
     )
     
@@ -105,7 +126,7 @@ with st.sidebar:
         "Mô hình AI xử lý:",
         ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
         index=0,
-        help="Khuyên dùng gemini-3.6-flash cho tốc độ soạn thảo nhanh nhất"
+        help="Khuyên dùng gemini-3.6-flash-flash cho tốc độ soạn thảo nhanh và tối ưu nhất"
     )
     
     st.markdown("---")
@@ -127,12 +148,12 @@ with st.sidebar:
 # TIÊU ĐỀ ỨNG DỤNG
 # ==========================================
 st.markdown("""
-    <div style="text-align: center; margin-bottom: 20px;">
-        <div style="font-size: 37px; font-weight: 800; color: #1E293B; line-height: 1.2;">
-             HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)
+    <div style="text-align: center; margin-bottom: 25px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 20px; border-radius: 12px; border: 1px solid #bfdbfe;">
+        <div style="font-size: 28px; font-weight: 800; color: #1e3a8a; line-height: 1.3;">
+            HỆ THỐNG SOẠN KHBD TỰ ĐỘNG (CHUẨN 5512)
         </div>
-        <div style="font-size: 28px; font-weight: 600; color: #2563EB; margin-top: 8px;">
-            📝 Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
+        <div style="font-size: 15px; font-weight: 600; color: #2563eb; margin-top: 6px;">
+            📝 Tác giả: DƯƠNG TẤN TIẾN — GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
         </div>
     </div>
 """, unsafe_allow_html=True)
@@ -189,7 +210,7 @@ if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nx
             Chỉ trả về mã JSON nguyên bản trong mảng [ ... ], không thêm bất kỳ văn bản giải thích nào khác.
             """
             
-            with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade} (bao gồm Bài tập cuối chương)..."):
+            with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade}..."):
                 res = model.generate_content(prompt_fetch)
                 raw_text = res.text.strip()
                 
