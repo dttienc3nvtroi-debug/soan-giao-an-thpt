@@ -13,32 +13,86 @@ import json
 st.set_page_config(page_title="Hệ thống Soạn Giáo án Tự Động 5512", layout="wide", page_icon="📝")
 
 # ==========================================
-# CẤU HÌNH GIAO DIỆN VÀ PHÔNG CHỮ SANG TRỌNG
+# CẤU HÌNH GIAO DIỆN CHUẨN DASHBOARD MODERN (THEO ẢNH MẪU)
 # ==========================================
 st.markdown("""
     <style>
-    /* Font chữ mặc định hệ thống */
+    /* Font chữ mặc định */
     html, body, [class*="css"] {
-        font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
     }
     
-    /* Trang trí khung Đăng nhập / Cấu hình Sidebar */
-    .sidebar-card {
-        background-color: #f8f9fa;
-        border: 1px solid #e9ecef;
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.04);
+    /* Nền tổng thể xám xịn hiện đại */
+    .stApp {
+        background-color: #F4F6F9;
     }
-    .sidebar-title {
-        color: #1e293b;
-        font-size: 16px;
+    
+    /* Định dạng Khung / Card trắng bo tròn bóng đổ */
+    div[data-testid="stVerticalBlock"] > div.element-container {
+        font-family: 'Segoe UI', Roboto, sans-serif;
+    }
+
+    /* Tùy chỉnh các khối container chính */
+    .stCard {
+        background-color: #FFFFFF;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        border: 1px solid #E2E8F0;
+        margin-bottom: 20px;
+    }
+    
+    /* Căn giữa tiêu đề chính */
+    .main-header {
+        text-align: center;
+        margin-top: -20px;
+        margin-bottom: 30px;
+    }
+    .main-title {
+        font-size: 28px;
+        font-weight: 800;
+        color: #1E293B;
+        letter-spacing: -0.5px;
+    }
+    .author-title {
+        font-size: 18px;
         font-weight: 700;
-        margin-bottom: 12px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        color: #007BFF;
+        margin-top: 5px;
+    }
+
+    /* Thiết kế nút bấm chuyển màu Gradient sinh động */
+    div.stButton > button[kind="primary"] {
+        background: linear-gradient(90deg, #FF4B4B 0%, #007BFF 100%) !important;
+        color: white !important;
+        font-weight: 800 !important;
+        font-size: 18px !important;
+        border-radius: 30px !important;
+        padding: 12px 35px !important;
+        border: none !important;
+        box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3) !important;
+        display: block !important;
+        margin: 0 auto !important;
+        transition: all 0.3s ease !important;
+    }
+    div.stButton > button[kind="primary"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 123, 255, 0.5) !important;
+    }
+
+    /* Tùy chỉnh Nút bấm thường */
+    div.stButton > button:not([kind="primary"]) {
+        background-color: #3B82F6 !important;
+        color: white !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        width: 100% !important;
+        border: none !important;
+    }
+
+    /* Ẩn viền cạnh mặc định */
+    header[data-testid="stHeader"] {
+        background-color: transparent;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -47,13 +101,8 @@ st.markdown("""
 # THANH BÊN (SIDEBAR) ĐĂNG NHẬP & CẤU HÌNH
 # ==========================================
 with st.sidebar:
-    st.markdown("""
-        <div class="sidebar-title">
-            🔑 ĐĂNG NHẬP & CẤU HÌNH
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown("### 🔑 ĐĂNG NHẬP & CẤU HÌNH")
     
-    # 1. Khóa API Gemini
     api_key = st.text_input(
         "Google Gemini API Key:", 
         type="password", 
@@ -61,7 +110,6 @@ with st.sidebar:
         help="Nhập API Key để kích hoạt trợ lý AI"
     )
     
-    # 2. Phiên bản Mô hình AI
     model_name = st.selectbox(
         "Mô hình AI xử lý:",
         ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
@@ -70,14 +118,8 @@ with st.sidebar:
     )
     
     st.markdown("---")
+    st.markdown("### 👤 THÔNG TIN GIÁO VIÊN")
     
-    st.markdown("""
-        <div class="sidebar-title">
-            👤 THÔNG TIN GIÁO VIÊN
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # 3. Thông tin đơn vị & Giáo viên
     school_name = st.text_input("Trường THPT:", "THPT NGUYỄN VĂN TRỖI")
     dept_name = st.text_input("Tổ chuyên môn:", "TỔ TOÁN")
     teacher_name = st.text_input("Họ và tên GV:", "Dương Tấn Tiến")
@@ -86,97 +128,110 @@ with st.sidebar:
     st.caption("🟢 **Trạng thái:** Hệ thống sẵn sàng")
 
 # ==========================================
-# TIÊU ĐỀ ỨNG DỤNG (CÙNG KÍCH THƯỚC, TÁC GIẢ MÀU XANH)
+# TIÊU ĐỀ CHÍNH GIỮA (GIỐNG HÌNH MẪU)
 # ==========================================
 st.markdown("""
-    <div style="font-size: 20px; font-weight: bold; margin-bottom: 5px;">
-        HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)
-    </div>
-    <div style="font-size: 20px; font-weight: bold; color: #007BFF; margin-bottom: 25px;">
-        📝 Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
+    <div class="main-header">
+        <div class="main-title">HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...)</div>
+        <div class="author-title">Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI</div>
     </div>
 """, unsafe_allow_html=True)
 
-st.subheader("📚 BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP")
-col_sub, col_grd = st.columns(2)
-with col_sub:
-    subject = st.selectbox("Môn học/Hoạt động GD:", [
-        "Toán học", "Ngữ văn", "Tiếng Anh", "Vật lý", "Hóa học", 
-        "Sinh học", "Lịch sử", "Địa lý", "Tin học", "GDKT&PL", "Công nghệ"
-    ])
-with col_grd:
-    grade = st.selectbox("Khối lớp:", ["Lớp 10", "Lớp 11", "Lớp 12"])
+# ==========================================
+# KHỐI BƯỚC 1 & BƯỚC 2 (CHIA 2 CỘT NHƯ HÌNH)
+# ==========================================
+col_left, col_right = st.columns(2, gap="large")
 
-st.subheader("📖 BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN")
+with col_left:
+    with st.container():
+        st.markdown("<h4 style='color: #1E293B; margin-bottom: 15px;'>📚 BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP</h4>", unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1:
+            subject = st.selectbox("Môn học/Hoạt động GD", [
+                "Toán học", "Ngữ văn", "Tiếng Anh", "Vật lý", "Hóa học", 
+                "Sinh học", "Lịch sử", "Địa lý", "Tin học", "GDKT&PL", "Công nghệ"
+            ])
+        with c2:
+            grade = st.selectbox("Khối lớp", ["Lớp 10", "Lớp 11", "Lớp 12"])
 
-if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nxbgd.vn"):
-    if not api_key:
-        st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
-    else:
-        try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(model_name)
+with col_right:
+    with st.container():
+        st.markdown("<h4 style='color: #1E293B; margin-bottom: 15px;'>📖 BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN</h4>", unsafe_allow_html=True)
+        
+        btn_fetch = st.button("Cập nhật danh sách Chương & Bài học từ taphuan.nxbgd.vn")
+        
+        if btn_fetch:
+            if not api_key:
+                st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
+            else:
+                try:
+                    genai.configure(api_key=api_key)
+                    model = genai.GenerativeModel(model_name)
+                    
+                    prompt_fetch = f"""
+                    Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
+                    Liệt kê ĐẦY ĐỦ, ĐÚNG THỨ TỰ tất cả các Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức/GDPT 2018).
+                    
+                    Trả về duy nhất dạng JSON theo cấu trúc:
+                    [
+                      {{
+                        "chapter": "Tên Chương 1",
+                        "lesson": "Tên Bài 1",
+                        "duration": 2,
+                        "req": "Yêu cầu cần đạt chuẩn của bài 1"
+                      }}
+                    ]
+                    Chỉ trả về mã JSON nguyên bản, không thêm văn bản giải thích hay định dạng markdown khác.
+                    """
+                    
+                    with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade}..."):
+                        res = model.generate_content(prompt_fetch)
+                        clean_json = res.text.replace("```json", "").replace("```", "").strip()
+                        st.session_state['fetched_lessons'] = json.loads(clean_json)
+                        st.success("🎉 Đã tải xong danh mục bài học chuẩn!")
+                except Exception as e:
+                    st.error(f"Lỗi khi tải danh mục bài học: {e}")
+
+        if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
+            lessons_data = st.session_state['fetched_lessons']
+            lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
+            selected_idx = st.selectbox("👉 Chọn Bài học chuẩn:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x])
             
-            prompt_fetch = f"""
-            Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
-            Liệt kê ĐẦY ĐỦ, ĐÚNG THỨ TỰ tất cả các Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức/GDPT 2018).
-            
-            Trả về duy nhất dạng JSON theo cấu trúc:
-            [
-              {{
-                "chapter": "Tên Chương 1",
-                "lesson": "Tên Bài 1",
-                "duration": 2,
-                "req": "Yêu cầu cần đạt chuẩn của bài 1"
-              }}
-            ]
-            Chỉ trả về mã JSON nguyên bản, không thêm văn bản giải thích hay định dạng markdown khác.
-            """
-            
-            with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade} từ taphuan.nxbgd.vn..."):
-                res = model.generate_content(prompt_fetch)
-                clean_json = res.text.replace("```json", "").replace("```", "").strip()
-                st.session_state['fetched_lessons'] = json.loads(clean_json)
-                st.success("🎉 Đã tải xong danh mục bài học chuẩn!")
-        except Exception as e:
-            st.error(f"Lỗi khi tải danh mục bài học: {e}")
+            current_item = lessons_data[selected_idx]
+            chapter_title = st.text_input("Tên Chương/Chủ đề", value=current_item['chapter'])
+            lesson_title = st.text_input("Tên Bài dạy", value=current_item['lesson'])
+            duration = st.number_input("Số tiết", value=current_item['duration'])
+            requirements = st.text_area("Yêu cầu cần đạt", value=current_item['req'], height=100)
+        else:
+            st.info("💡 <b>Gợi ý:</b> Hãy bấm nút cập nhật ở trên để tự động tải danh mục bài học.", icon="💡")
+            chapter_title = st.text_input("Tên Chương/Chủ đề", placeholder="Nhập tên chương...")
+            lesson_title = st.text_input("Tên Bài dạy", placeholder="Nhập tên bài dạy...")
+            duration = st.number_input("Số tiết", value=2)
+            requirements = st.text_area("Yêu cầu cần đạt", placeholder="Nhập yêu cầu cần đạt...", height=80)
 
-if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
-    lessons_data = st.session_state['fetched_lessons']
-    lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
-    selected_idx = st.selectbox("👉 Chọn Bài học chuẩn từ danh sách vừa tải:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x])
-    
-    current_item = lessons_data[selected_idx]
-    
-    col_i1, col_i2 = st.columns([1, 3])
-    with col_i1:
-        chapter_title = st.text_input("Chương:", value=current_item['chapter'])
-        lesson_title = st.text_input("Tên bài:", value=current_item['lesson'])
-        duration = st.number_input("Số tiết:", value=current_item['duration'])
-    with col_i2:
-        st.markdown("**📌 Yêu cầu cần đạt (Quy định chuẩn NXB Giáo dục):**")
-        requirements = st.text_area("YCĐ:", value=current_item['req'], height=120)
+# ==========================================
+# KHỐI BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
+# ==========================================
+st.markdown("<br>", unsafe_allow_html=True)
+with st.container():
+    st.markdown("<h4 style='color: #1E293B; margin-bottom: 15px;'>🚀 BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ</h4>", unsafe_allow_html=True)
+    integrations = st.multiselect(
+        "Lựa chọn các yếu tố tích hợp:",
+        [
+            "Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", 
+            "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)", 
+            "Giáo dục STEM / STEAM", 
+            "Phát triển Tư duy phản biện", 
+            "Học tập qua Dự án (PBL)"
+        ],
+        default=["Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)"]
+    )
 
-else:
-    st.info("💡 Thầy vui lòng bấm nút **'🔍 Cập nhật danh sách Chương & Bài học...'** ở trên để AI tự động tải toàn bộ bài học chuẩn nhé!")
-    chapter_title = st.text_input("Tên Chương/Chủ đề:", "")
-    lesson_title = st.text_input("Tên Bài dạy:", "")
-    duration = st.number_input("Số tiết:", value=2)
-    requirements = st.text_area("Yêu cầu cần đạt:", "")
-
-# BƯỚC 3: TÍCH HỢP NĂNG LỰC
-st.subheader("🚀 BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ")
-integrations = st.multiselect(
-    "Lựa chọn yếu tố tích hợp:",
-    [
-        "Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", 
-        "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)", 
-        "Giáo dục STEM / STEAM", 
-        "Phát triển Tư duy phản biện", 
-        "Học tập qua Dự án (PBL)"
-    ],
-    default=["Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)"]
-)
+# ==========================================
+# NÚT BẮT ĐẦU TẠO KHBD NẰM CHÍNH GIỮA (GRADIENT)
+# ==========================================
+st.markdown("<br><br>", unsafe_allow_html=True)
+col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
 
 def generate_doc(content_text):
     doc = docx.Document()
@@ -286,7 +341,10 @@ def generate_doc(content_text):
     bio.seek(0)
     return bio
 
-if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary"):
+with col_btn2:
+    submit = st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary")
+
+if submit:
     if not api_key:
         st.error("⚠️ Vui lòng nhập Google Gemini API Key ở thanh menu bên trái!")
     elif not lesson_title:
