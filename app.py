@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# CẤU HÌNH GIAO DIỆN & TÙY CHỈNH STYLES (ĐÃ TỐI ƯU KÍCH THƯỚC CÂN ĐỐI)
+# CẤU HÌNH GIAO DIỆN & TÙY CHỈNH STYLES (ĐÃ TĂNG CÁC FONT LÊN ~7PT)
 # ==========================================
 st.markdown("""
     <style>
@@ -26,7 +26,7 @@ st.markdown("""
     .block-container {
         padding-top: 2rem !important;
         padding-bottom: 2rem !important;
-        max-width: 1200px;
+        max-width: 1300px;
     }
 
     /* 2. Font chữ mặc định hệ thống */
@@ -39,68 +39,72 @@ st.markdown("""
         background-color: #f8fafc;
         border-right: 1px solid #e2e8f0;
     }
-    
-    .sidebar-card {
-        background-color: #ffffff;
-        padding: 16px;
-        border-radius: 10px;
-        border: 1px solid #e2e8f0;
-        margin-bottom: 15px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
 
     .sidebar-title {
         color: #0f172a;
-        font-size: 16px !important;
+        font-size: 25px !important; /* +7pt */
         font-weight: 700;
-        margin-bottom: 12px;
+        margin-bottom: 14px;
         display: flex;
         align-items: center;
         gap: 8px;
-        border-bottom: 2px solid #2563eb;
+        border-bottom: 3px solid #2563eb;
         padding-bottom: 6px;
     }
     
     /* 4. Định dạng Tiêu đề các BƯỚC */
     .step-header {
         color: #dc2626 !important;
-        font-size: 18px !important;
+        font-size: 27px !important; /* +7pt */
         font-weight: 700 !important;
-        margin-top: 20px !important;
-        margin-bottom: 12px !important;
-        padding-left: 8px;
-        border-left: 4px solid #dc2626;
+        margin-top: 24px !important;
+        margin-bottom: 14px !important;
+        padding-left: 10px;
+        border-left: 5px solid #dc2626;
     }
 
     /* 5. Định dạng Nhãn (Labels) cho các Input/Select */
     div[data-testid="stWidgetLabel"] p, .custom-label {
-        font-size: 15px !important;
-        font-weight: 600 !important;
-        color: #334155 !important;
-        margin-bottom: 4px !important;
+        font-size: 24px !important; /* +7pt */
+        font-weight: 700 !important;
+        color: #1e293b !important;
+        margin-bottom: 6px !important;
     }
 
-    /* 6. ĐIỀU CHỈNH KÍCH THƯỚC CHỮ TRONG CÁC Ô NHẬP LIỆU & DROPDOWN (CÂN ĐỐI 15-16PX) */
+    /* 6. TĂNG KÍCH THƯỚC CHỮ TRONG CÁC Ô NHẬP LIỆU & DROPDOWN LÊN ~7PT (24PX) */
     div[data-baseweb="input"] input, 
     div[data-baseweb="textarea"] textarea,
     div[data-baseweb="select"] span,
     div[data-baseweb="select"] div,
     ul[role="listbox"] li {
-        font-size: 15px !important;
-        font-weight: 600 !important;
-        color: #1e3a8a !important; /* Màu xanh đậm thanh lịch */
+        font-size: 24px !important; /* +7pt */
+        font-weight: 700 !important;
+        color: #1e3a8a !important; /* Màu xanh đậm */
+        line-height: 1.4 !important;
     }
 
-    /* 7. Thiết kế Nút Bấm đẹp mắt */
+    /* Tăng độ cao ô nhập để chữ lớn không bị đè */
+    div[data-baseweb="input"] input {
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+    }
+
+    /* 7. Thiết kế Nút Bấm chữ lớn */
     .stButton button {
         border-radius: 8px !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
+        padding: 10px 20px !important;
         transition: all 0.2s ease-in-out;
     }
     
     .stButton button p {
-        font-size: 16px !important;
+        font-size: 25px !important; /* +7pt */
         font-weight: 700 !important;
+    }
+    
+    /* Chữ ghi chú caption */
+    .stCaption {
+        font-size: 18px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -126,7 +130,7 @@ with st.sidebar:
         "Mô hình AI xử lý:",
         ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
         index=0,
-        help="Khuyên dùng gemini-3.6-flash-flash cho tốc độ soạn thảo nhanh và tối ưu nhất"
+        help="Khuyên dùng gemini-3.6-flash cho tốc độ soạn thảo nhanh và tối ưu nhất"
     )
     
     st.markdown("---")
@@ -148,11 +152,11 @@ with st.sidebar:
 # TIÊU ĐỀ ỨNG DỤNG
 # ==========================================
 st.markdown("""
-    <div style="text-align: center; margin-bottom: 25px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 20px; border-radius: 12px; border: 1px solid #bfdbfe;">
-        <div style="font-size: 28px; font-weight: 800; color: #1e3a8a; line-height: 1.3;">
+    <div style="text-align: center; margin-bottom: 25px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 22px; border-radius: 12px; border: 1px solid #bfdbfe;">
+        <div style="font-size: 37px; font-weight: 800; color: #1e3a8a; line-height: 1.3;">
             HỆ THỐNG SOẠN KHBD TỰ ĐỘNG (CHUẨN 5512)
         </div>
-        <div style="font-size: 15px; font-weight: 600; color: #2563eb; margin-top: 6px;">
+        <div style="font-size: 24px; font-weight: 600; color: #2563eb; margin-top: 10px;">
             📝 Tác giả: DƯƠNG TẤN TIẾN — GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
         </div>
     </div>
@@ -249,7 +253,7 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
     
     with col_i2:
         st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt (Quy định chuẩn NXB Giáo dục):</span>', unsafe_allow_html=True)
-        requirements = st.text_area("YCĐ:", value=current_item['req'], height=185, label_visibility="collapsed")
+        requirements = st.text_area("YCĐ:", value=current_item['req'], height=220, label_visibility="collapsed")
 
 else:
     st.info("💡 Thầy vui lòng bấm nút **'🔍 Cập nhật danh sách Chương & Bài học...'** ở trên để AI tự động tải toàn bộ bài học chuẩn nhé!")
@@ -267,7 +271,7 @@ else:
         
     with col_i2:
         st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt:</span>', unsafe_allow_html=True)
-        requirements = st.text_area("YCĐ:", value="", placeholder="Nhập yêu cầu cần đạt...", height=185, label_visibility="collapsed")
+        requirements = st.text_area("YCĐ:", value="", placeholder="Nhập yêu cầu cần đạt...", height=220, label_visibility="collapsed")
 
 # ==========================================
 # BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
