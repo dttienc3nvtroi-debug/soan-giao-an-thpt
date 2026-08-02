@@ -18,7 +18,7 @@ with st.sidebar:
     api_key = st.text_input("Nhập Google Gemini API Key:", type="password")
     
     st.divider()
-    school_name = st.text_input("Trường THPT:", "THPT Chuyên...")
+    school_name = st.text_input("Trường THPT:", "THPT ...")
     group_name = st.text_input("Tổ chuyên môn:", "Tổ Toán - Tin")
     teacher_name = st.text_input("Họ và tên GV:", "Nguyễn Văn A")
 
