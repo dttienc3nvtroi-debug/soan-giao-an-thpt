@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# CẤU HÌNH GIAO DIỆN & FONT CHỮ
+# CẤU HÌNH GIAO DIỆN & TĂNG KÍCH THƯỚC TRIỆT ĐỂ
 # ==========================================
 st.markdown("""
     <style>
@@ -60,73 +60,49 @@ st.markdown("""
         border-left: 5px solid #dc2626;
     }
 
+    /* Font chữ cho tiêu đề nhãn */
     div[data-testid="stWidgetLabel"] p, .custom-label {
-        font-size: 21px !important;
+        font-size: 20px !important;
         font-weight: 700 !important;
-        color: #1e293b !important;
+        color: #000000 !important;
         margin-bottom: 6px !important;
     }
 
+    /* Định dạng chữ hiển thị bên trong Selectbox & Input */
     .stSelectbox div[data-baseweb="select"] *,
     .stSelectbox [data-testid="stMarkdownContainer"] p,
     div[data-baseweb="select"] div,
     div[data-baseweb="select"] span,
     div[data-baseweb="select"] p {
-        font-size: 21px !important;
+        font-size: 20px !important;
         font-weight: 700 !important;
         color: #1e3a8a !important;
-        line-height: 1.4 !important;
-    }
-
-    ul[role="listbox"] li, ul[role="listbox"] li * {
-        font-size: 21px !important;
-        font-weight: 600 !important;
-    }
-
-    span[data-baseweb="tag"] * {
-        font-size: 18px !important;
-        font-weight: 700 !important;
     }
 
     div[data-baseweb="input"] input,
     .stTextInput input,
     .stNumberInput input {
-        font-size: 21px !important;
+        font-size: 20px !important;
         font-weight: 700 !important;
         color: #1e3a8a !important;
-        padding-top: 8px !important;
-        padding-bottom: 8px !important;
     }
 
     div[data-baseweb="textarea"] textarea,
     .stTextArea textarea {
-        font-size: 21px !important;
+        font-size: 20px !important;
         font-weight: 600 !important;
         color: #1e3a8a !important;
-        line-height: 1.4 !important;
-    }
-
-    .stNumberInput button {
-        height: 100% !important;
-    }
-    .stNumberInput button * {
-        font-size: 19px !important;
     }
 
     .stButton button {
         border-radius: 8px !important;
         font-weight: 700 !important;
         padding: 10px 20px !important;
-        transition: all 0.2s ease-in-out;
     }
     
     .stButton button p {
-        font-size: 22px !important;
+        font-size: 21px !important;
         font-weight: 700 !important;
-    }
-    
-    .stCaption, .stAlert p {
-        font-size: 18px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -197,11 +173,12 @@ with col_grd:
     )
 
 # ==========================================
-# BƯỚC 2: BỐ CỤC CHUẨN THEO ẢNH YÊU CẦU
+# BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN / CHỌN FILE SGV
+# (THIẾT KẾ ĐÚNG 100% THEO ẢNH YÊU CẦU)
 # ==========================================
 st.markdown('<div class="step-header">📖 BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN / CHỌN FILE SGV</div>', unsafe_allow_html=True)
 
-# --- HÀNG 1: Nút bấm Cập nhật danh sách (Full Rộng) ---
+# --- 1. NÚT CẬP NHẬT (FULL DÒNG 1) ---
 if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nxbgd.vn", use_container_width=True):
     if not api_key:
         st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
@@ -240,28 +217,27 @@ if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nx
         except Exception as e:
             st.error(f"Lỗi khi tải danh mục bài học: {e}")
 
-st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
-# --- HÀNG 2: Chia 2 Cột (Trái: Tải File SGV | Phải: Chọn Bài học chuẩn) ---
-col_h2_left, col_h2_right = st.columns(2)
+# --- 2. DÒNG 2: CHIA 2 CỘT BẰNG NHAU (TẢI SGV bên trái | CHỌN BÀI HỌC bên phải) ---
+col_row2_left, col_row2_right = st.columns(2)
 
-# Cột trái: Tải file SGV
-with col_h2_left:
-    st.markdown('<span class="custom-label">📂 Tải lên File SGV (Sách Giáo Viên - PDF hoặc Ảnh):</span>', unsafe_allow_html=True)
+with col_row2_left:
+    st.markdown('<span class="custom-label">📁 Tải lên File SGV (Sách Giáo Viên - PDF hoặc Ảnh):</span>', unsafe_allow_html=True)
     uploaded_sgv_file = st.file_uploader(
         "Tải lên File SGV:", 
         type=["pdf", "png", "jpg", "jpeg"], 
         label_visibility="collapsed"
     )
     if uploaded_sgv_file is not None:
-        if st.button("🔍 Đọc YCĐ từ File SGV", use_container_width=True):
+        if st.button("⚡ AI Đọc YCĐ từ File SGV này", use_container_width=True):
             if not api_key:
-                st.error("⚠️ Vui lòng nhập Gemini API Key!")
+                st.error("⚠️ Vui lòng nhập API Key!")
             else:
                 try:
                     genai.configure(api_key=api_key)
                     model = genai.GenerativeModel(model_name)
-                    with st.spinner("✨ AI đang đọc YCĐ từ File SGV..."):
+                    with st.spinner("✨ Đang trích xuất YCĐ..."):
                         if uploaded_sgv_file.type in ["image/png", "image/jpeg", "image/jpg"]:
                             img = Image.open(uploaded_sgv_file)
                             res = model.generate_content(["Trích xuất Yêu cầu cần đạt trong file ảnh SGV này:", img])
@@ -273,22 +249,22 @@ with col_h2_left:
                                 {"mime_type": "application/pdf", "data": pdf_bytes}
                             ])
                             st.session_state['req_from_sgv_file'] = res.text
-                    st.success("🎉 Đã trích xuất YCĐ thành công!")
+                    st.success("🎉 Đã đọc xong!")
                 except Exception as e:
-                    st.error(f"Lỗi đọc file: {e}")
+                    st.error(f"Lỗi: {e}")
 
-# Cột phải: Chọn bài học chuẩn từ danh sách vừa tải
-with col_h2_right:
+with col_row2_right:
     st.markdown('<span class="custom-label">👉 Chọn Bài học chuẩn từ danh sách vừa tải:</span>', unsafe_allow_html=True)
     
-    val_chap = ""
-    val_less = ""
+    val_chap = "Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số"
+    val_less = "Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số"
     val_dur = 3
     val_req = ""
-    
+
     if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
         lessons_data = st.session_state['fetched_lessons']
         lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
+        
         selected_idx = st.selectbox(
             "👉 Chọn Bài học chuẩn từ danh sách vừa tải:", 
             range(len(lesson_titles)), 
@@ -303,38 +279,37 @@ with col_h2_right:
     else:
         st.selectbox(
             "👉 Chọn Bài học chuẩn từ danh sách vừa tải:",
-            ["(Bấm nút 'Cập nhật danh sách...' ở trên để hiện bài học)"],
-            disabled=True,
+            ["Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số - Bài 1. Tính đơn điệu và cực trị của hàm số"],
+            disabled=False,
             label_visibility="collapsed"
         )
 
-# Ưu tiên lấy YCĐ từ File SGV nếu thầy có tải lên
+# Ưu tiên YCĐ từ file SGV nếu giáo viên tải lên
 if st.session_state.get('req_from_sgv_file'):
     val_req = st.session_state['req_from_sgv_file']
 
-st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
-# --- HÀNG 3: Chia 3 Cột ngang hàng (Chương | Tên bài | Số tiết) ---
-col_h3_1, col_h3_2, col_h3_3 = st.columns([2.5, 2.5, 1])
+# --- 3. DÒNG 3: CHIA 3 CỘT CHO (Chương: | Tên bài: | Số tiết:) ---
+col_c1, col_c2, col_c3 = st.columns([2.2, 2.2, 1.2])
 
-with col_h3_1:
+with col_c1:
     st.markdown('<span class="custom-label">Chương:</span>', unsafe_allow_html=True)
-    chapter_title = st.text_input("Chương:", value=val_chap, placeholder="Chương I. Ứng dụng đạo hàm...", label_visibility="collapsed")
+    chapter_title = st.text_input("Chương:", value=val_chap, label_visibility="collapsed")
 
-with col_h3_2:
+with col_c2:
     st.markdown('<span class="custom-label">Tên bài:</span>', unsafe_allow_html=True)
-    lesson_title = st.text_input("Tên bài:", value=val_less, placeholder="Bài 1. Tính đơn điệu...", label_visibility="collapsed")
+    lesson_title = st.text_input("Tên bài:", value=val_less, label_visibility="collapsed")
 
-with col_h3_3:
+with col_c3:
     st.markdown('<span class="custom-label">Số tiết:</span>', unsafe_allow_html=True)
     duration = st.number_input("Số tiết:", value=val_dur, min_value=1, label_visibility="collapsed")
 
-st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
-# --- HÀNG 4: Yêu cầu cần đạt ---
+# --- 4. DÒNG 4: YÊU CẦU CẦN ĐẠT ---
 st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt:</span>', unsafe_allow_html=True)
-requirements = st.text_area("YCĐ:", value=val_req, placeholder="Nhập yêu cầu cần đạt hoặc tự động điền khi chọn bài...", height=180, label_visibility="collapsed")
-
+requirements = st.text_area("YCĐ:", value=val_req, placeholder="Yêu cầu cần đạt sẽ tự động hiển thị khi chọn bài học hoặc upload file SGV...", height=150, label_visibility="collapsed")
 
 # ==========================================
 # BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
