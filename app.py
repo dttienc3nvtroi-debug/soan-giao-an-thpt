@@ -27,8 +27,8 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    school_name = st.text_input("Trường THPT:", "THPT Nguyễn Văn Trỗi")
-    dept_name = st.text_input("Tổ chuyên môn:", "Tổ Toán")
+    school_name = st.text_input("Trường THPT:", "THPT NGUYỄN VĂN TRỖI")
+    dept_name = st.text_input("Tổ chuyên môn:", "TỔ TOÁN")
     teacher_name = st.text_input("Họ và tên GV:", "Dương Tấn Tiến")
 
 st.subheader("📚 BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP")
@@ -127,7 +127,7 @@ def generate_doc(content_text):
     style.font.name = 'Times New Roman'
     style.font.size = Pt(13)
 
-    # 1. BẢNG TIÊU ĐỀ TRƯỜNG / TỔ / GIÁO VIÊN (ĐÃ SỬA LỖI DÍNH CHỮ)
+    # 1. BẢNG TIÊU ĐỀ TRƯỜNG / TỔ / GIÁO VIÊN (ĐÚNG CHUẨN ĐỊNH DẠNG)
     table = doc.add_table(rows=1, cols=2)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
@@ -152,7 +152,7 @@ def generate_doc(content_text):
     run_teacher_val = p_right.add_run(teacher_name)
     run_teacher_val.bold = True
 
-    # Khử viền bảng
+    # Ẩn đường viền bảng
     for row in table.rows:
         for cell in row.cells:
             tcPr = cell._tc.get_or_add_tcPr()
@@ -175,7 +175,7 @@ def generate_doc(content_text):
     r_sub = p_sub.add_run(f"Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade}\nThời gian thực hiện: ({duration} tiết)")
     r_sub.italic = True
 
-    # 4. CHUYỂN ĐỔI NỘI DUNG VĂN BẢN
+    # 4. BỔ SUNG XỬ LÝ NỘI DUNG CHUẨN ĐỊNH DẠNG 5512
     lines = content_text.split('\n')
     for line in lines:
         line_str = line.strip()
@@ -186,29 +186,42 @@ def generate_doc(content_text):
         p.paragraph_format.line_spacing = 1.15
         p.paragraph_format.space_after = Pt(4)
 
-        # Xử lý thụt lề và in đậm các phân cấp Công văn 5512
-        if line_str.startswith("I. ") or line_str.startswith("II. ") or line_str.startswith("III. ") or line_str.startswith("IV. "):
+        clean_text = line_str.replace("**", "").replace("*", "")
+
+        # Xử lý phân cấp công văn 5512
+        if clean_text.startswith("I. ") or clean_text.startswith("II. ") or clean_text.startswith("III. ") or clean_text.startswith("IV. "):
             p.paragraph_format.space_before = Pt(12)
-            run = p.add_run(line_str.replace("**", ""))
+            run = p.add_run(clean_text)
             run.bold = True
             run.font.size = Pt(13)
-        elif line_str.startswith("1. ") or line_str.startswith("2. ") or line_str.startswith("3. ") or line_str.startswith("4. "):
+        elif clean_text.startswith("TIẾT ") or clean_text.startswith("HOẠT ĐỘNG ") or clean_text.startswith("Nội dung ") or clean_text.startswith("Khối kiến thức "):
+            p.paragraph_format.space_before = Pt(8)
+            run = p.add_run(clean_text)
+            run.bold = True
+            run.font.size = Pt(13)
+        elif clean_text.startswith("1. ") or clean_text.startswith("2. ") or clean_text.startswith("3. ") or clean_text.startswith("4. "):
             p.paragraph_format.space_before = Pt(6)
-            run = p.add_run(line_str.replace("**", ""))
+            run = p.add_run(clean_text)
             run.bold = True
-        elif line_str.startswith("a)") or line_str.startswith("b)") or line_str.startswith("c)") or line_str.startswith("d)") or line_str.startswith("HOẠT ĐỘNG"):
+        elif clean_text.startswith("2.1") or clean_text.startswith("2.2") or clean_text.startswith("2.3"):
             p.paragraph_format.space_before = Pt(4)
-            run = p.add_run(line_str.replace("**", ""))
+            p.paragraph_format.left_indent = Inches(0.15)
+            run = p.add_run(clean_text)
             run.bold = True
-        elif line_str.startswith("Bước 1:") or line_str.startswith("Bước 2:") or line_str.startswith("Bước 3:") or line_str.startswith("Bước 4:"):
-            p.paragraph_format.left_indent = Inches(0.25)
-            run = p.add_run(line_str.replace("**", ""))
+        elif clean_text.startswith("a)") or clean_text.startswith("b)") or clean_text.startswith("c)") or clean_text.startswith("d)"):
+            p.paragraph_format.space_before = Pt(4)
+            p.paragraph_format.left_indent = Inches(0.15)
+            run = p.add_run(clean_text)
             run.bold = True
-        elif line_str.startswith("- "):
-            p.paragraph_format.left_indent = Inches(0.25)
-            p.add_run(line_str.replace("**", ""))
+        elif clean_text.startswith("Bước 1:") or clean_text.startswith("Bước 2:") or clean_text.startswith("Bước 3:") or clean_text.startswith("Bước 4:") or clean_text.startswith("- Bước 1:") or clean_text.startswith("- Bước 2:") or clean_text.startswith("- Bước 3:") or clean_text.startswith("- Bước 4:"):
+            p.paragraph_format.left_indent = Inches(0.3)
+            run = p.add_run(clean_text)
+            run.bold = True
+        elif clean_text.startswith("- ") or clean_text.startswith("+ "):
+            p.paragraph_format.left_indent = Inches(0.3)
+            p.add_run(clean_text)
         else:
-            p.add_run(line_str.replace("**", ""))
+            p.add_run(clean_text)
 
     bio = io.BytesIO()
     doc.save(bio)
@@ -228,7 +241,7 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary"):
             integration_str = ", ".join(integrations) if integrations else "Không"
 
             prompt = f"""
-            Soạn Kế hoạch bài dạy chuẩn 100% CÔNG VĂN 5512/BGDĐT:
+            Hãy soạn Kế hoạch bài dạy chuẩn 100% CÔNG VĂN 5512/BGDĐT:
             - Môn: {subject} ({grade})
             - Chương/Chủ đề: {chapter_title}
             - Bài dạy: {lesson_title}
@@ -236,12 +249,20 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary"):
             - Yêu cầu cần đạt: {requirements}
             - YẾU TỐ TÍCH HỢP: {integration_str}
 
-            YÊU CẦU ĐỊNH DẠNG VĂN BẢN:
-            - Xuất trực tiếp cấu trúc nội dung, không gửi lời chào, không kèm đường kẻ ngang (---).
-            - Trình bày đúng cấu trúc 3 Phần chuẩn 5512:
-              I. Mục tiêu (1. Kiến thức, 2. Năng lực [2.1 Năng lực toán học, 2.2 Năng lực chung, 2.3 Năng lực Số/CNTT], 3. Phẩm chất)
-              II. Thiết bị dạy học và học liệu (1. Giáo viên, 2. Học sinh)
-              III. Tiến trình dạy học (Các HOẠT ĐỘNG, mỗi hoạt động gồm 4 mục: a) Mục tiêu, b) Nội dung, c) Sản phẩm, d) Tổ chức thực hiện [Bước 1: Chuyển giao nhiệm vụ, Bước 2: Thực hiện nhiệm vụ, Bước 3: Báo cáo thảo luận, Bước 4: Kết luận nhận định]).
+            QUY ĐỊNH ĐỊNH DẠNG VĂN BẢN TRẢ VỀ (RẤT QUAN TRỌNG):
+            - Xuất nội dung trực tiếp, không có lời chào hỏi, không dùng ký tự kẻ ngang (---).
+            - Trình bày chính xác theo cấu trúc mục tiêu và tiến trình chuẩn Công văn 5512:
+              I. MỤC TIÊU (In hoa hoàn toàn)
+              1. Kiến thức:
+              2. Năng lực: (2.1. Năng lực toán học, 2.2. Năng lực chung, 2.3. Năng lực Số / Ứng dụng CNTT và AI)
+              3. Phẩm chất:
+              II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU (In hoa hoàn toàn)
+              1. Giáo viên:
+              2. Học sinh:
+              III. TIẾN TRÌNH DẠY HỌC (In hoa hoàn toàn)
+              Phân chia các TIẾT, HOẠT ĐỘNG, Nội dung kiến thức cụ thể.
+              Mỗi hoạt động trình bày đúng 4 mục: a) Mục tiêu, b) Nội dung, c) Sản phẩm, d) Tổ chức thực hiện.
+              Trong phần d) Tổ chức thực hiện trình bày rõ 4 bước: - Bước 1: Chuyển giao nhiệm vụ, - Bước 2: Thực hiện nhiệm vụ, - Bước 3: Báo cáo, thảo luận, - Bước 4: Kết luận, nhận định.
             """
 
             with st.spinner("✨ AI đang tạo Kế hoạch bài dạy 5512..."):
@@ -258,12 +279,16 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary"):
 
                 st.markdown("---")
                 
-                # Căn chỉnh giao diện xem trước trực tiếp trên ứng dụng Streamlit
+                # Hiển thị bản xem trước trực quan chuẩn định dạng hành chính
                 preview_header = f"""
-| TRƯỜNG: {school_name.upper()} <br> TỔ: {dept_name.upper()} | Họ và tên giáo viên: <br> **{teacher_name}** |
-| :--- | ---: |
+<table style="width:100%; border:none; margin-bottom: 20px;">
+  <tr>
+    <td style="text-align:left; border:none;"><b>TRƯỜNG: {school_name.upper()}</b><br><b>TỔ: {dept_name.upper()}</b></td>
+    <td style="text-align:right; border:none;"><b>Họ và tên giáo viên:</b><br><b>{teacher_name}</b></td>
+  </tr>
+</table>
 
-<h3 style="text-align: center; margin-top: 20px;">TÊN BÀI DẠY: {lesson_title.upper()}</h3>
+<h3 style="text-align: center; margin-top: 10px;">TÊN BÀI DẠY: {lesson_title.upper()}</h3>
 <p style="text-align: center; font-style: italic;">Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade}<br>Thời gian thực hiện: ({duration} tiết)</p>
 
 ---
