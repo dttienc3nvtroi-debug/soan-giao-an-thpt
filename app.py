@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# CẤU HÌNH GIAO DIỆN & OVERRIDE FONT SÂU CHO CÁC Ô KHUNG ĐỎ
+# CẤU HÌNH GIAO DIỆN & TĂNG KÍCH THƯỚC TRIỆT ĐỂ CHO SELECTBOX
 # ==========================================
 st.markdown("""
     <style>
@@ -42,7 +42,7 @@ st.markdown("""
 
     .sidebar-title {
         color: #0f172a;
-        font-size: 25px !important;
+        font-size: 22px !important;
         font-weight: 700;
         margin-bottom: 14px;
         display: flex;
@@ -55,7 +55,7 @@ st.markdown("""
     /* 4. Định dạng Tiêu đề các BƯỚC */
     .step-header {
         color: #dc2626 !important;
-        font-size: 27px !important;
+        font-size: 24px !important;
         font-weight: 700 !important;
         margin-top: 24px !important;
         margin-bottom: 14px !important;
@@ -65,45 +65,58 @@ st.markdown("""
 
     /* 5. Định dạng Nhãn (Labels) cho các Input/Select */
     div[data-testid="stWidgetLabel"] p, .custom-label {
-        font-size: 24px !important;
+        font-size: 21px !important;
         font-weight: 700 !important;
         color: #1e293b !important;
         margin-bottom: 6px !important;
     }
 
     /* ========================================================
-       6. OVERRIDE SÂU CHO CÁC Ô TRONG KHUNG ĐỎ (+7PT -> 24PX)
+       6. ĐẶC TRỊ TĂNG FONT CHO 3 Ô SELECTBOX VÀ MULTISELECT
        ======================================================== */
-    /* A. Chữ bên trong tất cả ô Selectbox (Môn học, Khối lớp, Chọn bài học chuẩn) */
-    div[data-baseweb="select"] *, 
-    div[data-baseweb="select"] div, 
+    /* Ép tất cả văn bản bên trong các ô Selectbox (Môn học, Khối lớp, Bài học chuẩn) */
+    .stSelectbox div[data-baseweb="select"] *,
+    .stSelectbox [data-testid="stMarkdownContainer"] p,
+    div[data-baseweb="select"] div,
     div[data-baseweb="select"] span,
-    ul[role="listbox"] li,
-    ul[role="listbox"] li * {
-        font-size: 24px !important;
+    div[data-baseweb="select"] p {
+        font-size: 21px !important;
         font-weight: 700 !important;
         color: #1e3a8a !important;
         line-height: 1.4 !important;
+    }
+
+    /* Tăng font danh sách sổ xuống khi click vào Selectbox */
+    ul[role="listbox"] li,
+    ul[role="listbox"] li * {
+        font-size: 21px !important;
+        font-weight: 600 !important;
+    }
+
+    /* Thẻ Tag Tích hợp năng lực (Multiselect ở Bước 3) */
+    span[data-baseweb="tag"] * {
+        font-size: 18px !important;
+        font-weight: 700 !important;
     }
 
     /* B. Chữ bên trong ô Input (Chương, Tên bài, Số tiết,...) */
     div[data-baseweb="input"] input,
     .stTextInput input,
     .stNumberInput input {
-        font-size: 24px !important;
+        font-size: 21px !important;
         font-weight: 700 !important;
         color: #1e3a8a !important;
-        padding-top: 10px !important;
-        padding-bottom: 10px !important;
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
     }
 
     /* C. Chữ bên trong ô Textarea (Yêu cầu cần đạt) */
     div[data-baseweb="textarea"] textarea,
     .stTextArea textarea {
-        font-size: 24px !important;
+        font-size: 21px !important;
         font-weight: 600 !important;
         color: #1e3a8a !important;
-        line-height: 1.5 !important;
+        line-height: 1.4 !important;
     }
 
     /* D. Nút tăng giảm số tiết (+ / -) */
@@ -111,10 +124,10 @@ st.markdown("""
         height: 100% !important;
     }
     .stNumberInput button * {
-        font-size: 22px !important;
+        font-size: 19px !important;
     }
 
-    /* 7. Thiết kế Nút Bấm chữ lớn */
+    /* 7. Thiết kế Nút Bấm */
     .stButton button {
         border-radius: 8px !important;
         font-weight: 700 !important;
@@ -123,13 +136,13 @@ st.markdown("""
     }
     
     .stButton button p {
-        font-size: 25px !important;
+        font-size: 22px !important;
         font-weight: 700 !important;
     }
     
     /* Chữ ghi chú caption & thông báo */
     .stCaption, .stAlert p {
-        font-size: 20px !important;
+        font-size: 18px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -178,10 +191,10 @@ with st.sidebar:
 # ==========================================
 st.markdown("""
     <div style="text-align: center; margin-bottom: 25px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 22px; border-radius: 12px; border: 1px solid #bfdbfe;">
-        <div style="font-size: 37px; font-weight: 800; color: #1e3a8a; line-height: 1.3;">
+        <div style="font-size: 33px; font-weight: 800; color: #1e3a8a; line-height: 1.3;">
             HỆ THỐNG SOẠN KHBD TỰ ĐỘNG (CHUẨN 5512)
         </div>
-        <div style="font-size: 24px; font-weight: 600; color: #2563eb; margin-top: 10px;">
+        <div style="font-size: 21px; font-weight: 600; color: #2563eb; margin-top: 10px;">
             📝 Tác giả: DƯƠNG TẤN TIẾN — GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
         </div>
     </div>
