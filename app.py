@@ -75,7 +75,6 @@ st.markdown("""
     /* ========================================================
        6. ĐẶC TRỊ TĂNG FONT CHO 3 Ô SELECTBOX VÀ MULTISELECT
        ======================================================== */
-    /* Ép tất cả văn bản bên trong các ô Selectbox (Môn học, Khối lớp, Bài học chuẩn) */
     .stSelectbox div[data-baseweb="select"] *,
     .stSelectbox [data-testid="stMarkdownContainer"] p,
     div[data-baseweb="select"] div,
@@ -221,11 +220,10 @@ with col_grd:
     )
 
 # ==========================================
-# BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN / CHỌN FILE SGV (ĐÃ ĐIỀU CHỈNH GIAO DIỆN)
+# BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN / CHỌN FILE SGV
 # ==========================================
 st.markdown('<div class="step-header">📖 BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN / CHỌN FILE SGV</div>', unsafe_allow_html=True)
 
-# Khung 1: Tra cứu tự động hoặc Tải File SGV (Bố cục 2 cột cân đối)
 col_btn_sync, col_file_upload = st.columns([1, 1], gap="medium")
 
 with col_btn_sync:
@@ -236,7 +234,10 @@ with col_btn_sync:
         else:
             try:
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel(model_name)
+                
+                # Làm sạch tên model để tránh lỗi đường dẫn 404
+                clean_model = model_name.replace("models/", "")
+                model = genai.GenerativeModel(clean_model)
                 
                 prompt_fetch = f"""
                 Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
@@ -264,31 +265,28 @@ with col_btn_sync:
                     st.session_state['fetched_lessons'] = json.loads(clean_json)
                     st.success("🎉 Đã tải xong danh mục bài học chuẩn đầy đủ!")
             except Exception as e:
-                err_msg = str(e)
-                if "429" in err_msg or "Quota exceeded" in err_msg:
-                    st.warning("⚠️ API Key của thầy đã chạm trần lượt gọi miễn phí (Quota 429). Hệ thống tự động chuyển sang dữ liệu bài học mẫu chuẩn!")
-                    st.session_state['fetched_lessons'] = [
-                        {
-                            "chapter": "Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số",
-                            "lesson": "Bài 1. Tính đơn điệu và cực trị của hàm số",
-                            "duration": 3,
-                            "req": "Nhận biết được tính đơn điệu, điểm cực trị của hàm số thông qua bảng biến thiên hoặc đồ thị."
-                        },
-                        {
-                            "chapter": "Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số",
-                            "lesson": "Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số",
-                            "duration": 3,
-                            "req": "Xác định được giá trị lớn nhất, giá trị nhỏ nhất của hàm số trên một đoạn."
-                        },
-                        {
-                            "chapter": "Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số",
-                            "lesson": "Bài tập cuối chương I",
-                            "duration": 2,
-                            "req": "Củng cố kiến thức về khảo sát và vẽ đồ thị hàm số, giải các bài toán thực tế liên quan."
-                        }
-                    ]
-                else:
-                    st.error(f"Lỗi khi tải danh mục bài học: {e}")
+                # Tự động nạp dữ liệu mẫu nếu xảy ra sự cố API/Quota/404
+                st.warning("⚠️ Đã xảy ra gián đoạn kết nối API. Hệ thống tự động chuyển sang dữ liệu bài học mẫu chuẩn!")
+                st.session_state['fetched_lessons'] = [
+                    {
+                        "chapter": "Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số",
+                        "lesson": "Bài 1. Tính đơn điệu và cực trị của hàm số",
+                        "duration": 3,
+                        "req": "Nhận biết được tính đơn điệu, điểm cực trị của hàm số thông qua bảng biến thiên hoặc đồ thị."
+                    },
+                    {
+                        "chapter": "Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số",
+                        "lesson": "Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số",
+                        "duration": 3,
+                        "req": "Xác định được giá trị lớn nhất, giá trị nhỏ nhất của hàm số trên một đoạn."
+                    },
+                    {
+                        "chapter": "Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số",
+                        "lesson": "Bài tập cuối chương I",
+                        "duration": 2,
+                        "req": "Củng cố kiến thức về khảo sát và vẽ đồ thị hàm số, giải các bài toán thực tế liên quan."
+                    }
+                ]
 
 with col_file_upload:
     st.markdown('<span class="custom-label">📂 Hoặc tải lên File SGV (Sách Giáo Viên):</span>', unsafe_allow_html=True)
@@ -305,7 +303,9 @@ if uploaded_sgv_file is not None:
         else:
             try:
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel(model_name)
+                clean_model = model_name.replace("models/", "")
+                model = genai.GenerativeModel(clean_model)
+                
                 with st.spinner("✨ AI đang trích xuất Yêu cầu cần đạt từ File SGV..."):
                     if uploaded_sgv_file.type in ["image/png", "image/jpeg", "image/jpg"]:
                         img = Image.open(uploaded_sgv_file)
@@ -327,7 +327,7 @@ st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 # Lấy giá trị YCĐ ưu tiên từ file SGV vừa đọc (nếu có)
 req_default_value = st.session_state.get('req_from_sgv_file', '')
 
-# Khung 2: Hiển thị Selectbox và các Ô nhập liệu thông tin bài học
+# Khung Hiển thị Selectbox và các Ô nhập liệu thông tin bài học
 if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
     lessons_data = st.session_state['fetched_lessons']
     lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
@@ -515,7 +515,8 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
     else:
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(model_name)
+            clean_model = model_name.replace("models/", "")
+            model = genai.GenerativeModel(clean_model)
 
             integration_str = ", ".join(integrations) if integrations else "Không"
 
