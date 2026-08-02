@@ -11,7 +11,8 @@ import json
 
 st.set_page_config(page_title="Hệ thống Soạn Giáo án Tự Động 5512", layout="wide", page_icon="📝")
 
-st.title("📝 HỆ THỐNG SOẠN BÀI DẠY CHUẨN CÔNG VĂN 5512")
+st.title("📝 HỆ THỐNG SOẠN KHBD (có tích hợp NLS, AI, STEM,...))
+st.title("📝Tác giả: DƯƠNG TẤN TIẾN - GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI")
 st.caption("Đồng bộ danh mục Chương/Bài chuẩn NXB Giáo dục Việt Nam (taphuan.nxbgd.vn)")
 
 # Thanh bên cấu hình
