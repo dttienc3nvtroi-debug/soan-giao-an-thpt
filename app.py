@@ -12,12 +12,19 @@ import json
 st.set_page_config(page_title="Hệ thống Soạn Giáo án Tự Động 5512", layout="wide", page_icon="📝")
 
 st.title("📝 HỆ THỐNG SOẠN BÀI DẠY CHUẨN CÔNG VĂN 5512")
-st.caption("Đồng bộ danh mục Chương/Bài chuẩn NXB Giáo dục Việt Nam (taphuan.nxbgd.vn) bằng AI Tra cứu")
+st.caption("Đồng bộ danh mục Chương/Bài chuẩn NXB Giáo dục Việt Nam (taphuan.nxbgd.vn)")
 
-# Thanh bên
+# Thanh bên cấu hình
 with st.sidebar:
     st.header("⚙️ Cấu hình Hệ thống")
     api_key = st.text_input("Nhập Google Gemini API Key:", type="password")
+    
+    # Chọn mô hình Gemini
+    model_name = st.selectbox(
+        "Chọn phiên bản Gemini AI:",
+        ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],
+        index=0
+    )
     
     st.markdown("---")
     school_name = st.text_input("Trường THPT:", "THPT Nguyễn Văn Trỗi")
@@ -43,7 +50,7 @@ if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nx
     else:
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-1.5-flash-latest')
+            model = genai.GenerativeModel(model_name)
             
             prompt_fetch = f"""
             Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
@@ -58,7 +65,7 @@ if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nx
                 "req": "Yêu cầu cần đạt chuẩn của bài 1"
               }}
             ]
-            Chỉ trả về mã JSON nguyên bản, không thêm văn bản giải thích.
+            Chỉ trả về mã JSON nguyên bản, không thêm văn bản giải thích hay định dạng markdown khác.
             """
             
             with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade} từ taphuan.nxbgd.vn..."):
@@ -88,9 +95,9 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
         requirements = st.text_area("YCĐ:", value=current_item['req'], height=120)
 
 else:
-    st.info("💡 Thầy vui lòng bấm nút **'🔍 Cập nhật danh sách Chương & Bài học...'** ở trên để AI tự động tải toàn bộ bài học chuẩn của môn này nhé!")
-    chapter_title = st.text_input("Tên Chương/Chủ đề (Nhiệm vụ thủ công):", "")
-    lesson_title = st.text_input("Tên Bài dạy (Nhiệm vụ thủ công):", "")
+    st.info("💡 Thầy vui lòng bấm nút **'🔍 Cập nhật danh sách Chương & Bài học...'** ở trên để AI tự động tải toàn bộ bài học chuẩn nhé!")
+    chapter_title = st.text_input("Tên Chương/Chủ đề:", "")
+    lesson_title = st.text_input("Tên Bài dạy:", "")
     duration = st.number_input("Số tiết:", value=2)
     requirements = st.text_area("Yêu cầu cần đạt:", "")
 
@@ -195,7 +202,7 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary"):
     else:
         try:
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-3.6-flash')
+            model = genai.GenerativeModel(model_name)
 
             integration_str = ", ".join(integrations) if integrations else "Không"
 
