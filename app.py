@@ -57,7 +57,7 @@ st.markdown("""
     div[data-testid="stWidgetLabel"] p, .custom-label {
         font-size: 19px !important;
         font-weight: 700 !important;
-        color: #1e293b !important;
+        color: #1e3a8a !important;
         margin-bottom: 4px !important;
     }
     .stSelectbox div[data-baseweb="select"] *,
@@ -105,21 +105,24 @@ def process_uploaded_file(uploaded_file):
     return {"mime_type": mime, "data": bytes_data}
 
 # ==========================================
-# HÀM GỌI GEMINI API MỚI (CHỐNG LỖI 404 VÀ LỖI 429)
+# HÀM GỌI API ĐỘNG (TỰ ĐỘNG DÒ MÔ HÌNH SỐNG TRÊN API KEY)
 # ==========================================
 def call_gemini(api_key, preferred_model, contents):
     genai.configure(api_key=api_key)
     
-    # Danh sách mô hình chuẩn 2026 hiện hành
-    fallback_models = [
-        preferred_model.replace("models/", "").strip(),
-        "gemini-2.0-flash",
-        "gemini-2.0-flash-lite"
-    ]
-    
-    # Loại bỏ trùng lặp giữ nguyên thứ tự
-    seen = set()
-    models_to_try = [m for m in fallback_models if not (m in seen or seen.add(m))]
+    # Lấy danh sách thực tế các model hỗ trợ generateContent từ API Key của Thầy
+    available_models = []
+    try:
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                clean_name = m.name.replace("models/", "")
+                available_models.append(clean_name)
+    except Exception:
+        available_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+
+    # Ưu tiên model thầy chọn, sau đó đến các model khả dụng khác
+    pref_clean = preferred_model.replace("models/", "").strip()
+    models_to_try = [pref_clean] + [m for m in available_models if m != pref_clean]
 
     generation_config = genai.types.GenerationConfig(
         temperature=0.1,
@@ -127,29 +130,28 @@ def call_gemini(api_key, preferred_model, contents):
         top_k=40
     )
 
-    last_exception = None
+    last_err_msg = ""
     for m_name in models_to_try:
         try:
             model = genai.GenerativeModel(model_name=m_name, generation_config=generation_config)
             response = model.generate_content(contents)
             return response
         except Exception as e:
-            last_exception = e
-            err_msg = str(e)
-            # Nếu dính lỗi 429 Quota thì tạm dừng 2s rồi thử model tiếp theo trong danh sách
-            if "429" in err_msg or "Quota exceeded" in err_msg or "ResourceHasBeenExhausted" in err_msg:
-                time.sleep(2)
+            err_str = str(e)
+            last_err_msg = err_str
+            # Nếu dính lỗi 429 (Hết Quota/Nghẽn mạng) -> Thử tạm dừng 3s rồi đổi sang model khác
+            if "429" in err_str or "Quota exceeded" in err_str or "ResourceHasBeenExhausted" in err_str:
+                time.sleep(3)
                 continue
-            # Nếu dính lỗi 404 (model cũ bị xoá) thì tự chuyển sang model khác ngay
-            elif "404" in err_msg or "not found" in err_msg:
+            elif "404" in err_str or "not found" in err_str:
                 continue
             else:
-                raise e
+                continue
                 
     raise Exception(
-        "⚠️ Không thể kết nối tới Google AI. Thầy vui lòng kiểm tra lại API Key "
-        "hoặc đợi khoảng 30 - 45 giây rồi thử lại!"
-    ) from last_exception
+        f"❌ API Key hiện tại chưa kết nối được mô hình AI nào hoặc đã hết 100% dung lượng ngày (Free Quota).\n"
+        f"💡 Lời khuyên: Thầy hãy mở trang https://aistudio.google.com/ tạo 1 API Key MỚI TINH (chỉ mất 10 giây) và dán lại vào thanh bên trái nhé!"
+    )
 
 # ==========================================
 # THANH BÊN (SIDEBAR) ĐĂNG NHẬP & CẤU HÌNH
@@ -157,7 +159,7 @@ def call_gemini(api_key, preferred_model, contents):
 with st.sidebar:
     st.markdown('<div class="sidebar-title">🔑 ĐĂNG NHẬP & CẤU HÌNH</div>', unsafe_allow_html=True)
     api_key = st.text_input("Google Gemini API Key:", type="password", placeholder="Dán API Key vào đây...")
-    model_name = st.selectbox("Mô hình AI ưu tiên:", ["gemini-2.0-flash", "gemini-2.0-flash-lite"], index=0)
+    model_name = st.selectbox("Mô hình AI ưu tiên:", ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"], index=0)
     
     st.markdown("---")
     st.markdown('<div class="sidebar-title">👤 THÔNG TIN GIÁO VIÊN</div>', unsafe_allow_html=True)
@@ -291,7 +293,7 @@ elif "🤖 Tra cứu tự động" in input_mode:
                     else:
                         st.error("Lỗi cấu trúc dữ liệu trả về.")
                 except Exception as e:
-                    st.error(f"❌ {e}")
+                    st.error(f"{e}")
                     
     if 'ai_lessons' in st.session_state:
         lessons_list = st.session_state['ai_lessons']
@@ -533,4 +535,4 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                 st.markdown(response.text)
 
         except Exception as e:
-            st.error(f"❌ {e}")
+            st.error(f"{e}")
