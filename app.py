@@ -61,54 +61,45 @@ DATABASE_KNTT = {
     }
 }
 
-# HÀM KỸ THUẬT CAO: QUÉT & TỰ ĐỘNG KẾT NỐI MÔ HÌNH HỢP LỆ
-def get_valid_model_name(api_key):
+# HÀM DYNAMIC DISCOVERY: LẤY DANH SÁCH MODEL THỰC TẾ ĐANG SỐNG CỦA API KEY
+def get_available_models(api_key):
     genai.configure(api_key=api_key)
     try:
-        # Lấy danh sách thực tế các model mà API Key này được phép dùng
-        all_models = [
-            m.name for m in genai.list_models() 
+        models = [
+            m.name.replace("models/", "") 
+            for m in genai.list_models() 
             if 'generateContent' in m.supported_generation_methods
         ]
-        if not all_models:
-            return "gemini-2.5-flash"
-        
-        # Ưu tiên các model flash/chính thức hiện có
-        for target in ["models/gemini-2.5-flash", "models/gemini-2.0-flash", "models/gemini-1.5-flash-latest", "models/gemini-1.5-flash"]:
-            if target in all_models:
-                return target.replace("models/", "")
-                
-        # Nếu không trùng khớp ưu tiên, lấy model generateContent đầu tiên tìm thấy
-        return all_models[0].replace("models/", "")
+        if models:
+            return models
     except Exception:
-        # Fallback an toàn nhất
-        return "gemini-2.5-flash"
+        pass
+    # Danh sách dự phòng chuẩn
+    return ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
 
-# HÀM TẠO NỘI DUNG VỚI CƠ CHẾ CHỐNG LỖI 404 & 429
+# HÀM XỬ LÝ AI ĐÃ DYNAMIC FALLBACK CHỐNG LỖI 404 & 429
 def generate_content_safe(api_key, contents):
     genai.configure(api_key=api_key)
+    available_models = get_available_models(api_key)
     
-    # Tự động lấy Model Name chuẩn nhất từ API Key
-    selected_model_name = get_valid_model_name(api_key)
-    
-    model = genai.GenerativeModel(selected_model_name)
-    
-    max_retries = 3
-    for attempt in range(max_retries):
+    last_error = None
+    for model_name in available_models:
         try:
-            return model.generate_content(contents)
-        except Exception as e:
-            err_msg = str(e)
-            # Xử lý lỗi Rate Limit / Quota Exceeded (429)
-            if "429" in err_msg or "Quota" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
-                if attempt < max_retries - 1:
-                    wait_time = (attempt + 1) * 12
-                    st.warning(f"⏳ API chạm giới hạn lượt gọi (Rate Limit). Tự động thử lại sau {wait_time} giây... (Lần {attempt + 1}/{max_retries})")
-                    time.sleep(wait_time)
-                else:
-                    raise Exception("❌ API Key Free Tier hiện đã hết lượt request trong phút này. Thầy vui lòng chờ 1 phút rồi bấm lại nhé!")
-            else:
-                raise e
+            model = genai.GenerativeModel(model_name)
+            for attempt in range(2):
+                try:
+                    return model.generate_content(contents)
+                except Exception as e:
+                    err_msg = str(e)
+                    if "429" in err_msg or "Quota" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
+                        time.sleep(8)
+                    else:
+                        raise e
+        except Exception as err:
+            last_error = err
+            continue # Thử sang model khác nếu dính lỗi 404 hoặc không tương thích
+
+    raise Exception(f"❌ Không thể tạo nội dung từ API. Lỗi chi tiết: {str(last_error)}")
 
 # SIDEBAR
 with st.sidebar:
