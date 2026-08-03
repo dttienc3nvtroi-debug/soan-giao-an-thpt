@@ -62,7 +62,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# HÀM BÓC TÁCH JSON AN TOÀN (SỬA LỖI SYNTAX)
+# HÀM BÓC TÁCH JSON AN TOÀN
 # ==========================================
 def clean_and_parse_json(raw_text):
     text = raw_text.strip()
@@ -91,7 +91,7 @@ def clean_and_parse_json(raw_text):
         except Exception:
             pass
 
-    raise ValueError("Lỗi định dạng dữ liệu từ AI. Thầy vui lòng bấm tra cứu lại lần nữa!")
+    raise ValueError("Lỗi định dạng dữ liệu từ AI. Thầy vui lòng bấm tra cứu lại!")
 
 # ==========================================
 # HÀM XỬ LÝ TỆP ĐÍNH KÈM
@@ -169,20 +169,4 @@ with st.sidebar:
 # TIÊU ĐỀ TRANG
 # ==========================================
 st.markdown("""
-    <div style="text-align: center; margin-bottom: 20px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 16px; border-radius: 12px; border: 1px solid #bfdbfe;">
-        <div style="font-size: 26px; font-weight: 800; color: #1e3a8a;">
-            HỆ THỐNG SOẠN KHBD TỰ ĐỘNG CHUẨN 100% SGV (5512)
-        </div>
-        <div style="font-size: 17px; font-weight: 600; color: #2563eb; margin-top: 4px;">
-            📝 Tác giả: DƯƠNG TẤN TIẾN — GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
-        </div>
-    </div>
-""", unsafe_allow_html=True)
-
-# ==========================================
-# BƯỚC 1: CHỌN MÔN HỌC
-# ==========================================
-st.markdown('<div class="step-header">📚 BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP</div>', unsafe_allow_html=True)
-
-col_sub, col_grd, col_book = st.columns(3)
-with col_
+    <div style="text-
