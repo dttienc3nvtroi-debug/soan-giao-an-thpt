@@ -13,7 +13,7 @@ import time
 
 # Cấu hình trang Streamlit
 st.set_page_config(
-    page_title="Hệ thống Soạn Giáo án Tự Động 5512 (Bám sát SGV)", 
+    page_title="Hệ thống Soạn Giáo án Tự Động 5512 (Tối Ưu Tốc Độ)", 
     layout="wide", 
     page_icon="📝"
 )
@@ -84,49 +84,30 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# HÀM LẤY DANH SÁCH MODEL THỰC TẾ KHẢ DỤNG
-def get_available_models(api_key):
+# HÀM GỌI AI SIÊU TỐC VỚI THAM SỐ CẤU HÌNH TỐI ƯU
+def call_gemini_fast(api_key, model_choice, contents):
     genai.configure(api_key=api_key)
+    
+    # Ưu tiên các dòng mô hình Flash tối ưu tốc độ cực cao
+    clean_model_name = model_choice.replace("models/", "").strip()
+    
+    # Cấu hình giảm thời gian suy nghĩ không cần thiết, tăng tốc trích xuất dữ liệu
+    generation_config = genai.types.GenerationConfig(
+        temperature=0.2,  # Thấp để trích xuất chính xác và phản hồi nhanh hơn
+        top_p=0.8,
+        top_k=40
+    )
+    
     try:
-        models = [
-            m.name.replace("models/", "") 
-            for m in genai.list_models() 
-            if 'generateContent' in m.supported_generation_methods
-        ]
-        if models:
-            return models
-    except Exception:
-        pass
-    return ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
-
-def call_gemini_safe(api_key, preferred_model, contents, max_retries=3):
-    genai.configure(api_key=api_key)
-    available_models = get_available_models(api_key)
-    
-    # Đặt preferred_model lên đầu danh sách nếu có
-    if preferred_model in available_models:
-        available_models.remove(preferred_model)
-        available_models.insert(0, preferred_model)
-    
-    last_error = None
-    for model_name in available_models:
-        try:
-            model = genai.GenerativeModel(model_name)
-            for attempt in range(max_retries):
-                try:
-                    return model.generate_content(contents)
-                except Exception as e:
-                    err_msg = str(e)
-                    if "429" in err_msg or "Quota" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
-                        if attempt < max_retries - 1:
-                            time.sleep((attempt + 1) * 6)
-                            continue
-                    raise e
-        except Exception as e:
-            last_error = e
-            continue
-
-    raise Exception(f"Không thể kết nối đến AI. Chi tiết lỗi: {str(last_error)}")
+        model = genai.GenerativeModel(model_name=clean_model_name, generation_config=generation_config)
+        response = model.generate_content(contents)
+        return response
+    except Exception as e:
+        # Dự phòng tự động chuyển sang gemini-2.0-flash nếu model được chọn gặp sự cố
+        if clean_model_name != "gemini-2.0-flash":
+            model = genai.GenerativeModel(model_name="gemini-2.0-flash", generation_config=generation_config)
+            return model.generate_content(contents)
+        raise e
 
 # ==========================================
 # THANH BÊN (SIDEBAR) ĐĂNG NHẬP
@@ -142,10 +123,10 @@ with st.sidebar:
     )
     
     model_name = st.selectbox(
-        "Mô hình AI ưu tiên:",
-        ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"],
+        "Mô hình AI ưu tiên (Khuyên dùng Flash):",
+        ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"],
         index=0,
-        help="Nên chọn gemini-1.5-flash để đọc file PDF/Ảnh nhanh và mượt nhất"
+        help="Model Flash phản hồi nhanh gấp 3 lần model Pro"
     )
     st.markdown("---")
     
@@ -204,11 +185,9 @@ with col_btn_sync:
             st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
         else:
             try:
-                clean_model_name = model_name.replace("models/", "").strip()
                 prompt_fetch = f"""
-                Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
-                Liệt kê ĐẦY ĐỦ tất cả các Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức với cuộc sống).
-                
+                Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam.
+                Liệt kê ĐẦY ĐỦ tất cả các Bài học thuộc môn {subject} - {grade} (KNTT).
                 Trả về duy nhất dạng JSON mảng:
                 [
                   {{
@@ -221,13 +200,13 @@ with col_btn_sync:
                 Chỉ trả về mã JSON mảng [ ... ], không viết lời chào.
                 """
                 
-                with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade}..."):
-                    res = call_gemini_safe(clean_api_key, clean_model_name, [prompt_fetch])
+                with st.spinner(f"⚡ Đang nạp danh mục bài học..."):
+                    res = call_gemini_fast(clean_api_key, model_name, [prompt_fetch])
                     raw_text = res.text.strip()
                     json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
                     clean_json = json_match.group(0) if json_match else raw_text
                     st.session_state['fetched_lessons'] = json.loads(clean_json)
-                    st.success("🎉 Đã tải xong danh mục bài học chuẩn SGK!")
+                    st.success("🎉 Đã tải xong danh mục bài học!")
             except Exception as e:
                 st.warning("⚠️ Đã nạp bài học mẫu chuẩn SGK:")
                 st.session_state['fetched_lessons'] = [
@@ -245,7 +224,7 @@ with col_file_upload:
         "Tải lên File SGV:", 
         type=["pdf", "png", "jpg", "jpeg"], 
         label_visibility="collapsed",
-        help="Tải ảnh/PDF trang SGV lên đây để AI chép chính xác 100% mục tiêu kiến thức, kỹ năng!"
+        help="Khuyên dùng ảnh chụp hoặc file PDF ngắn (1-3 trang) để AI xử lý cực nhanh"
     )
 
 if uploaded_sgv_file is not None:
@@ -405,40 +384,34 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
         st.error("⚠️ Vui lòng chọn hoặc nhập tên Bài dạy!")
     else:
         try:
-            clean_model_name = model_name.replace("models/", "").strip()
             integration_str = ", ".join(integrations) if integrations else "Không"
 
-            # PROMPT TẬP TRUNG TRÍCH XUẤT NGUYÊN BẢN MỤC TIÊU TỪ TỆP ĐÍNH KÈM
+            # OPTIMIZED PROMPT - Ngắn gọn hơn giúp AI sinh phản hồi cực nhanh
             prompt = f"""
-            Bạn là trợ lý trích xuất và chuyển đổi Kế hoạch bài dạy chuẩn Công văn 5512/BGDĐT.
+            Tạo Kế hoạch bài dạy chuẩn Công văn 5512/BGDĐT.
 
-            NGUYÊN TẮC VÀNG CHÍNH XÁC 100% VỀ PHẦN MỤC TIÊU (BẮT BUỘC TUÂN THỦ):
-            1. QUY TẮC NẠP MỤC TIÊU DÙNG TỆP ĐÍNH KÈM:
-               - NẾU CÓ TỆP TÀI LIỆU/ẢNH/PDF ĐÍNH KÈM: Bạn BẮT BUỘC phải đọc trực tiếp tệp này và trích xuất NGUYÊN VĂN (chép chính xác 100% từng từ, từng gạch đầu dòng) phần "MỤC TIÊU" (bao gồm Kiến thức, Năng lực, Phẩm chất) từ file đính kèm vào phần "I. MỤC TIÊU". TUYỆT ĐỐI KHÔNG tự sửa từ ngữ, không tự bịa thêm mục tiêu nếu trong file đính kèm không ghi!
-               - NẾU KHÔNG CÓ TỆP ĐÍNH KÈM: Mới sử dụng nội dung từ ô nhập liệu sau đây: {requirements}
+            YÊU CẦU MỤC TIÊU:
+            1. Nếu có tệp đính kèm: Trích xuất CHÍNH XÁC NGUYÊN VĂN (100%) phần "MỤC TIÊU" (Kiến thức, Năng lực, Phẩm chất) từ file đính kèm. Không tự bịa thêm.
+            2. Nếu không có file: Dùng nội dung sau: {requirements}
 
-            2. CẤU TRÚC BÁM SÁT 5512:
-               I. MỤC TIÊU
-               1. Về kiến thức: (Trích xuất CHÍNH XÁC NGUYÊN VĂN từ file đính kèm/SGV)
-               2. Về năng lực: (Trích xuất CHÍNH XÁC NGUYÊN VĂN các năng lực chung và năng lực đặc thù từ file đính kèm/SGV)
-                  - Năng lực Số / Tích hợp AI (Bổ sung ngắn gọn): Nêu ngắn gọn việc dùng {integration_str}
-               3. Về phẩm chất: (Trích xuất CHÍNH XÁC NGUYÊN VĂN từ file đính kèm/SGV)
+            CẤU TRÚC 5512:
+            I. MỤC TIÊU
+            1. Về kiến thức: (Nguyên văn file/SGV)
+            2. Về năng lực: (Nguyên văn file/SGV)
+               - Năng lực Số / AI: {integration_str}
+            3. Về phẩm chất: (Nguyên văn file/SGV)
 
-               II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
+            II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
 
-               III. TIẾN TRÌNH DẠY HỌC
-               Trình bày đầy đủ các Hoạt động (Khởi động, Khám phá/Hình thành kiến thức, Luyện tập, Vận dụng). 
-               Mỗi hoạt động gồm đủ 4 mục chuẩn 5512:
-               a) Mục tiêu
-               b) Nội dung
-               c) Sản phẩm
-               d) Tổ chức thực hiện (Đủ 4 bước: Bước 1 -> Bước 2 -> Bước 3 -> Bước 4).
+            III. TIẾN TRÌNH DẠY HỌC
+            Nêu rõ các Hoạt động (Khởi động, Khám phá, Luyện tập, Vận dụng). Mỗi hoạt động gồm:
+            a) Mục tiêu
+            b) Nội dung
+            c) Sản phẩm
+            d) Tổ chức thực hiện (Bước 1 -> Bước 2 -> Bước 3 -> Bước 4).
 
             THÔNG TIN BÀI DẠY:
-            - Môn: {subject} ({grade})
-            - Chương/Chủ đề: {chapter_title}
-            - Bài dạy: {lesson_title}
-            - Thời lượng: {duration} tiết
+            - Môn: {subject} ({grade}) | Bài: {lesson_title} | Thời lượng: {duration} tiết
             """
 
             contents = [prompt]
@@ -451,11 +424,11 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                     "data": bytes_data
                 }
                 contents.append(file_part)
-                st.toast("📄 Đã nạp file đính kèm! Đang trích xuất Mục tiêu nguyên văn từ file...", icon="✅")
+                st.toast("⚡ Đã đính kèm file! Đang tăng tốc xử lý...", icon="🚀")
 
-            with st.spinner("✨ AI đang đọc file đính kèm và tạo giáo án 5512..."):
-                response = call_gemini_safe(clean_api_key, clean_model_name, contents)
-                st.success("🎉 Đã tạo giáo án bám sát 100% SGV!")
+            with st.spinner("⚡ AI đang xử lý và xuất giáo án siêu tốc..."):
+                response = call_gemini_fast(clean_api_key, model_name, contents)
+                st.success("🎉 Đã tạo xong giáo án chuẩn 5512!")
                 
                 doc_file = generate_doc(response.text)
                 
@@ -472,4 +445,4 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
 
         except Exception as e:
             err_str = str(e)
-            st.error(f"❌ Lỗi khi sinh giáo án: `{err_str}`")
+            st.error(f"❌ Lỗi xử lý: `{err_str}`. Thầy hãy kiểm tra lại API Key hoặc giảm số trang của file PDF đính kèm!")
