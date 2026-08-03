@@ -61,18 +61,16 @@ DATABASE_KNTT = {
     }
 }
 
-# HÀM GỌI GEMINI AN TOÀN
+# HÀM GỌI GEMINI VỚI GEMINI-1.5-FLASH
 def generate_content_safe(api_key, contents):
     genai.configure(api_key=api_key)
     
-    # Ưu tiên các mô hình tiết kiệm Quota
-    model_name = "gemini-2.0-flash"
-    
+    # Sử dụng gemini-1.5-flash để tránh nghẽn Quota của dòng 2.0
     model = genai.GenerativeModel(
-        model_name=model_name,
+        model_name="gemini-1.5-flash",
         generation_config=genai.GenerationConfig(
             temperature=0.3,
-            max_output_tokens=3000 # Giảm bớt token đầu ra để an toàn tuyệt đối
+            max_output_tokens=2048
         )
     )
     
@@ -84,11 +82,11 @@ def generate_content_safe(api_key, contents):
             err_msg = str(e)
             if "429" in err_msg or "Quota" in err_msg:
                 if attempt < max_retries - 1:
-                    wait_time = (attempt + 1) * 10
+                    wait_time = (attempt + 1) * 15
                     st.warning(f"⏳ Tạm thời đạt trần Token. Tự động nghỉ {wait_time}s... (Lần {attempt + 1}/{max_retries})")
                     time.sleep(wait_time)
                 else:
-                    raise Exception("❌ Đã hết Quota miễn phí trong phút này! Vui lòng tạo API Key ở Gmail KHÁC hoặc chờ 1 phút rồi bấm lại.")
+                    raise Exception("❌ Đã hết Quota miễn phí trong phút này! Vui lòng tạo API Key ở Gmail KHÁC hoặc chờ 1-2 phút rồi bấm lại.")
             else:
                 raise e
 
@@ -154,7 +152,7 @@ with col_load_ycd:
             st.error("⚠️ Vui lòng dán Gemini API Key ở menu bên trái!")
         else:
             try:
-                prompt_ycd = f"Trích xuất Yêu cầu cần đạt SGV Kết nối tri thức - {grade}, môn {subject}, bài '{selected_lesson}'. Dạng gạch đầu dòng ngắn gọn."
+                prompt_ycd = f"Liệt kê ngắn gọn Yêu cầu cần đạt SGV Kết nối tri thức - {grade}, môn {subject}, bài '{selected_lesson}'."
                 with st.spinner("⚡ AI đang tải YCĐ..."):
                     res = generate_content_safe(api_key.strip(), [prompt_ycd])
                     st.session_state['auto_ycd'] = res.text
@@ -269,10 +267,10 @@ if st.button("🚀 BẤM TẠO GIÁO ÁN WORD CHUẨN 5512", type="primary", use
         try:
             integration_str = ", ".join(integrations) if integrations else "Không"
             
-            # CHIA LÀM 2 LẦN GỌI ĐỂ CHỐNG NGHẼN QUOTA MIỄN PHÍ
+            # XỬ LÝ PHẦN 1
             st.info("🔄 Đang xử lý Phần 1: Mục tiêu, Thiết bị & Khởi động...")
             prompt_part1 = f"""
-            Soạn Phần 1 cho KHBD 5512 bài: {selected_lesson} ({grade}, {subject}, Kết nối tri thức).
+            Soạn Phần 1 KHBD 5512 bài: {selected_lesson} ({grade}, {subject}, Kết nối tri thức).
             YCĐ: {ycd_content}. Tích hợp: {integration_str}.
             Gồm:
             I. MỤC TIÊU (Kiến thức, Năng lực, Phẩm chất)
@@ -288,15 +286,16 @@ if st.button("🚀 BẤM TẠO GIÁO ÁN WORD CHUẨN 5512", type="primary", use
                 
             res1 = generate_content_safe(api_key.strip(), contents1)
             
-            # Nghỉ 3 giây giữa 2 lần gọi để Google reset Quota
-            time.sleep(3)
+            # Tạm nghỉ 5 giây để Google reset Quota
+            time.sleep(5)
             
+            # XỬ LÝ PHẦN 2
             st.info("🔄 Đang xử lý Phần 2: Hình thành kiến thức, Luyện tập & Vận dụng...")
             prompt_part2 = f"""
-            Soạn Tiếp Phần 2 cho KHBD 5512 bài: {selected_lesson} ({grade}, {subject}, Kết nối tri thức).
-            Gồm các Hoạt động còn lại chuẩn 5512 (Mỗi hoạt động có đủ 4 mục a, b, c, d):
+            Soạn tiếp Phần 2 KHBD 5512 bài: {selected_lesson} ({grade}, {subject}, Kết nối tri thức).
+            Gồm các Hoạt động còn lại (mỗi hoạt động đủ 4 mục a, b, c, d):
             Hoạt động 2: Hình thành kiến thức mới
-            Hoạt động 3: Luyện tập (Có bài tập + lời giải)
+            Hoạt động 3: Luyện tập (có bài tập + lời giải)
             Hoạt động 4: Vận dụng
             """
             res2 = generate_content_safe(api_key.strip(), [prompt_part2])
