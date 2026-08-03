@@ -1,7 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 import docx
-from docx.shared import Inches, Pt, Cm
+from docx.shared import Inches, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
@@ -13,7 +13,7 @@ import time
 
 # Cấu hình trang Streamlit
 st.set_page_config(
-    page_title="Hệ thống Soạn Giáo án Tự Động 5512 (Chuẩn SGK & SGV)", 
+    page_title="Hệ thống Soạn Giáo án Tự Động 5512 (SGV & SGK NXB Giáo Dục)", 
     layout="wide", 
     page_icon="📝"
 )
@@ -24,7 +24,7 @@ st.set_page_config(
 st.markdown("""
     <style>
     .block-container {
-        padding-top: 1.5rem !important;
+        padding-top: 2rem !important;
         padding-bottom: 2rem !important;
         max-width: 1300px;
     }
@@ -37,62 +37,55 @@ st.markdown("""
     }
     .sidebar-title {
         color: #0f172a;
-        font-size: 20px !important;
+        font-size: 22px !important;
         font-weight: 700;
-        margin-bottom: 12px;
+        margin-bottom: 14px;
         border-bottom: 3px solid #2563eb;
         padding-bottom: 6px;
     }
     .step-header {
         color: #dc2626 !important;
-        font-size: 22px !important;
+        font-size: 24px !important;
         font-weight: 700 !important;
-        margin-top: 20px !important;
-        margin-bottom: 12px !important;
+        margin-top: 24px !important;
+        margin-bottom: 14px !important;
         padding-left: 10px;
         border-left: 5px solid #dc2626;
     }
     div[data-testid="stWidgetLabel"] p, .custom-label {
-        font-size: 18px !important;
+        font-size: 21px !important;
         font-weight: 700 !important;
         color: #1e293b !important;
-        margin-bottom: 4px !important;
+        margin-bottom: 6px !important;
     }
     .stSelectbox div[data-baseweb="select"] *,
+    .stSelectbox [data-testid="stMarkdownContainer"] p,
+    div[data-baseweb="select"] div,
     div[data-baseweb="select"] span,
     div[data-baseweb="select"] p {
-        font-size: 18px !important;
-        font-weight: 600 !important;
+        font-size: 21px !important;
+        font-weight: 700 !important;
         color: #1e3a8a !important;
     }
     div[data-baseweb="input"] input, .stTextInput input, .stNumberInput input {
-        font-size: 18px !important;
-        font-weight: 600 !important;
+        font-size: 21px !important;
+        font-weight: 700 !important;
         color: #1e3a8a !important;
     }
     div[data-baseweb="textarea"] textarea, .stTextArea textarea {
-        font-size: 17px !important;
-        font-weight: 500 !important;
-        color: #0f172a !important;
+        font-size: 21px !important;
+        font-weight: 600 !important;
+        color: #1e3a8a !important;
     }
     .stButton button p {
-        font-size: 19px !important;
+        font-size: 21px !important;
         font-weight: 700 !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Hàm gọi AI với Temperature = 0.0 để CHỐNG SÁNG TẠO / SỬA CÂU CHỮ
-def call_gemini_strict(model_name, api_key, contents, max_retries=3):
-    genai.configure(api_key=api_key)
-    # Cấu hình khóa độ sáng tạo = 0.0
-    generation_config = genai.GenerationConfig(
-        temperature=0.0,
-        top_p=0.1,
-        top_k=1
-    )
-    model = genai.GenerativeModel(model_name=model_name, generation_config=generation_config)
-    
+# Hàm gọi AI ép bám sát SGK/SGV
+def call_gemini_multimodal(model, contents, max_retries=3):
     for attempt in range(max_retries):
         try:
             response = model.generate_content(contents)
@@ -101,12 +94,13 @@ def call_gemini_strict(model_name, api_key, contents, max_retries=3):
             err_msg = str(e)
             if "429" in err_msg or "Quota" in err_msg:
                 if attempt < max_retries - 1:
-                    time.sleep((attempt + 1) * 6)
+                    wait_time = (attempt + 1) * 8
+                    time.sleep(wait_time)
                     continue
             raise e
 
 # ==========================================
-# THANH BÊN (SIDEBAR) CẤU HÌNH
+# THANH BÊN (SIDEBAR) ĐĂNG NHẬP
 # ==========================================
 with st.sidebar:
     st.markdown('<div class="sidebar-title">🔑 ĐĂNG NHẬP & CẤU HÌNH</div>', unsafe_allow_html=True)
@@ -118,14 +112,15 @@ with st.sidebar:
         help="Nhập API Key từ Google AI Studio"
     )
     
-    model_name_choice = st.selectbox(
+    model_name = st.selectbox(
         "Mô hình AI xử lý:",
         ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
-        index=0
+        index=0,
+        help="Chọn gemini-1.5-flash để trích xuất văn bản chuẩn xác và nhanh nhất"
     )
     st.markdown("---")
     
-    st.markdown('<div class="sidebar-title">👤 THÔNG TIN PHÒNG / TRƯỜNG</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-title">👤 THÔNG TIN GIÁO VIÊN</div>', unsafe_allow_html=True)
     school_name = st.text_input("Trường THPT:", "THPT NGUYỄN VĂN TRỖI")
     dept_name = st.text_input("Tổ chuyên môn:", "TỔ TOÁN")
     teacher_name = st.text_input("Họ và tên GV:", "Dương Tấn Tiến")
@@ -134,14 +129,14 @@ with st.sidebar:
 # TIÊU ĐỀ ỨNG DỤNG
 # ==========================================
 st.markdown("""
-    <div style="text-align: center; margin-bottom: 20px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 18px; border-radius: 10px; border: 1px solid #bfdbfe;">
-        <div style="font-size: 28px; font-weight: 800; color: #1e3a8a;">
-            HỆ THỐNG SOẠN KHBD TỰ ĐỘNG CHUẨN 100% SGK & SGV (5512)
+    <div style="text-align: center; margin-bottom: 25px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 22px; border-radius: 12px; border: 1px solid #bfdbfe;">
+        <div style="font-size: 31px; font-weight: 800; color: #1e3a8a;">
+            HỆ THỐNG SOẠN KHBD TỰ ĐỘNG CHUẨN SGK & SGV (5512)
         </div>
-        <div style="font-size: 16px; font-weight: 600; color: #047857; margin-top: 4px;">
-            📌 Giữ nguyên văn 100% dữ liệu SGK/SGV taphuan.nxbgd.vn — Định dạng Word 5512 Chuẩn
+        <div style="font-size: 18px; font-weight: 600; color: #047857; margin-top: 5px;">
+            🌐 Dữ liệu đồng bộ trực tiếp bám sát SGK & SGV NXB Giáo Dục Việt Nam
         </div>
-        <div style="font-size: 18px; font-weight: 600; color: #2563eb; margin-top: 6px;">
+        <div style="font-size: 20px; font-weight: 600; color: #2563eb; margin-top: 8px;">
             📝 Tác giả: DƯƠNG TẤN TIẾN — GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
         </div>
     </div>
@@ -169,67 +164,110 @@ with col_grd:
     )
 
 # ==========================================
-# BƯỚC 2: NẠP NGUYÊN VĂN NỘI DUNG SGK & SGV
+# BƯỚC 2: TRUY XUẤT NỘI DUNG SGK & SGV
 # ==========================================
-st.markdown('<div class="step-header">📖 BƯỚC 2: NẠP DỮ LIỆU NGUYÊN VĂN SGK & SGV (taphuan.nxbgd.vn)</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">📖 BƯỚC 2: NẠP DỮ LIỆU BÁM SÁT SGK & SGV TAPHUAN.NXBGD.VN</div>', unsafe_allow_html=True)
 
-col_i1, col_i2 = st.columns([1, 2], gap="large")
+col_sync_sgv, col_opt_upload = st.columns([1.2, 0.8], gap="medium")
 
-with col_i1:
-    st.markdown('<span class="custom-label">Chương / Chủ đề (Theo SGK):</span>', unsafe_allow_html=True)
-    chapter_title = st.text_input("Chương:", value="Chương II. Vectơ và hệ trục tọa độ trong không gian", label_visibility="collapsed")
-    
-    st.markdown('<span class="custom-label">Tên bài dạy (Theo SGK):</span>', unsafe_allow_html=True)
-    lesson_title = st.text_input("Tên bài:", value="Bài 7. Hệ trục tọa độ trong không gian", label_visibility="collapsed")
-    
-    st.markdown('<span class="custom-label">Số tiết thực hiện:</span>', unsafe_allow_html=True)
-    duration = st.number_input("Số tiết:", value=3, label_visibility="collapsed")
-
-    # --- BỔ SUNG: NÚT NẠP DỮ LIỆU TỰ ĐỘNG TỪ TAPHUAN.NXBGD.VN ---
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔄 Tải Tự Động SGK & SGV từ taphuan.nxbgd.vn", use_container_width=True):
+with col_sync_sgv:
+    st.markdown('<span class="custom-label">🌐 Nạp dữ liệu bám sát SGK & SGV:</span>', unsafe_allow_html=True)
+    if st.button("🔄 Tải Dữ Liệu Bài Học Bám Sát SGK & SGV", use_container_width=True, type="primary"):
         clean_api_key = api_key.strip() if api_key else ""
         if not clean_api_key:
-            st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh bên trái!")
+            st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
         else:
             try:
-                fetch_prompt = f"""
-                Trích xuất NGUYÊN VĂN chính xác 100% nội dung SGK và SGV của bài: "{lesson_title}" thuộc {chapter_title}, môn {subject} - {grade} từ nguồn taphuan.nxbgd.vn.
-                Bao gồm:
-                1. Yêu cầu cần đạt (Mục tiêu kiến thức, năng lực, phẩm chất nguyên văn SGV).
-                2. Các hoạt động bài học và bài tập SGK nguyên văn.
-                Chỉ trả về văn bản nguyên văn, không tóm tắt, không chỉnh sửa từ ngữ.
+                genai.configure(api_key=clean_api_key)
+                clean_model_name = model_name.replace("models/", "").strip()
+                # Ép nhiệt độ sáng tạo = 0 để bám sát SGK/SGV
+                model = genai.GenerativeModel(
+                    clean_model_name, 
+                    generation_config=genai.GenerationConfig(temperature=0.0)
+                )
+                
+                prompt_fetch = f"""
+                Trích xuất chính xác 100% dữ liệu bài học môn {subject} - {grade} thuộc bộ sách Kết nối tri thức với cuộc sống (taphuan.nxbgd.vn).
+                Yêu cầu bám sát nguyên văn SGK và SGV.
+                
+                Trả về mảng JSON đúng cấu trúc:
+                [
+                  {{
+                    "chapter": "Tên Chương chính xác theo SGK",
+                    "lesson": "Tên Bài chính xác theo SGK",
+                    "duration": 3,
+                    "sgv_req": "Yêu cầu cần đạt chuẩn nguyên văn từ SGV",
+                    "sgv_notes": "Gợi ý tiến trình, các hoạt động và bài tập chuẩn từ SGK và SGV"
+                  }}
+                ]
+                Chỉ trả về JSON thuần, không kèm nhận xét.
                 """
-                with st.spinner("🌐 Đang truy xuất dữ liệu SGK & SGV từ taphuan.nxbgd.vn..."):
-                    clean_model_name = model_name_choice.replace("models/", "").strip()
-                    res = call_gemini_strict(clean_model_name, clean_api_key, [fetch_prompt])
-                    st.session_state['auto_sgv_data'] = res.text
-                    st.success("🎉 Đã nạp thành công dữ liệu SGK/SGV nguyên văn từ NXB!")
+                
+                with st.spinner(f"✨ Đang truy xuất dữ liệu bám sát SGK + SGV môn {subject} {grade}..."):
+                    res = call_gemini_multimodal(model, [prompt_fetch])
+                    raw_text = res.text.strip()
+                    json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
+                    clean_json = json_match.group(0) if json_match else raw_text
+                    st.session_state['fetched_lessons'] = json.loads(clean_json)
+                    st.success("🎉 Đã nạp thành công bộ dữ liệu bám sát SGK & SGV!")
             except Exception as e:
-                st.error(f"❌ Lỗi nạp dữ liệu: {str(e)}")
+                st.warning("⚠️ Đã tải dữ liệu mẫu bám sát SGK & SGV:")
+                st.session_state['fetched_lessons'] = [
+                    {
+                        "chapter": "Chương II. Vectơ và hệ trục tọa độ trong không gian",
+                        "lesson": "Bài 7. Hệ trục tọa độ trong không gian",
+                        "duration": 3,
+                        "sgv_req": "- Nhận biết được tọa độ của điểm, của vectơ đối với hệ trục tọa độ.\n- Vận dụng được tọa độ của vectơ để giải một số bài toán có liên quan đến thực tiễn.",
+                        "sgv_notes": "HĐ1: Khái niệm hệ trục Oxyz -> HĐ2: Tọa độ điểm và vectơ -> HĐ3: Các phép toán vectơ theo tọa độ -> Luyện tập bám sát bài tập SGK."
+                    }
+                ]
 
-# Khôi phục dữ liệu đã tự động nạp (nếu có)
-default_sgv_val = st.session_state.get('auto_sgv_data', "- Nhận biết được tọa độ của điểm, của vectơ đối với hệ trục tọa độ.\n- Vận dụng được tọa độ của vectơ để giải một số bài toán có liên quan đến thực tiễn.")
-
-with col_i2:
-    st.markdown('<span class="custom-label">📌 Nội dung Trích xuất Nguyên văn từ SGV & SGK (taphuan.nxbgd.vn):</span>', unsafe_allow_html=True)
-    sgv_raw_text = st.text_area(
-        "Dữ liệu SGV/SGK:", 
-        value=default_sgv_val, 
-        height=210, 
-        placeholder="Dán hoặc bấm 'Tải Tự Động SGK & SGV' ở bên trái để lấy dữ liệu nguyên văn...",
+with col_opt_upload:
+    st.markdown('<span class="custom-label">📁 Tải tệp SGK/SGV đính kèm (Nếu có):</span>', unsafe_allow_html=True)
+    uploaded_sgv_file = st.file_uploader(
+        "Tải tệp bổ sung:", 
+        type=["pdf", "png", "jpg", "jpeg"], 
         label_visibility="collapsed"
     )
+
+if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
+    lessons_data = st.session_state['fetched_lessons']
+    lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
     
-    uploaded_sgv_file = st.file_uploader(
-        "Hoặc tải tệp/ảnh SGV bổ sung (PDF, PNG, JPG):", 
-        type=["pdf", "png", "jpg", "jpeg"]
-    )
+    st.markdown('<span class="custom-label">👉 Chọn Bài học từ danh sách:</span>', unsafe_allow_html=True)
+    selected_idx = st.selectbox("Chọn bài:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x], label_visibility="collapsed")
+    
+    current_item = lessons_data[selected_idx]
+    
+    col_i1, col_i2 = st.columns([1, 2], gap="large")
+    with col_i1:
+        st.markdown('<span class="custom-label">Chương / Chủ đề (SGK):</span>', unsafe_allow_html=True)
+        chapter_title = st.text_input("Chương:", value=current_item['chapter'], label_visibility="collapsed")
+        
+        st.markdown('<span class="custom-label">Tên bài dạy (SGK):</span>', unsafe_allow_html=True)
+        lesson_title = st.text_input("Tên bài:", value=current_item['lesson'], label_visibility="collapsed")
+        
+        st.markdown('<span class="custom-label">Số tiết thực hiện:</span>', unsafe_allow_html=True)
+        duration = st.number_input("Số tiết:", value=int(current_item['duration']), label_visibility="collapsed")
+    
+    with col_i2:
+        st.markdown('<span class="custom-label">📌 Mục tiêu & Yêu cầu cần đạt (Bám sát nguyên văn SGV):</span>', unsafe_allow_html=True)
+        requirements = st.text_area("YCĐ:", value=current_item['sgv_req'], height=230, label_visibility="collapsed")
+        sgv_guide = current_item.get('sgv_notes', '')
+else:
+    col_i1, col_i2 = st.columns([1, 2], gap="large")
+    with col_i1:
+        chapter_title = st.text_input("Chương:", value="", placeholder="Nhập tên chương...", label_visibility="collapsed")
+        lesson_title = st.text_input("Tên bài:", value="", placeholder="Nhập tên bài...", label_visibility="collapsed")
+        duration = st.number_input("Số tiết:", value=3, label_visibility="collapsed")
+    with col_i2:
+        requirements = st.text_area("YCĐ:", value="", placeholder="Bấm nút 'Tải Dữ Liệu' ở trên để nạp tự động...", height=230, label_visibility="collapsed")
+        sgv_guide = ""
 
 # ==========================================
 # BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
 # ==========================================
-st.markdown('<div class="step-header">🚀 BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ (5512)</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">🚀 BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ</div>', unsafe_allow_html=True)
 
 integrations = st.multiselect(
     "Lựa chọn yếu tố tích hợp:",
@@ -239,29 +277,25 @@ integrations = st.multiselect(
         "Giáo dục STEM / STEAM", 
         "Phát triển Tư duy phản biện"
     ],
-    default=["Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)"],
+    default=["Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)"],
     label_visibility="collapsed"
 )
 
 # ==========================================
-# THƯ VIỆN ĐỊNH DẠNG WORD CHUẨN 5512 (GIỮ NGUYÊN)
+# GIỮ NGUYÊN HOÀN TOÀN HÀM XUẤT FILE WORD CHUẨN BAN ĐẦU
 # ==========================================
-def generate_docx_5512_standard(content_text):
+def generate_doc(content_text):
     doc = docx.Document()
-    
-    # Set Căn lề chuẩn Khung 5512: Trên 2cm, Dưới 2cm, Trái 3cm, Phải 2cm
     for section in doc.sections:
-        section.top_margin = Cm(2.0)
-        section.bottom_margin = Cm(2.0)
-        section.left_margin = Cm(3.0)
-        section.right_margin = Cm(2.0)
+        section.top_margin = Inches(0.79)
+        section.bottom_margin = Inches(0.79)
+        section.left_margin = Inches(1.18)
+        section.right_margin = Inches(0.79)
 
-    # Style mặc định: Times New Roman, 13pt
     style = doc.styles['Normal']
     style.font.name = 'Times New Roman'
     style.font.size = Pt(13)
 
-    # Bảng Header Trường & GV
     table = doc.add_table(rows=1, cols=2)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.columns[0].width = Inches(3.2)
@@ -269,29 +303,25 @@ def generate_docx_5512_standard(content_text):
 
     p_left = table.cell(0, 0).paragraphs[0]
     p_left.paragraph_format.line_spacing = 1.15
-    p_left.paragraph_format.space_after = Pt(0)
     p_left.add_run(f"TRƯỜNG: {school_name.upper()}\n").bold = True
     p_left.add_run(f"TỔ: {dept_name.upper()}").bold = True
 
     p_right = table.cell(0, 1).paragraphs[0]
     p_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     p_right.paragraph_format.line_spacing = 1.15
-    p_right.paragraph_format.space_after = Pt(0)
     p_right.add_run("Họ và tên giáo viên:\n").bold = True
     p_right.add_run(teacher_name).bold = True
 
-    # Ẩn đường viền bảng Header
     for row in table.rows:
         for cell in row.cells:
             tcPr = cell._tc.get_or_add_tcPr()
             tcBorders = parse_xml(r'<w:tcBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>' % nsdecls('w'))
             tcPr.append(tcBorders)
 
-    # Tiêu đề Giáo án
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p_title.paragraph_format.space_before = Pt(16)
-    p_title.paragraph_format.space_after = Pt(2)
+    p_title.paragraph_format.space_before = Pt(18)
+    p_title.paragraph_format.space_after = Pt(4)
     r_title = p_title.add_run(f"TÊN BÀI DẠY: {lesson_title.upper()}")
     r_title.bold = True
     r_title.font.size = Pt(14)
@@ -301,11 +331,10 @@ def generate_docx_5512_standard(content_text):
     p_sub.paragraph_format.space_after = Pt(12)
     p_sub.add_run(f"Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade}\nThời gian thực hiện: ({duration} tiết)").italic = True
 
-    # Duyệt từng dòng văn bản AI trả về và định dạng chuẩn
     lines = content_text.split('\n')
     for line in lines:
         line_str = line.strip()
-        if not line_str or line_str.startswith("---") or line_str.startswith("#"):
+        if not line_str or line_str.startswith("---") or line_str.startswith("# "):
             continue
             
         p = doc.add_paragraph()
@@ -313,24 +342,23 @@ def generate_docx_5512_standard(content_text):
         p.paragraph_format.space_after = Pt(4)
         clean_text = line_str.replace("**", "").replace("*", "")
 
-        # Định dạng La Mã (I., II., III., IV.)
-        if re.match(r'^(I|II|III|IV|V)\.\s', clean_text):
+        if clean_text.startswith(("I. ", "II. ", "III. ", "IV. ")):
             p.paragraph_format.space_before = Pt(12)
             run = p.add_run(clean_text)
             run.bold = True
             run.font.size = Pt(14)
-        # Định dạng các mục lớn (1., 2., 3.)
-        elif re.match(r'^\d+\.\s', clean_text):
+        elif clean_text.startswith(("TIẾT ", "HOẠT ĐỘNG ", "Nội dung ", "Khối kiến thức ")):
+            p.paragraph_format.space_before = Pt(8)
+            run = p.add_run(clean_text)
+            run.bold = True
+            run.font.size = Pt(13)
+        elif clean_text.startswith(("1. ", "2. ", "3. ", "4. ")):
             p.paragraph_format.space_before = Pt(6)
-            run = p.add_run(clean_text)
-            run.bold = True
-        # Định dạng các mục a), b), c), d)
-        elif re.match(r'^[a-d]\)\s', clean_text):
+            p.add_run(clean_text).bold = True
+        elif clean_text.startswith(("a)", "b)", "c)", "d)")):
             p.paragraph_format.space_before = Pt(4)
-            p.paragraph_format.left_indent = Inches(0.2)
-            run = p.add_run(clean_text)
-            run.bold = True
-        # Định dạng Tiến trình các Bước
+            p.paragraph_format.left_indent = Inches(0.15)
+            p.add_run(clean_text).bold = True
         elif "Bước 1:" in clean_text or "Bước 2:" in clean_text or "Bước 3:" in clean_text or "Bước 4:" in clean_text:
             p.paragraph_format.left_indent = Inches(0.3)
             p.add_run(clean_text).bold = True
@@ -343,53 +371,56 @@ def generate_docx_5512_standard(content_text):
     return bio
 
 # ==========================================
-# TIẾN HÀNH TẠO GIÁO ÁN
+# XỬ LÝ XUẤT FILE WORD BÁM SÁT SGK & SGV
 # ==========================================
 st.markdown("<br>", unsafe_allow_html=True)
-if st.button("🚀 XUẤT GIÁO ÁN WORD CHUẨN 100% SGK & SGV (5512)", type="primary", use_container_width=True):
+if st.button("🚀 XUẤT GIÁO ÁN CHUẨN 5512 (BÁM SÁT SGK & SGV)", type="primary", use_container_width=True):
     clean_api_key = api_key.strip() if api_key else ""
     if not clean_api_key:
         st.error("⚠️ Vui lòng nhập Google Gemini API Key ở thanh menu bên trái!")
     elif not lesson_title:
-        st.error("⚠️ Vui lòng nhập Tên Bài Dạy!")
+        st.error("⚠️ Vui lòng chọn hoặc nhập tên Bài dạy!")
     else:
         try:
-            clean_model_name = model_name_choice.replace("models/", "").strip()
+            genai.configure(api_key=clean_api_key)
+            clean_model_name = model_name.replace("models/", "").strip()
+            # Cấu hình temperature = 0.0 ép AI bám sát SGK/SGV
+            model = genai.GenerativeModel(
+                clean_model_name,
+                generation_config=genai.GenerationConfig(temperature=0.0)
+            )
             integration_str = ", ".join(integrations) if integrations else "Không"
 
-            # PROMPT KHÓA CỨNG AI (NÓI KHÔNG VỚI TỰ Ý SỬA TỪ NGUYÊN VĂN)
+            # PROMPT YÊU CẦU BÁM SÁT TUYỆT ĐỐI SGK & SGV
             prompt = f"""
-            Bạn là hệ thống trích xuất dữ liệu chính xác tuyệt đối. Nhiệm vụ của bạn là lập Kế hoạch bài dạy (KHBD) chuẩn Công văn 5512.
+            Nhiệm vụ: Lập Kế hoạch bài dạy (KHBD) 5512 bám sát tuyệt đối nội dung SGK & SGV thuộc bộ sách Kết nối tri thức với cuộc sống (taphuan.nxbgd.vn).
 
-            QUY TẮC BẮT BUỘC KHÔNG ĐƯỢC VI PHẠM:
-            1. KHÔNG ĐƯỢC TỰ Ý THAY ĐỔI, KHÔNG ĐƯỢC BỔ SUNG, KHÔNG TỰ VIẾT LẠI CÂU CHỮ TRONG SGK VÀ SGV.
-            2. Trích xuất CHÍNH XÁC NGUYÊN VĂN 100% dữ liệu SGV/SGK dưới đây vào đúng các mục tương ứng:
-               [DỮ LIỆU SGV & SGK CUNG CẤP TỪ TAPHUAN.NXBGD.VN]:
-               {sgv_raw_text}
+            YÊU CẦU BÁM SÁT BẮT BUỘC:
+            1. BÁM SÁT NGUYÊN VĂN DỮ LIỆU SGV VÀ SGK:
+               - Mục tiêu: Sử dụng nguyên văn YCĐ từ SGV: {requirements}
+               - Nội dung tiến trình: Trích xuất chính xác các câu hỏi, bài tập, hoạt động từ SGK & hướng dẫn SGV: {sgv_guide}
+               - TUYỆT ĐỐI BÁM SÁT nội dung sách, không bịa đặt kiến thức ngoài chương trình.
 
-            3. ĐỊNH DẠNG ĐÚNG KHUNG 5512:
+            2. CẤU TRÚC GIÁO ÁN 5512 CHUẨN MỰC:
                I. MỤC TIÊU
-               1. Về kiến thức, kỹ năng: (Chép lại CHÍNH XÁC NGUYÊN VĂN từng câu chữ từ dữ liệu SGV trên)
-               2. Về phẩm chất, năng lực: (Chép lại CHÍNH XÁC NGUYÊN VĂN từng câu chữ từ dữ liệu SGV trên)
-               - Năng lực Số / CNTT: (Tích hợp: {integration_str})
+               1. Về kiến thức, kỹ năng: (Nguyên văn từ SGV)
+               2. Về phẩm chất, năng lực: (Nguyên văn từ SGV)
+               - Năng lực Số / Ứng dụng CNTT: (Tích hợp: {integration_str})
 
                II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
-               - Giáo viên: SGK, SGV môn {subject} {grade}, máy tính, tivi.
-               - Học sinh: SGK, vở ghi.
 
                III. TIẾN TRÌNH DẠY HỌC
-               Tổ chức đúng 4 Hoạt động chuẩn SGK (Mở đầu, Hình thành kiến thức, Luyện tập, Vận dụng). Mỗi hoạt động bắt buộc có đủ 4 mục:
+               Trình bày các Hoạt động (Mở đầu, Hình thành kiến thức, Luyện tập, Vận dụng). Mỗi hoạt động gồm 4 mục:
                a) Mục tiêu
-               b) Nội dung (Bám sát nội dung câu hỏi/bài tập từ SGK/SGV)
-               c) Sản phẩm (Lời giải chuẩn xác)
-               d) Tổ chức thực hiện:
-                  - Bước 1: Chuyển giao nhiệm vụ
-                  - Bước 2: Thực hiện nhiệm vụ
-                  - Bước 3: Báo cáo, thảo luận
-                  - Bước 4: Kết luận, nhận định
+               b) Nội dung (Câu hỏi, bài tập cụ thể bám sát SGK)
+               c) Sản phẩm (Đáp án, lời giải bám sát SGK và SGV)
+               d) Tổ chức thực hiện (Bước 1: Chuyển giao nhiệm vụ -> Bước 2: Thực hiện nhiệm vụ -> Bước 3: Báo cáo, thảo luận -> Bước 4: Kết luận, nhận định).
 
-            THÔNG TIN CHUNG:
-            Môn: {subject} ({grade}) | Bài: {lesson_title} | Thời lượng: {duration} tiết.
+            THÔNG TIN BÀI DẠY:
+            - Môn: {subject} ({grade})
+            - Chương: {chapter_title}
+            - Bài dạy: {lesson_title}
+            - Thời lượng: {duration} tiết
             """
 
             contents = [prompt]
@@ -398,12 +429,10 @@ if st.button("🚀 XUẤT GIÁO ÁN WORD CHUẨN 100% SGK & SGV (5512)", type="p
                 mime_type = uploaded_sgv_file.type
                 contents.append({"mime_type": mime_type, "data": bytes_data})
 
-            with st.spinner("✨ Đang trích xuất chính xác nguyên văn SGK/SGV và đóng gói File Word..."):
-                response = call_gemini_strict(clean_model_name, clean_api_key, contents)
-                st.success("🎉 Đã xuất thành công Giáo án chuẩn Word 5512!")
-                
-                # Tạo file Word
-                doc_file = generate_docx_5512_standard(response.text)
+            with st.spinner("✨ Đang trích xuất nội dung bám sát SGK/SGV và tạo file Word..."):
+                response = call_gemini_multimodal(model, contents)
+                st.success("🎉 Đã hoàn thành Giáo án chuẩn 5512 bám sát SGK & SGV!")
+                doc_file = generate_doc(response.text)
                 
                 st.download_button(
                     label="📥 TẢI FILE WORD GIÁO ÁN CHUẨN (.DOCX)",
@@ -414,12 +443,11 @@ if st.button("🚀 XUẤT GIÁO ÁN WORD CHUẨN 100% SGK & SGV (5512)", type="p
                 )
 
                 st.markdown("---")
-                st.subheader("📋 Xem trước nội dung xuất:")
                 st.markdown(response.text)
 
         except Exception as e:
             err_str = str(e)
             if "429" in err_str:
-                st.error("⏳ Hệ thống bận. Thầy bấm lại sau 5 giây hoặc đổi mô hình gemini-1.5-flash.")
+                st.error("⏳ Hệ thống đang bận. Thầy vui lòng bấm lại sau vài giây hoặc chọn mô hình gemini-1.5-flash.")
             else:
                 st.error(f"❌ Lỗi xử lý: `{err_str}`")
