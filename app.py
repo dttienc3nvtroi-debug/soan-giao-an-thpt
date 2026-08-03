@@ -131,8 +131,8 @@ with st.sidebar:
       '<div class="sidebar-title">👤 THÔNG TIN GIÁO VIÊN</div>',
       unsafe_allow_html=True,
   )
-  school_name = st.text_input("Trường THPT:", "THPT Nguyễn Văn Trỗi")
-  dept_name = st.text_input("Tổ chuyên môn:", "Tổ Toán")
+  school_name = st.text_input("Trường THPT:", "THPT NGUYỄN VĂN TRỖI")
+  dept_name = st.text_input("Tổ chuyên môn:", "TỔ TOÁN")
   teacher_name = st.text_input("Họ và tên GV:", "Dương Tấn Tiến")
 
 # ==========================================
@@ -252,17 +252,12 @@ with col_btn_sync:
             "chapter": (
                 "Chương II. Vectơ và hệ trục tọa độ trong không gian"
             ),
-            "lesson": (
-                "BÀI 5: GIÁ TRỊ LƯỢNG GIÁC CỦA MỘT GÓC TỪ 0° ĐẾN 180°"
-            ),
-            "duration": 2,
+            "lesson": "Bài 7. Hệ trục tọa độ trong không gian",
+            "duration": 3,
             "req": (
-                "- Nhận biết và định nghĩa được giá trị lượng giác (sin, cos,"
-                " tan, cot) của một góc từ 0° đến 180° trên nửa đường tròn đơn"
-                " vị.\n- Giải thích được mối quan hệ giữa các giá trị lượng"
-                " giác của hai góc bù nhau.\n- Nắm được bảng giá trị lượng giác"
-                " của các góc đặc biệt.\n- Biết cách sử dụng máy tính cầm tay"
-                " (MTCT) để tính giá trị lượng giác."
+                "- Nhận biết được tọa độ của điểm, của vectơ đối với hệ trục"
+                " tọa độ.\n- Vận dụng được tọa độ của vectơ để giải một số bài"
+                " toán có liên quan đến thực tiễn."
             ),
         }]
 
@@ -367,7 +362,7 @@ else:
     )
     lesson_title = st.text_input(
         "Tên bài:",
-        value="BÀI 5: GIÁ TRỊ LƯỢNG GIÁC CỦA MỘT GÓC TỪ 0° ĐẾN 180°",
+        value="",
         placeholder="Nhập tên bài...",
         label_visibility="collapsed",
     )
@@ -377,7 +372,7 @@ else:
         unsafe_allow_html=True,
     )
     duration = st.number_input(
-        "Số tiết:", value=2, label_visibility="collapsed"
+        "Số tiết:", value=3, label_visibility="collapsed"
     )
 
   with col_i2:
@@ -422,10 +417,10 @@ integrations = st.multiselect(
 
 
 # ==========================================
-# XỬ LÝ XUẤT FILE WORD CHUẨN MẪU CV 5512
+# XỬ LÝ XUẤT FILE WORD 5512 (ĐÃ ĐIỀU CHỈNH ĐỊNH DẠNG HOÀN HẢO)
 # ==========================================
 def add_formatted_text(paragraph, text):
-  """Bóc tách định dạng Markdown bold (**), italic (*), code (`) để giữ nguyên định dạng khi vào Word"""
+  """Hỗ trợ phân tích và giữ nguyên định dạng in đậm (**), in nghiêng (*), code (`) từ AI"""
   pattern = r"(\*\*.*?\*\*|\*.*?\*|`.*?`)"
   tokens = re.split(pattern, text)
   for token in tokens:
@@ -459,32 +454,35 @@ def generate_doc(content_text):
   style.font.name = "Times New Roman"
   style.font.size = Pt(13)
 
-  # 3. Bảng Khung Tiêu đề
+  # 3. Tạo Bảng Khung Tiêu đề Cân Đối
   table = doc.add_table(rows=1, cols=2)
   table.alignment = WD_TABLE_ALIGNMENT.CENTER
+  table.autofit = False
+
+  # Thiết lập độ rộng cột
   table.columns[0].width = Inches(3.3)
   table.columns[1].width = Inches(3.3)
 
   # Ô trái: Trường & Tổ
-  p_left = table.cell(0, 0).paragraphs[0]
+  cell_left = table.cell(0, 0)
+  cell_left.width = Inches(3.3)
+  p_left = cell_left.paragraphs[0]
   p_left.paragraph_format.line_spacing = 1.15
   p_left.paragraph_format.space_after = Pt(0)
-  run_sch = p_left.add_run(f"Trường: {school_name}\n")
-  run_sch.bold = True
-  run_dept = p_left.add_run(f"Tổ: {dept_name}")
-  run_dept.bold = True
+  p_left.add_run(f"Trường: {school_name}\n").bold = True
+  p_left.add_run(f"Tổ: {dept_name}").bold = True
 
   # Ô phải: Giáo viên
-  p_right = table.cell(0, 1).paragraphs[0]
+  cell_right = table.cell(0, 1)
+  cell_right.width = Inches(3.3)
+  p_right = cell_right.paragraphs[0]
   p_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
   p_right.paragraph_format.line_spacing = 1.15
   p_right.paragraph_format.space_after = Pt(0)
-  run_lbl = p_right.add_run("Họ và tên giáo viên: ")
-  run_lbl.bold = True
-  run_name = p_right.add_run(teacher_name)
-  run_name.bold = True
+  p_right.add_run("Họ và tên giáo viên: ").bold = True
+  p_right.add_run(teacher_name).bold = True
 
-  # Xóa toàn bộ đường viền khung bảng
+  # Ẩn viền bảng hoàn toàn
   for row in table.rows:
     for cell in row.cells:
       tcPr = cell._tc.get_or_add_tcPr()
@@ -495,18 +493,18 @@ def generate_doc(content_text):
       )
       tcPr.append(tcBorders)
 
-  # 4. Tiêu đề bài dạy & Môn học
+  # 4. Tên Bài dạy & Thông tin môn học
   p_title = doc.add_paragraph()
   p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
   p_title.paragraph_format.space_before = Pt(14)
   p_title.paragraph_format.space_after = Pt(2)
   p_title.paragraph_format.line_spacing = 1.15
 
-  clean_lesson_title = lesson_title.upper()
-  if not clean_lesson_title.startswith("TÊN BÀI DẠY:"):
-    clean_lesson_title = f"TÊN BÀI DẠY: {clean_lesson_title}"
+  title_text = lesson_title.strip().upper()
+  if not title_text.startswith("TÊN BÀI DẠY:"):
+    title_text = f"TÊN BÀI DẠY: {title_text}"
 
-  r_title = p_title.add_run(clean_lesson_title)
+  r_title = p_title.add_run(title_text)
   r_title.bold = True
   r_title.font.size = Pt(14)
 
@@ -520,14 +518,14 @@ def generate_doc(content_text):
   )
   r_sub.italic = True
 
-  # 5. Đọc và phân tích từng dòng để ép chuẩn định dạng file mẫu
+  # 5. Đọc và phân tích từng dòng để áp dụng chuẩn định dạng 5512
   lines = content_text.split("\n")
   for line in lines:
     line_str = line.strip()
     if not line_str or line_str.startswith("---"):
       continue
 
-    # Bỏ ký tự Markdown #
+    # Bỏ ký tự # Markdown nếu AI có trả về
     if line_str.startswith("#"):
       line_str = re.sub(r"^#+\s*", "", line_str)
 
@@ -536,7 +534,7 @@ def generate_doc(content_text):
     p.paragraph_format.space_after = Pt(3)
     p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
-    # A. MỤC LỚN (I. MỤC TIÊU, II. THIẾT BỊ DẠY HỌC..., III. TIẾN TRÌNH DẠY HỌC)
+    # A. CẤP MỤC LỚN (I. MỤC TIÊU, II. THIẾT BỊ..., III. TIẾN TRÌNH...)
     if re.match(r"^(I|II|III|IV|V)\.\s", line_str, re.IGNORECASE):
       p.paragraph_format.space_before = Pt(12)
       p.paragraph_format.space_after = Pt(4)
@@ -544,11 +542,13 @@ def generate_doc(content_text):
       clean_text = line_str.replace("**", "").replace("*", "")
       run = p.add_run(clean_text)
       run.bold = True
-      run.font.size = Pt(13)
+      run.font.size = Pt(14)
 
-    # B. CẤP HOẠT ĐỘNG / NỘI DUNG (HOẠT ĐỘNG 1:, NỘI DUNG 1:)
+    # B. CẤP HOẠT ĐỘNG / TIẾT / NỘI DUNG
     elif re.match(
-        r"^(HOẠT ĐỘNG|NỘI DUNG|TIẾT)\s*\d*[:\.]", line_str, re.IGNORECASE
+        r"^(HOẠT ĐỘNG|NỘI DUNG|TIẾT|Khối kiến thức)\s*\d*[:\.]",
+        line_str,
+        re.IGNORECASE,
     ):
       p.paragraph_format.space_before = Pt(8)
       p.paragraph_format.space_after = Pt(3)
@@ -558,14 +558,14 @@ def generate_doc(content_text):
       run.bold = True
       run.font.size = Pt(13)
 
-    # C. CẤP SỐ THỨ TỰ THUỘC MỤC (1. Kiến thức, 2. Năng lực, 2.1., 2.2....)
+    # C. CẤP SỐ THỨ TỰ (1., 2., 2.1., 2.2....)
     elif re.match(r"^\d+(\.\d+)*\.\s", line_str):
       p.paragraph_format.space_before = Pt(4)
       clean_text = line_str.replace("**", "").replace("*", "")
       run = p.add_run(clean_text)
       run.bold = True
 
-    # D. CẤP TIỂU MỤC CỦA HOẠT ĐỘNG (a) Mục tiêu, b) Nội dung, c) Sản phẩm, d) Tổ chức thực hiện)
+    # D. CẤP TIỂU MỤC 5512 (a) Mục tiêu, b) Nội dung, c) Sản phẩm, d) Tổ chức thực hiện)
     elif re.match(r"^[a-d]\)\s", line_str, re.IGNORECASE):
       p.paragraph_format.space_before = Pt(4)
       p.paragraph_format.left_indent = Inches(0.15)
@@ -573,13 +573,13 @@ def generate_doc(content_text):
       run = p.add_run(clean_text)
       run.bold = True
 
-    # E. BƯỚC THỰC HIỆN (Bước 1: Chuyển giao..., Bước 2:...)
+    # E. CẤP BƯỚC THỰC HIỆN (Bước 1:, Bước 2:...)
     elif re.match(r"^Bước\s*\d+[:\.]", line_str, re.IGNORECASE):
       p.paragraph_format.space_before = Pt(3)
       p.paragraph_format.left_indent = Inches(0.2)
       add_formatted_text(p, line_str)
 
-    # F. CÁC GẠCH ĐẦU DÒNG VÀ NỘI DUNG CHI TIẾT
+    # F. CÁC DÒNG GẠCH ĐẦU DÒNG / NỘI DUNG THƯỜNG
     else:
       if line_str.startswith(("-", "+", "* ")):
         p.paragraph_format.left_indent = Inches(0.2)
@@ -612,7 +612,7 @@ if st.button(
           ", ".join(integrations) if integrations else "Không"
       )
 
-      # PROMPT TẬP TRUNG TRÍCH XUẤT NGUYÊN BẢN TỪ SGV
+      # PROMPT TẬP TRUNG TRÍCH XUẤT NGUYÊN BẢN TỪ SGV (CÁCH A)
       prompt = f"""
             Bạn là trợ lý trích xuất và chuyển đổi Kế hoạch bài dạy chuẩn Công văn 5512/BGDĐT.
 
@@ -622,36 +622,26 @@ if st.button(
                - TUYỆT ĐỐI KHÔNG TỰ VIẾT THÊM, KHÔNG TỰ BỞI DÃI, KHÔNG TỰ MỞ RỘNG các khái niệm kiến thức nếu trong SGV không ghi. Chép chính exact từng gạch đầu dòng!
                - Nếu không có file đính kèm, sử dụng chính xác nội dung ghi ở phần "Yêu cầu cần đạt / Mục tiêu SGV": {requirements}
 
-            2. CẤU TRÚC BÁM SÁT 5512 CHUẨN VĂN BẢN MẪU:
-               I. Mục tiêu
-               1. Kiến thức
-               2. Năng lực
-               2.1. Năng lực Toán học (Đặc thù):
-               2.2  Năng lực chung:
-               2.3. Năng lực Số / Ứng dụng CNTT và AI (Tích hợp):
-               3. Phẩm chất
+            2. CẤU TRÚC BÁM SÁT 5512:
+               I. MỤC TIÊU
+               1. Về kiến thức, kỹ năng: (Chép Y NGUYÊN các gạch đầu dòng từ SGV/ảnh)
+               2. Về phẩm chất, năng lực: (Chép Y NGUYÊN các gạch đầu dòng năng lực, phẩm chất từ SGV/ảnh)
+               - Thêm mục nhỏ: "Năng lực Số / Tích hợp AI:" (Nêu ngắn gọn việc dùng {integration_str})
 
                II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
-               1. Giáo viên (GV)
-               2. Học sinh (HS)
 
                III. TIẾN TRÌNH DẠY HỌC
-               Trình bày theo các Hoạt động (HOẠT ĐỘNG 1: MỞ ĐẦU, HOẠT ĐỘNG 2: HÌNH THÀNH KIẾN THỨC,...). Mỗi hoạt động gồm đủ 4 mục:
-               a) Mục tiêu:
-               b) Nội dung:
-               c) Sản phẩm:
-               d) Tổ chức thực hiện:
-               Bước 1: Chuyển giao nhiệm vụ
-               Bước 2: Thực hiện nhiệm vụ
-               Bước 3: Báo cáo, thảo luận
-               Bước 4: Kết luận, nhận định
+               Trình bày theo các Hoạt động (Khởi động, Khám phá, Luyện tập, Vận dụng) lấy đúng theo mạch nội dung của SGV/SGK. Mỗi hoạt động gồm đủ 4 mục:
+               a) Mục tiêu
+               b) Nội dung (Mô tả bài tập/câu hỏi bám sát SGK/SGV)
+               c) Sản phẩm (Đáp án, lời giải)
+               d) Tổ chức thực hiện (Bước 1: Chuyển giao nhiệm vụ -> Bước 2: Thực hiện nhiệm vụ -> Bước 3: Báo cáo, thảo luận -> Bước 4: Kết luận, nhận định).
 
             THÔNG TIN BÀI DẠY:
             - Môn: {subject} ({grade})
             - Chương/Chủ đề: {chapter_title}
             - Bài dạy: {lesson_title}
             - Thời lượng: {duration} tiết
-            - Tích hợp: {integration_str}
             """
 
       contents = [prompt]
