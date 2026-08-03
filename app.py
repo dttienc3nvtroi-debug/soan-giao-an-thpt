@@ -7,6 +7,7 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 import io
+import time
 
 # Cấu hình trang Streamlit
 st.set_page_config(
@@ -165,10 +166,9 @@ DATABASE_KNTT = {
 }
 
 # ==========================================
-# HÀM KẾT NỐI GEMINI - CHỐNG LỖI 404 VÀ MODEL CŨ
+# HÀM KẾT NỐI GEMINI ƯU TIÊN MODEL STABLE & TỰ TÌM MODEL RẢNH
 # ==========================================
 def get_working_model(api_key):
-    """Tự động kiểm tra và chọn model hợp lệ đang chạy của Google"""
     genai.configure(api_key=api_key)
     try:
         valid_models = []
@@ -178,14 +178,31 @@ def get_working_model(api_key):
                 if "-tts" not in name.lower() and "audio" not in name.lower():
                     valid_models.append(name)
         
-        # Ưu tiên các dòng flash ổn định
-        for target in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]:
+        # Ưu tiên gemini-1.5-flash vì Quota Free lớn hơn hẳn gemini-2.0-flash
+        for target in ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]:
             for vm in valid_models:
-                if target in vm:
+                if target == vm:
                     return vm
         return valid_models[0] if valid_models else "gemini-1.5-flash"
     except Exception:
         return "gemini-1.5-flash"
+
+def generate_content_with_retry(model, contents, max_retries=3):
+    """Hàm tự động thử lại khi bị dính lỗi Rate Limit 429"""
+    for attempt in range(max_retries):
+        try:
+            return model.generate_content(contents)
+        except Exception as e:
+            err_msg = str(e)
+            if "429" in err_msg or "Quota" in err_msg or "quota" in err_msg:
+                if attempt < max_retries - 1:
+                    wait_time = 10 * (attempt + 1)
+                    st.warning(f"⚠️ Hệ thống Google đang bận (Lỗi 429 Quota). Tự động thử lại sau {wait_time} giây... (Lần {attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
+                else:
+                    raise Exception("❌ Đã hết lượt gọi miễn phí trong phút này của API Key. Vui lòng đợi khoảng 1-2 phút rồi bấm lại, hoặc đổi một API Key mới!")
+            else:
+                raise e
 
 # ==========================================
 # THANH BÊN (SIDEBAR)
@@ -206,13 +223,13 @@ with st.sidebar:
 st.markdown("""
     <div style="text-align: center; margin-bottom: 15px; background: #eff6ff; padding: 15px; border-radius: 10px; border: 1px solid #bfdbfe;">
         <div style="font-size: 26px; font-weight: 800; color: #1e3a8a;">HỆ THỐNG SOẠN GIÁO ÁN 5512 TỰ ĐỘNG CHUẨN KNTT</div>
-        <div style="font-size: 16px; font-weight: 700; color: #047857; margin-top: 4px;">📘 BỘ SÁCH: KẾT NỐI TRI THỨC VỚI CUỘC SỐNG (ĐẦY ĐỦ BÀI)</div>
+        <div style="font-size: 16px; font-weight: 700; color: #047857; margin-top: 4px;">📘 BỘ SÁCH: KẾT NỐI TRI THỨC VỚI CUỘC SỐNG</div>
         <div style="font-size: 18px; font-weight: 600; color: #2563eb; margin-top: 4px;">Tác giả: DƯƠNG TẤN TIẾN — THPT NGUYỄN VĂN TRỖI</div>
     </div>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# BƯỚC 1: CHỌN MÔN, LỚP, CHƯƠNG VÀ BÀI (ĐÚNG THỨ TỰ)
+# BƯỚC 1: CHỌN MÔN, LỚP, CHƯƠNG VÀ BÀI
 # ==========================================
 st.markdown('<div class="step-header">📚 BƯỚC 1: CHỌN MÔN, LỚP, CHƯƠNG & BÀI HỌC (ĐÚNG THỨ TỰ SGK)</div>', unsafe_allow_html=True)
 
@@ -227,7 +244,6 @@ with c2:
 with c3:
     duration = st.number_input("Số tiết dạy:", value=2, min_value=1, max_value=10)
 
-# Trích xuất danh sách Chương & Bài
 available_chapters = DATABASE_KNTT.get(subject, {}).get(grade, {})
 
 col_ch, col_les = st.columns([1, 1])
@@ -245,7 +261,7 @@ else:
         selected_lesson = st.text_input("Tên Bài dạy cụ thể:", placeholder="Nhập tên bài...")
 
 # ==========================================
-# BƯỚC 2: YÊU CẦU CẦN ĐẠT (AI TỰ TẠO RA KHI BẤM CHỌN BÀI)
+# BƯỚC 2: YÊU CẦU CẦN ĐẠT
 # ==========================================
 st.markdown('<div class="step-header">🎯 BƯỚC 2: YÊU CẦU CẦN ĐẠT (SGV KẾT NỐI TRI THỨC)</div>', unsafe_allow_html=True)
 
@@ -263,14 +279,14 @@ with col_load_ycd:
                 active_model = get_working_model(api_key.strip())
                 model = genai.GenerativeModel(active_model)
                 
-                prompt_ycd = f"""Bạn là Chuyên gia Giáo dục môn {subject}. Hãy trích xuất NGUYÊN VĂN toàn bộ Yêu cầu cần đạt (về kiến thức, năng lực) chuẩn SGV bộ sách Kết nối tri thức với cuộc sống - {grade} cho bài: "{selected_lesson}" (Thuộc {selected_chapter}). Viết ngắn gọn dạng gạch đầu dòng."""
+                prompt_ycd = f"""Bạn là Chuyên gia Giáo dục môn {subject}. Hãy trích xuất NGUYÊN VÃN toàn bộ Yêu cầu cần đạt (về kiến thức, năng lực) chuẩn SGV bộ sách Kết nối tri thức với cuộc sống - {grade} cho bài: "{selected_lesson}" (Thuộc {selected_chapter}). Viết ngắn gọn dạng gạch đầu dòng."""
                 
                 with st.spinner("⚡ AI đang tải YCĐ từ SGV Kết nối tri thức..."):
-                    res = model.generate_content(prompt_ycd)
+                    res = generate_content_with_retry(model, [prompt_ycd])
                     st.session_state['auto_ycd'] = res.text
                     st.success("✅ Đã tải xong YCĐ!")
             except Exception as e:
-                st.error(f"Lỗi kết nối: {str(e)}")
+                st.error(f"{str(e)}")
 
 with col_upload:
     uploaded_sgv_file = st.file_uploader("Hoặc Tải file ảnh/PDF trang SGV (Nếu có):", type=["pdf", "png", "jpg", "jpeg"])
@@ -387,7 +403,6 @@ if st.button("🚀 BẤM TẠO GIÁO ÁN WORD CHUẨN 5512 (ĐẦY ĐỦ TỪ A-
         try:
             active_model = get_working_model(api_key.strip())
             
-            # CẤU HÌNH TĂNG ĐỘ DÀI ĐẦU RA ĐỂ AI KHÔNG BỊ NGẮT LỜI HÀNG CHỪNG
             model = genai.GenerativeModel(
                 model_name=active_model,
                 generation_config=genai.GenerationConfig(
@@ -432,8 +447,8 @@ if st.button("🚀 BẤM TẠO GIÁO ÁN WORD CHUẨN 5512 (ĐẦY ĐỦ TỪ A-
                 bytes_data = uploaded_sgv_file.getvalue()
                 contents.append({"mime_type": uploaded_sgv_file.type, "data": bytes_data})
 
-            with st.spinner("⚡ Đang tạo Giáo án Word 5512 chi tiết (không tóm tắt)..."):
-                res = model.generate_content(contents)
+            with st.spinner(f"⚡ Đang dùng model '{active_model}' tạo Giáo án Word 5512 chi tiết..."):
+                res = generate_content_with_retry(model, contents)
                 doc_file = generate_doc(res.text)
                 
                 st.success("🎉 Đã tạo xong Giáo án hoàn chỉnh!")
@@ -449,4 +464,4 @@ if st.button("🚀 BẤM TẠO GIÁO ÁN WORD CHUẨN 5512 (ĐẦY ĐỦ TỪ A-
                 st.markdown(res.text)
 
         except Exception as e:
-            st.error(f"❌ Lỗi: {str(e)}")
+            st.error(f"{str(e)}")
