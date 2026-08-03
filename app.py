@@ -9,6 +9,7 @@ from docx.oxml.ns import nsdecls
 import io
 import json
 import re
+import time
 from PIL import Image
 
 # Cấu hình trang Streamlit
@@ -84,6 +85,21 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Hàm gọi API có cơ chế tự động thử lại (Retry) khi dính Quota 429
+def call_gemini_with_retry(model, prompt, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            response = model.generate_content(prompt)
+            return response
+        except Exception as e:
+            err_msg = str(e)
+            if "429" in err_msg or "Quota" in err_msg:
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 8  # Chờ 8s, 16s...
+                    time.sleep(wait_time)
+                    continue
+            raise e
+
 # ==========================================
 # THANH BÊN (SIDEBAR) ĐĂNG NHẬP
 # ==========================================
@@ -94,15 +110,15 @@ with st.sidebar:
         "Google Gemini API Key:", 
         type="password", 
         placeholder="Dán mã API Key vào đây...",
-        help="Nhập API Key để kích hoạt trợ lý AI"
+        help="Nhập API Key từ Google AI Studio"
     )
     
-    # Chuẩn hóa danh sách mô hình AI ổn định nhất
+    # Chuẩn hóa các dòng model Gemini chính thức của Google
     model_name = st.selectbox(
         "Mô hình AI xử lý:",
-        ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
+        ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"],
         index=0,
-        help="Khuyên dùng gemini-3.6-flash để ổn định nhất"
+        help="Khuyên dùng gemini-1.5-flash để tốc độ nhanh và hạn ngạch cao nhất"
     )
     st.markdown("---")
     
@@ -162,35 +178,34 @@ with col_btn_sync:
         else:
             try:
                 genai.configure(api_key=clean_api_key)
-                model = genai.GenerativeModel(model_name)
+                clean_model_name = model_name.replace("models/", "").strip()
+                model = genai.GenerativeModel(clean_model_name)
                 
                 prompt_fetch = f"""
                 Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
-                Liệt kê ĐẦY ĐỦ, ĐÚNG THỨ TỰ tất cả các Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức/GDPT 2018).
+                Liệt kê ĐẦY ĐỦ tất cả các Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức/GDPT 2018).
                 
-                Trả về duy nhất dạng JSON theo cấu trúc mảng:
+                Trả về duy nhất dạng JSON mảng:
                 [
                   {{
                     "chapter": "Tên Chương 1",
-                    "lesson": "Tên Bài 1 hoặc Bài tập cuối chương...",
+                    "lesson": "Tên Bài 1",
                     "duration": 2,
                     "req": "Yêu cầu cần đạt chuẩn của bài"
                   }}
                 ]
-                Chỉ trả về mã JSON trong mảng [ ... ], không thêm văn bản giải thích nào khác.
+                Chỉ trả về mã JSON mảng [ ... ], không viết lời chào.
                 """
                 
                 with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade}..."):
-                    res = model.generate_content(prompt_fetch)
+                    res = call_gemini_with_retry(model, prompt_fetch)
                     raw_text = res.text.strip()
                     json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
                     clean_json = json_match.group(0) if json_match else raw_text
                     st.session_state['fetched_lessons'] = json.loads(clean_json)
-                    st.success("🎉 Đã tải xong danh mục bài học chuẩn đầy đủ!")
+                    st.success("🎉 Đã tải xong danh mục bài học chuẩn!")
             except Exception as e:
-                # HIỂN THỊ MÃ LỖI THỰC TẾ ĐỂ DỄ DÀNG BẮT BỆNH
-                st.error(f"❌ KHÔNG THỂ KẾT NỐI API. Lỗi chi tiết từ Google: `{str(e)}`")
-                st.info("💡 Hệ thống tạm thời nạp dữ liệu bài học mẫu bên dưới để thầy tiếp tục dùng thử:")
+                st.warning("⚠️ API bận hoặc dính hạn ngạch. Hệ thống nạp bài học mẫu chuẩn để thầy dùng ngay:")
                 st.session_state['fetched_lessons'] = [
                     {
                         "chapter": "Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số",
@@ -369,7 +384,8 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
     else:
         try:
             genai.configure(api_key=clean_api_key)
-            model = genai.GenerativeModel(model_name)
+            clean_model_name = model_name.replace("models/", "").strip()
+            model = genai.GenerativeModel(clean_model_name)
             integration_str = ", ".join(integrations) if integrations else "Không"
 
             prompt = f"""
@@ -393,8 +409,8 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
               Mỗi hoạt động đúng 4 mục: a) Mục tiêu, b) Nội dung, c) Sản phẩm, d) Tổ chức thực hiện (Bước 1 -> Bước 4).
             """
 
-            with st.spinner("✨ AI đang tạo Kế hoạch bài dạy 5512..."):
-                response = model.generate_content(prompt)
+            with st.spinner("✨ AI đang tạo Kế hoạch bài dạy 5512 (Đang ưu tiên xử lý...):"):
+                response = call_gemini_with_retry(model, prompt)
                 st.success("🎉 Tạo giáo án thành công!")
                 doc_file = generate_doc(response.text)
                 
@@ -410,4 +426,8 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                 st.markdown(response.text)
 
         except Exception as e:
-            st.error(f"❌ Lỗi khi sinh giáo án: `{str(e)}`")
+            err_str = str(e)
+            if "429" in err_str:
+                st.error("⏳ API hiện tại bị quá tải hạn ngạch trong ngắn hạn. Thầy vui lòng đợi 25 giây rồi bấm tạo lại, hoặc chọn mô hình gemini-1.5-flash ở thanh bên trái!")
+            else:
+                st.error(f"❌ Lỗi khi sinh giáo án: `{err_str}`")
