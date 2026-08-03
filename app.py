@@ -87,6 +87,44 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
+# HÀM BÓC TÁCH JSON CHỐNG LỖI EXTRA DATA
+# ==========================================
+def clean_and_parse_json(raw_text):
+    """
+    Lọc bỏ các đoạn Markdown hoặc văn bản thừa do AI tạo ra để tránh lỗi Extra Data.
+    """
+    text = raw_text.strip()
+    
+    # Xoá markdown fence ```json ... ```
+    text = re.sub(r'^```(?:json)?\s*', '', text, flags=re.MULTILINE)
+    text = re.sub(r'\s*```$', '', text, flags=re.MULTILINE)
+    text = text.strip()
+
+    # Thử parse trực tiếp
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+
+    # Nếu thất bại, dùng Regex bóc tách chính xác khối JSON đầu tiên
+    # Tìm khối JSON dạng Array [...] hoặc Object {...}
+    array_match = re.search(r'\[\s*\{.*\}\s*\]', text, re.DOTALL)
+    if array_match:
+        try:
+            return json.loads(array_match.group(0))
+        except Exception:
+            pass
+
+    object_match = re.search(r'\{\s*".*"\s*:.*\}', text, re.DOTALL)
+    if object_match:
+        try:
+            return json.loads(object_match.group(0))
+        except Exception:
+            pass
+
+    raise ValueError("Lỗi cấu trúc phản hồi từ AI. Thầy vui lòng bấm lại lần nữa!")
+
+# ==========================================
 # HÀM XỬ LÝ TỆP ĐÍNH KÈM
 # ==========================================
 def process_uploaded_file(uploaded_file):
@@ -105,12 +143,11 @@ def process_uploaded_file(uploaded_file):
     return {"mime_type": mime, "data": bytes_data}
 
 # ==========================================
-# HÀM GỌI API ĐỘNG (TỰ ĐỘNG DÒ MÔ HÌNH SỐNG TRÊN API KEY)
+# HÀM GỌI API ĐỘNG (DÒ MÔ HÌNH SỐNG TRÊN API KEY)
 # ==========================================
 def call_gemini(api_key, preferred_model, contents):
     genai.configure(api_key=api_key)
     
-    # Lấy danh sách thực tế các model hỗ trợ generateContent từ API Key của Thầy
     available_models = []
     try:
         for m in genai.list_models():
@@ -120,7 +157,6 @@ def call_gemini(api_key, preferred_model, contents):
     except Exception:
         available_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
 
-    # Ưu tiên model thầy chọn, sau đó đến các model khả dụng khác
     pref_clean = preferred_model.replace("models/", "").strip()
     models_to_try = [pref_clean] + [m for m in available_models if m != pref_clean]
 
@@ -130,7 +166,6 @@ def call_gemini(api_key, preferred_model, contents):
         top_k=40
     )
 
-    last_err_msg = ""
     for m_name in models_to_try:
         try:
             model = genai.GenerativeModel(model_name=m_name, generation_config=generation_config)
@@ -138,8 +173,6 @@ def call_gemini(api_key, preferred_model, contents):
             return response
         except Exception as e:
             err_str = str(e)
-            last_err_msg = err_str
-            # Nếu dính lỗi 429 (Hết Quota/Nghẽn mạng) -> Thử tạm dừng 3s rồi đổi sang model khác
             if "429" in err_str or "Quota exceeded" in err_str or "ResourceHasBeenExhausted" in err_str:
                 time.sleep(3)
                 continue
@@ -149,8 +182,8 @@ def call_gemini(api_key, preferred_model, contents):
                 continue
                 
     raise Exception(
-        f"❌ API Key hiện tại chưa kết nối được mô hình AI nào hoặc đã hết 100% dung lượng ngày (Free Quota).\n"
-        f"💡 Lời khuyên: Thầy hãy mở trang https://aistudio.google.com/ tạo 1 API Key MỚI TINH (chỉ mất 10 giây) và dán lại vào thanh bên trái nhé!"
+        f"❌ API Key hiện tại chưa kết nối được mô hình AI nào hoặc đã hết dung lượng ngày.\n"
+        f"💡 Thầy hãy mở trang https://aistudio.google.com/ tạo 1 API Key mới và thay vào thanh bên trái nhé!"
     )
 
 # ==========================================
@@ -220,8 +253,7 @@ if "📂 Đọc từ Tệp" in input_mode:
                 try:
                     file_part = process_uploaded_file(uploaded_file)
                     prompt_extract = """
-                    Hãy đọc chính xác nội dung trong file/ảnh SGV này và trích xuất dữ liệu dưới dạng JSON thuần túy (không dùng markdown code block, không giải thích gì thêm):
-                    YÊU CẦU ĐẶC BIỆT: Tên Chương và Tên Bài học PHẢI GHI ĐẦY ĐỦ 100% NGUYÊN VĂN THEO FILE, KHÔNG ĐƯỢC CẮT BỚT HOẶC TÓM TẮT DÙ CHỈ 1 TỪ.
+                    Hãy đọc chính xác nội dung trong file/ảnh SGV này và trích xuất dữ liệu dưới dạng JSON thuần túy (không dùng markdown code block, không thêm văn bản phụ):
                     {
                         "chapter": "Tên Chương/Chủ đề đầy đủ",
                         "lesson": "Tên bài học nguyên văn đầy đủ",
@@ -230,18 +262,11 @@ if "📂 Đọc từ Tệp" in input_mode:
                     }
                     """
                     res = call_gemini(clean_api_key, model_name, [file_part, prompt_extract])
-                    raw_text = res.text.strip()
-                    
-                    match = re.search(r'\{.*\}', raw_text, re.DOTALL)
-                    if match:
-                        json_str = match.group(0)
-                        data = json.loads(json_str)
-                        st.session_state['extracted_data'] = data
-                        st.success("✅ Trích xuất thành công! Thầy có thể kiểm tra và chỉnh sửa lại bên dưới.")
-                    else:
-                        st.error("Không thể phân tích dữ liệu dạng JSON từ kết quả.")
+                    data = clean_and_parse_json(res.text)
+                    st.session_state['extracted_data'] = data
+                    st.success("✅ Trích xuất thành công! Thầy có thể kiểm tra và chỉnh sửa lại bên dưới.")
                 except Exception as e:
-                    st.error(f"❌ {e}")
+                    st.error(f"❌ Lỗi xử lý: {e}")
 
     if 'extracted_data' in st.session_state:
         ext = st.session_state['extracted_data']
@@ -270,9 +295,7 @@ elif "🤖 Tra cứu tự động" in input_mode:
                 try:
                     prompt_lookup = f"""
                     Bạn là Chuyên gia SGK. Hãy tra cứu và liệt kê chính xác TẤT CẢ các Bài học và Yêu cầu cần đạt chuẩn SGV môn {subject} {grade} ({book_series}).
-                    YÊU CẦU BẮT BUỘC: Tên bài học ("lesson") và Tên chương ("chapter") PHẢI VIẾT NGUYÊN VĂN DÀI ĐẦY ĐỦ 100% THEO CẤU TRÚC SGK BỘ GIÁO DỤC, KHÔNG ĐƯỢC TÓM TẮT.
-                    
-                    Trả về duy nhất định dạng JSON thuần túy dạng mảng các object (không kèm markdown):
+                    YÊU CẦU BẮT BUỘC: Chỉ trả về duy nhất 1 mảng JSON thuần túy (không viết bất kỳ chữ nào bên ngoài mảng):
                     [
                         {{
                             "chapter": "Tên Chương đầy đủ...",
@@ -283,17 +306,14 @@ elif "🤖 Tra cứu tự động" in input_mode:
                     ]
                     """
                     res = call_gemini(clean_api_key, model_name, [prompt_lookup])
-                    raw_text = res.text.strip()
-                    
-                    match = re.search(r'\[.*\]', raw_text, re.DOTALL)
-                    if match:
-                        data = json.loads(match.group(0))
+                    data = clean_and_parse_json(res.text)
+                    if isinstance(data, list):
                         st.session_state['ai_lessons'] = data
                         st.success(f"✅ Đã tìm thấy {len(data)} bài học chuẩn SGV!")
                     else:
-                        st.error("Lỗi cấu trúc dữ liệu trả về.")
+                        st.error("Dữ liệu trả về không đúng cấu trúc mảng.")
                 except Exception as e:
-                    st.error(f"{e}")
+                    st.error(f"❌ Lỗi tra cứu: {e}")
                     
     if 'ai_lessons' in st.session_state:
         lessons_list = st.session_state['ai_lessons']
@@ -535,4 +555,4 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                 st.markdown(response.text)
 
         except Exception as e:
-            st.error(f"{e}")
+            st.error(f"❌ {e}")
