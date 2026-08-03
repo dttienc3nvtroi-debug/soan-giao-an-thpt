@@ -86,46 +86,66 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Hàm khởi tạo và gọi Gemini AI chống lỗi 404 Model Not Found
-def call_gemini_multimodal(selected_model_str, contents, max_retries=3):
-    # Danh sách ưu tiên danh định tên model chuẩn
-    fallback_models = [
-        selected_model_str,
+# ==========================================
+# HÀM XỬ LÝ MODEL CHỐNG LỖI 404
+# ==========================================
+def get_available_models():
+    """Lấy danh sách các model khả dụng từ API Key"""
+    try:
+        available = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                # Lấy tên không có tiền tố models/
+                name = m.name.replace("models/", "")
+                available.append(name)
+        return available
+    except Exception:
+        # Danh sách dự phòng nếu không list được
+        return ["gemini-1.5-flash-latest", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]
+
+def call_gemini_multimodal(selected_model_str, contents):
+    """Gọi Gemini AI với cơ chế tự động thử danh sách Model dự phòng"""
+    # Xây dựng ưu tiên thử nghiệm
+    clean_selected = selected_model_str.replace("models/", "").strip()
+    
+    candidates = [
+        clean_selected,
         "gemini-1.5-flash-latest",
         "gemini-2.0-flash",
         "gemini-1.5-pro",
-        "gemini-1.5-flash"
+        "gemini-1.5-flash",
+        "gemini-pro"
     ]
     
-    # Bỏ trùng lặp nhưng giữ thứ tự
-    models_to_try = []
-    for m in fallback_models:
-        clean_m = m.replace("models/", "").strip()
-        if clean_m not in models_to_try:
-            models_to_try.append(clean_m)
+    # Lấy thêm các model thực tế hỗ trợ từ API nếu có
+    active_models = get_available_models()
+    for am in active_models:
+        if am not in candidates:
+            candidates.append(am)
 
     last_error = None
-    for target_model in models_to_try:
+    for model_name in candidates:
         try:
             model = genai.GenerativeModel(
-                target_model,
+                model_name=model_name,
                 generation_config=genai.GenerationConfig(temperature=0.0)
             )
             response = model.generate_content(contents)
             return response
         except Exception as e:
             last_error = e
-            err_msg = str(e)
-            # Nếu lỗi 404 Not Found thì thử model tiếp theo trong danh sách
-            if "404" in err_msg or "not found" in err_msg.lower():
+            err_str = str(e)
+            # Nếu gặp lỗi 404 (Not Found) thì thử model tiếp theo
+            if "404" in err_str or "not found" in err_str.lower():
                 continue
-            elif "429" in err_msg or "Quota" in err_msg:
-                time.sleep(5)
+            # Nếu vướng giới hạn băng thông (Rate limit) thì đợi nhẹ
+            elif "429" in err_str or "Quota" in err_str:
+                time.sleep(3)
                 continue
             else:
                 raise e
-    
-    raise last_error
+                
+    raise last_error if last_error else RuntimeError("Không thể kết nối tới bất kỳ mô hình Gemini nào. Vui lòng kiểm tra lại API Key.")
 
 # HÀM CÀO DỮ LIỆU TRỰC TIẾP TỪ LINK TAPHUAN.NXBGD.VN
 def fetch_data_from_taphuan(url, cookie_str=""):
@@ -175,11 +195,20 @@ with st.sidebar:
         help="Nhập API Key từ Google AI Studio"
     )
     
+    # Cấu hình danh sách Model chọn lựa
+    default_models = ["gemini-1.5-flash-latest", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]
+    
+    if api_key:
+        genai.configure(api_key=api_key.strip())
+        fetched_models = get_available_models()
+        if fetched_models:
+            default_models = fetched_models
+
     model_name = st.selectbox(
         "Mô hình AI xử lý:",
-        ["gemini-1.5-flash-latest", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+        default_models,
         index=0,
-        help="Đã cập nhật các tên mô hình chính thức tránh lỗi 404"
+        help="Hệ thống sẽ tự động quét danh sách các Model khả dụng từ API Key của thầy"
     )
     st.markdown("---")
     
