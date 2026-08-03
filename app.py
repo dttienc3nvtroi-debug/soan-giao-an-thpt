@@ -105,17 +105,16 @@ def process_uploaded_file(uploaded_file):
     return {"mime_type": mime, "data": bytes_data}
 
 # ==========================================
-# HÀM GỌI GEMINI API THÔNG MINH (CHỐNG LỖI 429 METRIC QUOTA)
+# HÀM GỌI GEMINI API MỚI (CHỐNG LỖI 404 VÀ LỖI 429)
 # ==========================================
 def call_gemini(api_key, preferred_model, contents):
     genai.configure(api_key=api_key)
     
-    # Danh sách ưu tiên chuyển đổi khi bị nghẽn API
+    # Danh sách mô hình chuẩn 2026 hiện hành
     fallback_models = [
         preferred_model.replace("models/", "").strip(),
-        "gemini-1.5-flash",
-        "gemini-1.5-pro",
-        "gemini-2.0-flash"
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite"
     ]
     
     # Loại bỏ trùng lặp giữ nguyên thứ tự
@@ -137,18 +136,19 @@ def call_gemini(api_key, preferred_model, contents):
         except Exception as e:
             last_exception = e
             err_msg = str(e)
-            # Nếu dính lỗi 429 (Quota Exceeded / Rate Limit)
+            # Nếu dính lỗi 429 Quota thì tạm dừng 2s rồi thử model tiếp theo trong danh sách
             if "429" in err_msg or "Quota exceeded" in err_msg or "ResourceHasBeenExhausted" in err_msg:
-                time.sleep(2) # Tạm dừng 2s rồi thử model khác
+                time.sleep(2)
+                continue
+            # Nếu dính lỗi 404 (model cũ bị xoá) thì tự chuyển sang model khác ngay
+            elif "404" in err_msg or "not found" in err_msg:
                 continue
             else:
                 raise e
                 
-    # Nếu thử toàn bộ danh sách vẫn lỗi 429
     raise Exception(
-        "⚠️ Hệ thống AI Google đang bị quá tải lượt gọi Free (Lỗi 429). "
-        "Thầy vui lòng chờ khoảng 30 - 45 giây rồi bấm thử lại, "
-        "hoặc tạo thêm 1 API Key mới tại https://aistudio.google.com/ app để sử dụng mượt mà hơn."
+        "⚠️ Không thể kết nối tới Google AI. Thầy vui lòng kiểm tra lại API Key "
+        "hoặc đợi khoảng 30 - 45 giây rồi thử lại!"
     ) from last_exception
 
 # ==========================================
@@ -157,7 +157,7 @@ def call_gemini(api_key, preferred_model, contents):
 with st.sidebar:
     st.markdown('<div class="sidebar-title">🔑 ĐĂNG NHẬP & CẤU HÌNH</div>', unsafe_allow_html=True)
     api_key = st.text_input("Google Gemini API Key:", type="password", placeholder="Dán API Key vào đây...")
-    model_name = st.selectbox("Mô hình AI ưu tiên:", ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"], index=0)
+    model_name = st.selectbox("Mô hình AI ưu tiên:", ["gemini-2.0-flash", "gemini-2.0-flash-lite"], index=0)
     
     st.markdown("---")
     st.markdown('<div class="sidebar-title">👤 THÔNG TIN GIÁO VIÊN</div>', unsafe_allow_html=True)
