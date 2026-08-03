@@ -61,41 +61,11 @@ DATABASE_KNTT = {
     }
 }
 
-# HÀM TỰ ĐỘNG QUÉT VÀ CHỌN MODEL HOẠT ĐỘNG
-def get_working_model(api_key):
-    genai.configure(api_key=api_key)
-    valid_model_name = None
-    
-    try:
-        # Lấy toàn bộ danh sách model mà Google cấp cho API Key này
-        available_models = list(genai.list_models())
-        flash_models = []
-        other_models = []
-        
-        for m in available_models:
-            if 'generateContent' in m.supported_generation_methods:
-                if 'flash' in m.name.lower():
-                    flash_models.append(m.name)
-                else:
-                    other_models.append(m.name)
-                    
-        # Ưu tiên các dòng Flash, nếu không có thì lấy dòng khác
-        sorted_models = flash_models + other_models
-        
-        if sorted_models:
-            valid_model_name = sorted_models[0]
-    except Exception:
-        pass
-        
-    # Nếu không quét được, dùng dự phòng các tên phổ biến
-    if not valid_model_name:
-        valid_model_name = "gemini-1.5-flash-latest"
-        
-    return genai.GenerativeModel(valid_model_name)
-
-# HÀM GỌI AI XỬ LÝ
+# HÀM GỌI AI VỚI MODEL CHUẨN GEMINI 2.5 FLASH
 def generate_content_safe(api_key, contents):
-    model = get_working_model(api_key)
+    genai.configure(api_key=api_key)
+    # Sử dụng model chuẩn Gemini 2.5 Flash
+    model = genai.GenerativeModel("gemini-2.5-flash")
     
     max_retries = 3
     for attempt in range(max_retries):
@@ -109,7 +79,11 @@ def generate_content_safe(api_key, contents):
                     st.warning(f"⏳ Hệ thống bận. Tự động thử lại sau {wait_time}s... (Lần {attempt + 1}/{max_retries})")
                     time.sleep(wait_time)
                 else:
-                    raise Exception("❌ Địa chỉ IP hoặc API Key tạm thời quá tải. Vui lòng thử lại sau 1 phút.")
+                    raise Exception("❌ Hệ thống tạm thời quá tải. Vui lòng thử lại sau 1 phút.")
+            elif "404" in err_msg or "not found" in err_msg:
+                # Nếu tài khoản chưa cập nhật 2.5 thì tự chuyển sang 2.0-flash
+                fallback_model = genai.GenerativeModel("gemini-2.0-flash")
+                return fallback_model.generate_content(contents)
             else:
                 raise e
 
@@ -309,7 +283,7 @@ if st.button("🚀 BẤM TẠO GIÁO ÁN WORD CHUẨN 5512", type="primary", use
                 
             res1 = generate_content_safe(api_key.strip(), contents1)
             
-            time.sleep(4)
+            time.sleep(3)
             
             # PHẦN 2
             st.info("🔄 Đang xử lý Phần 2: Hình thành kiến thức, Luyện tập & Vận dụng...")
