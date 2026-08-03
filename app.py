@@ -116,9 +116,9 @@ with st.sidebar:
     # Chuẩn hóa các dòng model Gemini chính thức của Google
     model_name = st.selectbox(
         "Mô hình AI xử lý:",
-        ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"],
+        ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
         index=0,
-        help="Khuyên dùng gemini-1.5-flash để tốc độ nhanh và hạn ngạch cao nhất"
+        help="Khuyên dùng gemini-3.6-flash để tốc độ nhanh và hạn ngạch cao nhất"
     )
     st.markdown("---")
     
