@@ -187,7 +187,6 @@ with col_grd:
 # ==========================================
 st.markdown('<div class="step-header">📖 BƯỚC 2: NẠP DỮ LIỆU BÀI HỌC CHUẨN TỪ TAPHUAN.NXBGD.VN</div>', unsafe_allow_html=True)
 
-# Ô nhập link tài liệu từ taphuan.nxbgd.vn
 taphuan_url = st.text_input(
     "🔗 Đăng nhập & Dán Link bài học/SGV cụ thể từ taphuan.nxbgd.vn (Nếu có):",
     placeholder="Ví dụ: https://taphuan.nxbgd.vn/bai-viet/1234...",
@@ -211,26 +210,27 @@ with col_btn_sync:
                     generation_config=genai.GenerationConfig(temperature=0.0)
                 )
                 
-                # Cào nội dung link nếu được cung cấp
                 scraped_text = scrape_taphuan_url(taphuan_url) if taphuan_url else ""
                 
                 prompt_fetch = f"""
-                Nguồn tham chiếu bắt buộc: https://taphuan.nxbgd.vn (Bộ sách Kết nối tri thức với cuộc sống - NXB Giáo Dục Việt Nam).
-                {f'Dữ liệu bổ sung trích xuất từ link taphuan.nxbgd.vn: {scraped_text}' if scraped_text else ''}
+                MÁY TRÍCH XUẤT NGUYÊN VĂN DỮ LIỆU CSDL: https://taphuan.nxbgd.vn (Sách Kết nối tri thức - NXB Giáo Dục Việt Nam).
+                {f'Văn bản đính kèm từ link taphuan: {scraped_text}' if scraped_text else ''}
 
-                Yêu cầu: Trích xuất chính xác danh mục bài học môn {subject} - {grade}.
-                Bắt buộc lấy đúng dữ liệu từ SGK và SGV, không tự điều chỉnh hay sáng tạo.
+                NHIỆM VỤ BẮT BUỘC:
+                1. Trích xuất đúng danh mục bài học môn {subject} - {grade}.
+                2. Phần "req" (Yêu cầu cần đạt): Copy-paste NGUYÊN VĂN DẤU CÂU TỪNG TỪ TỪNG CHỮ từ SGV/SGK tại taphuan.nxbgd.vn.
+                3. TUYỆT ĐỐI KHÔNG sửa đổi, KHÔNG tóm tắt, KHÔNG diễn đạt lại theo ý cá nhân.
 
-                Trả về JSON mảng:
+                Trả về định dạng JSON mảng duy nhất:
                 [
                   {{
-                    "chapter": "Tên Chương chuẩn theo SGK",
-                    "lesson": "Tên Bài chuẩn theo SGK",
+                    "chapter": "Tên Chương nguyên văn SGK",
+                    "lesson": "Tên Bài nguyên văn SGK",
                     "duration": 3,
-                    "req": "Yêu cầu cần đạt chuẩn nguyên văn từ SGV tại taphuan.nxbgd.vn"
+                    "req": "Yêu cầu cần đạt NGUYÊN VĂN TỪNG CHỮ từ SGV"
                   }}
                 ]
-                Chỉ trả về JSON mảng thuần, không kèm câu thoại hay giải thích.
+                Chỉ trả về JSON, không có bất kỳ văn bản dẫn dắt nào khác.
                 """
                 
                 with st.spinner(f"✨ Đang truy xuất CSDL SGV/SGK {subject} {grade} từ taphuan.nxbgd.vn..."):
@@ -239,7 +239,7 @@ with col_btn_sync:
                     json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
                     clean_json = json_match.group(0) if json_match else raw_text
                     st.session_state['fetched_lessons'] = json.loads(clean_json)
-                    st.success("🎉 Đã đồng bộ dữ liệu SGV & SGK từ taphuan.nxbgd.vn thành công!")
+                    st.success("🎉 Đã đồng bộ dữ liệu nguyên văn SGV & SGK từ taphuan.nxbgd.vn!")
             except Exception as e:
                 st.warning("⚠️ Đã tải dữ liệu mẫu chuẩn SGV/SGK:")
                 st.session_state['fetched_lessons'] = [
@@ -280,7 +280,7 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
         duration = st.number_input("Số tiết:", value=int(current_item['duration']), label_visibility="collapsed")
     
     with col_i2:
-        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt chuẩn SGV (Không tự ý sửa):</span>', unsafe_allow_html=True)
+        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt chuẩn SGV (Khóa nguyên văn):</span>', unsafe_allow_html=True)
         requirements = st.text_area("YCĐ:", value=current_item['req'], height=230, label_visibility="collapsed")
 else:
     col_i1, col_i2 = st.columns([1, 2], gap="large")
@@ -408,42 +408,41 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
         try:
             genai.configure(api_key=clean_api_key)
             clean_model_name = model_name.replace("models/", "").strip()
-            # Khóa nhiệt độ = 0.0 ép AI trích xuất nguyên văn SGK/SGV
+            # Nhiệt độ = 0.0 bắt buộc AI sao chép chính xác 100%
             model = genai.GenerativeModel(
                 clean_model_name,
                 generation_config=genai.GenerationConfig(temperature=0.0)
             )
             integration_str = ", ".join(integrations) if integrations else "Không"
 
-            # Cào dữ liệu bổ sung từ URL nếu có
             url_context = scrape_taphuan_url(taphuan_url) if taphuan_url else ""
 
-            # PROMPT SIẾT CHẶT TÍNH CHÍNH XÁC SGK & SGV TỪ TAPHUAN.NXBGD.VN
+            # PROMPT SIẾT CHẶT QUY TẮC NGUYÊN VĂN 100%
             prompt = f"""
-            Bạn là hệ thống tự động thiết lập Kế hoạch bài dạy (KHBD) chuẩn Công văn 5512/BGDĐT.
-            Nguồn tham chiếu bắt buộc: Hệ thống CSDL https://taphuan.nxbgd.vn thuộc NXB Giáo Dục Việt Nam (Sách Kết nối tri thức với cuộc sống).
-            {f'Nội dung tham khảo trực tiếp từ Link taphuan.nxbgd.vn: {url_context}' if url_context else ''}
+            BẠN LÀ MÁY TRÍCH XUẤT VĂN BẢN VÀ LẬP KHBD CHUẨN 5512.
+            NGUỒN DỮ LIỆU BẮT BUỘC KHÓA NGUYÊN VĂN:
+            1. Hệ thống CSDL taphuan.nxbgd.vn thuộc NXB Giáo Dục Việt Nam.
+            2. {f'Nội dung bóc tách từ Link taphuan: {url_context}' if url_context else 'Sách Giáo Khoa (SGK) và Sách Giáo Viên (SGV) Kết nối tri thức với cuộc sống.'}
 
-            QUY TẮC BẮT BUỘC KHÔNG ĐƯỢC VI PHẠM:
-            1. TÔN TRỌNG VÀ BÁM SÁT ĐÚNG 100% DỮ LIỆU SGK & SGV:
-               - Sử dụng chính xác từng từ trong phần Mục tiêu SGV sau đây: {requirements}
-               - Lấy đúng các câu hỏi, hình vẽ, hoạt động và bài tập trong SGK & hướng dẫn giải trong SGV tại taphuan.nxbgd.vn.
-               - TUYỆT ĐỐI KHÔNG tự ý thay đổi từ ngữ, KHÔNG suy diễn thêm lý thuyết ngoài chương trình SGK/SGV.
+            MỆNH LỆNH TRÍCH XUẤT NGUYÊN VĂN (STRICT COPIER):
+            - KHÔNG ĐƯỢC TỰ Ý THAY ĐỔI TỪ NGỮ, KHÔNG DIỄN ĐẠT LẠI, KHÔNG VIẾT TẮT NỐI VĂN.
+            - Phần "I. MỤC TIÊU": Copy NGUYÊN VĂN 100% từng từ, từng câu từ văn bản SGV sau:
+              {requirements}
+            - Phần "III. TIẾN TRÌNH DẠY HỌC":
+              + Mục b) Nội dung: Trích xuất CHÍNH XÁC NGUYÊN VĂN các câu hỏi, Hoạt động (HĐ), Luyện tập (LT), Vận dụng (VD), Bài tập trong SGK.
+              + Mục c) Sản phẩm: Bê NGUYÊN VĂN lời giải, đáp án chi tiết từ SGV tại taphuan.nxbgd.vn.
+              + Mục d) Tổ chức thực hiện: Trích xuất các bước hướng dẫn từ SGV.
 
-            2. CẤU TRÚC GIÁO ÁN 5512 CHUẨN MỰC:
-               I. MỤC TIÊU
-               1. Về kiến thức, kỹ năng: (Chép chính xác Y NGUYÊN từ dữ liệu SGV)
-               2. Về phẩm chất, năng lực: (Chép chính xác Y NGUYÊN từ dữ liệu SGV)
-               - Năng lực Số / Ứng dụng CNTT: (Tích hợp ngắn gọn {integration_str})
+            CẤU TRÚC BẮT BUỘC:
+            I. MỤC TIÊU
+            1. Về kiến thức, kỹ năng: (Chép NGUYÊN VĂN từng chữ từ dữ liệu SGV)
+            2. Về phẩm chất, năng lực: (Chép NGUYÊN VĂN từng chữ từ dữ liệu SGV)
+            - Tích hợp Năng lực Đặc thù: {integration_str}
 
-               II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
+            II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
 
-               III. TIẾN TRÌNH DẠY HỌC
-               Trình bày các Hoạt động (Mở đầu, Hình thành kiến thức, Luyện tập, Vận dụng) bám sát đúng khung bài dạy của SGK & SGV. Mỗi hoạt động gồm 4 mục:
-               a) Mục tiêu
-               b) Nội dung (Mô tả chính xác câu hỏi/bài tập từ SGK/SGV)
-               c) Sản phẩm (Lời giải/đáp án chuẩn xác theo SGK và SGV)
-               d) Tổ chức thực hiện (Bước 1: Chuyển gia nhiệm vụ -> Bước 2: Thực hiện nhiệm vụ -> Bước 3: Báo cáo, thảo luận -> Bước 4: Kết luận, nhận định).
+            III. TIẾN TRÌNH DẠY HỌC
+            (Lần lượt trình bày các Hoạt động bám sát khung SGK: Mở đầu, Hình thành kiến thức, Luyện tập, Vận dụng. Mỗi hoạt động gồm đủ 4 mục: a) Mục tiêu, b) Nội dung nguyên văn SGK, c) Sản phẩm nguyên văn SGV, d) Tổ chức thực hiện theo 4 bước).
 
             THÔNG TIN BÀI DẠY:
             - Môn: {subject} ({grade})
@@ -458,11 +457,11 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                 bytes_data = uploaded_sgv_file.getvalue()
                 mime_type = uploaded_sgv_file.type
                 contents.append({"mime_type": mime_type, "data": bytes_data})
-                st.toast("📄 Đã nạp tệp SGV! AI sẽ trích xuất chuẩn xác 100%...", icon="✅")
+                st.toast("📄 Đã nạp tệp SGV đính kèm! AI sẽ quét nguyên văn tệp...", icon="✅")
 
-            with st.spinner("✨ Đang trích xuất dữ liệu chuẩn SGV/SGK từ taphuan.nxbgd.vn và khởi tạo File Word..."):
+            with st.spinner("✨ Đang sao chép NGUYÊN VĂN dữ liệu SGV/SGK từ taphuan.nxbgd.vn và tạo File Word..."):
                 response = call_gemini_multimodal(model, contents)
-                st.success("🎉 Đã tạo KHBD chuẩn 100% SGV & SGK!")
+                st.success("🎉 Đã tạo KHBD chuẩn nguyên văn 100% SGV & SGK!")
                 doc_file = generate_doc(response.text)
                 
                 st.download_button(
