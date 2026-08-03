@@ -9,6 +9,7 @@ from docx.oxml.ns import nsdecls
 import io
 import json
 import re
+import time
 
 # ==========================================
 # CẤU HÌNH TRANG STREAMLIT
@@ -24,19 +25,14 @@ st.set_page_config(
 # ==========================================
 st.markdown("""
     <style>
-    /* Nới rộng khung chứa nội dung */
     .block-container {
         padding-top: 2rem !important;
         padding-bottom: 2rem !important;
         max-width: 1300px;
     }
-    
-    /* Cấu hình Font chữ mặc định */
     html, body, [class*="css"] {
         font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
     }
-    
-    /* Style cho Sidebar */
     section[data-testid="stSidebar"] {
         background-color: #f8fafc;
         border-right: 1px solid #e2e8f0;
@@ -49,10 +45,8 @@ st.markdown("""
         border-bottom: 3px solid #2563eb;
         padding-bottom: 6px;
     }
-    
-    /* Header cho từng Bước (Step Header) */
     .step-header {
-        color: #dc2626 !important; /* Đỏ rực */
+        color: #dc2626 !important;
         font-size: 22px !important;
         font-weight: 700 !important;
         margin-top: 20px !important;
@@ -60,16 +54,12 @@ st.markdown("""
         padding-left: 10px;
         border-left: 5px solid #dc2626;
     }
-    
-    /* Style Label chung cho các ô nhập liệu */
     div[data-testid="stWidgetLabel"] p, .custom-label {
         font-size: 19px !important;
         font-weight: 700 !important;
         color: #1e293b !important;
         margin-bottom: 4px !important;
     }
-
-    /* Style ĐẶC BIỆT cho Selectbox (Hộp chọn) */
     .stSelectbox div[data-baseweb="select"] *,
     .stSelectbox [data-testid="stMarkdownContainer"] p,
     div[data-baseweb="select"] div,
@@ -77,24 +67,18 @@ st.markdown("""
     div[data-baseweb="select"] p {
         font-size: 18px !important;
         font-weight: 700 !important;
-        color: #1e3a8a !important; /* Xanh đậm rực rỡ */
+        color: #1e3a8a !important;
     }
-
-    /* Style ĐẶC BIỆT cho Input Text & Number */
     div[data-baseweb="input"] input, .stTextInput input, .stNumberInput input {
         font-size: 18px !important;
         font-weight: 700 !important;
         color: #1e3a8a !important;
     }
-
-    /* Style cho Textarea */
     div[data-baseweb="textarea"] textarea, .stTextArea textarea {
         font-size: 17px !important;
         font-weight: 600 !important;
         color: #1e3a8a !important;
     }
-    
-    /* Nút bấm */
     .stButton button p {
         font-size: 19px !important;
         font-weight: 700 !important;
@@ -103,15 +87,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# HÀM XỬ LÝ TỆP ĐÍNH KÈM CHUẨN GEMINI API
+# HÀM XỬ LÝ TỆP ĐÍNH KÈM
 # ==========================================
 def process_uploaded_file(uploaded_file):
     if uploaded_file is None:
         return None
-    
     file_type = uploaded_file.type
     bytes_data = uploaded_file.getvalue()
-    
     if "pdf" in file_type:
         mime = "application/pdf"
     elif "png" in file_type:
@@ -120,41 +102,54 @@ def process_uploaded_file(uploaded_file):
         mime = "image/jpeg"
     else:
         mime = file_type if file_type else "application/octet-stream"
-        
-    return {
-        "mime_type": mime,
-        "data": bytes_data
-    }
+    return {"mime_type": mime, "data": bytes_data}
 
 # ==========================================
-# HÀM GỌI GEMINI API SỬ DỤNG MODEL LỰA CHỌN
+# HÀM GỌI GEMINI API THÔNG MINH (CHỐNG LỖI 429 METRIC QUOTA)
 # ==========================================
-def call_gemini(api_key, model_choice, contents):
+def call_gemini(api_key, preferred_model, contents):
     genai.configure(api_key=api_key)
     
-    clean_model_name = model_choice.replace("models/", "").strip()
+    # Danh sách ưu tiên chuyển đổi khi bị nghẽn API
+    fallback_models = [
+        preferred_model.replace("models/", "").strip(),
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
+        "gemini-2.0-flash"
+    ]
     
+    # Loại bỏ trùng lặp giữ nguyên thứ tự
+    seen = set()
+    models_to_try = [m for m in fallback_models if not (m in seen or seen.add(m))]
+
     generation_config = genai.types.GenerationConfig(
         temperature=0.1,
         top_p=0.8,
         top_k=40
     )
-    
-    try:
-        model = genai.GenerativeModel(
-            model_name=clean_model_name,
-            generation_config=generation_config
-        )
-        response = model.generate_content(contents)
-        return response
-    except Exception as e:
-        if clean_model_name != "gemini-2.0-flash":
-            model = genai.GenerativeModel(
-                model_name="gemini-2.0-flash",
-                generation_config=generation_config
-            )
-            return model.generate_content(contents)
-        raise e
+
+    last_exception = None
+    for m_name in models_to_try:
+        try:
+            model = genai.GenerativeModel(model_name=m_name, generation_config=generation_config)
+            response = model.generate_content(contents)
+            return response
+        except Exception as e:
+            last_exception = e
+            err_msg = str(e)
+            # Nếu dính lỗi 429 (Quota Exceeded / Rate Limit)
+            if "429" in err_msg or "Quota exceeded" in err_msg or "ResourceHasBeenExhausted" in err_msg:
+                time.sleep(2) # Tạm dừng 2s rồi thử model khác
+                continue
+            else:
+                raise e
+                
+    # Nếu thử toàn bộ danh sách vẫn lỗi 429
+    raise Exception(
+        "⚠️ Hệ thống AI Google đang bị quá tải lượt gọi Free (Lỗi 429). "
+        "Thầy vui lòng chờ khoảng 30 - 45 giây rồi bấm thử lại, "
+        "hoặc tạo thêm 1 API Key mới tại https://aistudio.google.com/ app để sử dụng mượt mà hơn."
+    ) from last_exception
 
 # ==========================================
 # THANH BÊN (SIDEBAR) ĐĂNG NHẬP & CẤU HÌNH
@@ -162,7 +157,7 @@ def call_gemini(api_key, model_choice, contents):
 with st.sidebar:
     st.markdown('<div class="sidebar-title">🔑 ĐĂNG NHẬP & CẤU HÌNH</div>', unsafe_allow_html=True)
     api_key = st.text_input("Google Gemini API Key:", type="password", placeholder="Dán API Key vào đây...")
-    model_name = st.selectbox("Mô hình AI ưu tiên:", ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"], index=0)
+    model_name = st.selectbox("Mô hình AI ưu tiên:", ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"], index=0)
     
     st.markdown("---")
     st.markdown('<div class="sidebar-title">👤 THÔNG TIN GIÁO VIÊN</div>', unsafe_allow_html=True)
@@ -244,7 +239,7 @@ if "📂 Đọc từ Tệp" in input_mode:
                     else:
                         st.error("Không thể phân tích dữ liệu dạng JSON từ kết quả.")
                 except Exception as e:
-                    st.error(f"❌ Lỗi khi đọc file: {e}")
+                    st.error(f"❌ {e}")
 
     if 'extracted_data' in st.session_state:
         ext = st.session_state['extracted_data']
@@ -296,7 +291,7 @@ elif "🤖 Tra cứu tự động" in input_mode:
                     else:
                         st.error("Lỗi cấu trúc dữ liệu trả về.")
                 except Exception as e:
-                    st.error(f"❌ Lỗi tra cứu: {e}")
+                    st.error(f"❌ {e}")
                     
     if 'ai_lessons' in st.session_state:
         lessons_list = st.session_state['ai_lessons']
@@ -305,7 +300,6 @@ elif "🤖 Tra cứu tự động" in input_mode:
         
         sel = lessons_list[selected_idx]
         chapter_title = st.text_input("Chương / Chủ đề (Đầy đủ):", value=sel.get('chapter', ''))
-        # Cho phép Thầy rà soát lại tên bài dạy chuẩn xác trước khi biên soạn
         lesson_title = st.text_input("Tên Bài dạy đầy đủ nguyên văn SGK (Thầy có thể bổ sung/sửa lại ở đây):", value=sel.get('lesson', ''))
         try:
             dur_val = int(sel.get('duration', 3))
@@ -351,14 +345,12 @@ integrations = st.multiselect(
 def generate_doc(content_text, locked_chapter_title, locked_lesson_title):
     doc = docx.Document()
     
-    # Cấu hình Lề trang (Top 2cm, Bottom 2cm, Left 3cm, Right 2cm)
     for section in doc.sections:
         section.top_margin = Inches(0.79)
         section.bottom_margin = Inches(0.79)
         section.left_margin = Inches(1.18)
         section.right_margin = Inches(0.79)
 
-    # Style mặc định: Times New Roman, Size 13
     style = doc.styles['Normal']
     font = style.font
     font.name = 'Times New Roman'
@@ -383,14 +375,13 @@ def generate_doc(content_text, locked_chapter_title, locked_lesson_title):
     run_right = p_right.add_run(f"Họ và tên giáo viên:\n{teacher_name}")
     run_right.bold = True
 
-    # Ẩn đường viền bảng Header
     for row in table.rows:
         for cell in row.cells:
             tcPr = cell._tc.get_or_add_tcPr()
             tcBorders = parse_xml(r'<w:tcBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>' % nsdecls('w'))
             tcPr.append(tcBorders)
 
-    # 2. TIÊU ĐỀ BÀI DẠY (ÉP BUỘC SỬ DỤNG CHÍNH XÁC CHUỖI VĂN BẢN TỪ Ô NHẬP LIỆU CỦA THẦY)
+    # 2. TIÊU ĐỀ BÀI DẠY (KHÓA NGUYÊN VĂN TỪ GIAO DIỆN)
     if locked_chapter_title:
         p_chap = doc.add_paragraph()
         p_chap.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -427,30 +418,25 @@ def generate_doc(content_text, locked_chapter_title, locked_lesson_title):
         
         clean_text = line_str.replace("**", "").replace("*", "")
 
-        # Định dạng Tiêu đề lớn I, II, III...
         if clean_text.startswith(("I. ", "II. ", "III. ", "IV. ")):
             p.paragraph_format.space_before = Pt(12)
             run = p.add_run(clean_text)
             run.bold = True
             run.font.size = Pt(14)
-        # Định dạng Tiết / Hoạt động
         elif clean_text.startswith(("TIẾT ", "HOẠT ĐỘNG ", "Nội dung ", "Khối kiến thức ")):
             p.paragraph_format.space_before = Pt(8)
             run = p.add_run(clean_text)
             run.bold = True
             run.font.size = Pt(13)
-        # Định dạng mục 1, 2, 3...
         elif clean_text.startswith(("1. ", "2. ", "3. ", "4. ")):
             p.paragraph_format.space_before = Pt(6)
             run = p.add_run(clean_text)
             run.bold = True
-        # Định dạng mục a, b, c...
         elif clean_text.startswith(("a)", "b)", "c)", "d)")):
             p.paragraph_format.space_before = Pt(4)
             p.paragraph_format.left_indent = Inches(0.15)
             run = p.add_run(clean_text)
             run.bold = True
-        # Các Bước trong Hoạt động
         elif "Bước 1:" in clean_text or "Bước 2:" in clean_text or "Bước 3:" in clean_text or "Bước 4:" in clean_text:
             p.paragraph_format.left_indent = Inches(0.3)
             run = p.add_run(clean_text)
@@ -458,7 +444,6 @@ def generate_doc(content_text, locked_chapter_title, locked_lesson_title):
         else:
             p.add_run(clean_text)
 
-    # Xuất ra bộ nhớ đệm Streamlit
     bio = io.BytesIO()
     doc.save(bio)
     bio.seek(0)
@@ -533,13 +518,9 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                 
                 st.success("🎉 Đã hoàn thành biên soạn Giáo án chuẩn 5512!")
                 
-                # Tạo file Word với tên chương và tên bài được KHÓA CỐ ĐỊNH từ giao diện nhập của Thầy
                 doc_file = generate_doc(response.text, locked_chapter_title=chapter_title, locked_lesson_title=lesson_title)
-                
-                # Làm sạch tên file tải về để không bị lỗi ký tự đặc biệt
                 safe_file_name = re.sub(r'[\\/*?:"<>|]', "", lesson_title).replace(" ", "_")
                 
-                # Nút tải file Word
                 st.download_button(
                     label="📥 TẢI FILE WORD GIÁO ÁN (.DOCX) CHUẨN 5512",
                     data=doc_file,
@@ -548,9 +529,8 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                     use_container_width=True
                 )
 
-                # Hiển thị trực tiếp nội dung trên màn hình
                 st.markdown("---")
                 st.markdown(response.text)
 
         except Exception as e:
-            st.error(f"❌ Có lỗi xảy ra trong quá trình xử lý: `{e}`. Vui lòng kiểm tra lại API Key hoặc chọn Model khác!")
+            st.error(f"❌ {e}")
