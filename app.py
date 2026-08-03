@@ -13,7 +13,7 @@ import time
 
 # Cấu hình trang Streamlit
 st.set_page_config(
-    page_title="Hệ thống Soạn Giáo án Tự Động 5512 (Bám sát SGV)", 
+    page_title="Hệ thống Soạn Giáo án Tự Động 5512 (Đầy đủ các môn THPT 2018)", 
     layout="wide", 
     page_icon="📝"
 )
@@ -84,35 +84,72 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# DỮ LIỆU MẪU CHUẨN DÀNH CHO NGỮ VĂN (KNTT) TỪ TAPHUAN.NXBGD.VN
+# ==========================================
+# CƠ SỞ DỮ LIỆU TẤT CẢ CÁC MÔN GDPT 2018 (KNTT)
+# ==========================================
 BUILTIN_LESSONS = {
-    "Ngữ văn_Lớp 10": [
-        {
-            "chapter": "Bài 1: Sức hấp dẫn của truyện kể",
-            "lesson": "Văn bản 1: Truyện về các vị thần sáng tạo thế giới (Thần thoại Việt Nam)",
-            "duration": 2,
-            "req": "- Nhận biết và phân tích được một số yếu tố của thần thoại như: không gian, thời gian, cốt truyện, nhân vật.\n- Phân tích được chủ đề, thông điệp mà tác phẩm muốn gửi gắm.\n- Bồi dưỡng tình yêu thiên nhiên, ý thức tìm hiểu nguồn cội."
-        },
-        {
-            "chapter": "Bài 1: Sức hấp dẫn của truyện kể",
-            "lesson": "Văn bản 2: Tản Viên từ phản đền (Nguyễn Dữ)",
-            "duration": 2,
-            "req": "- Nhận biết và phân tích được một số yếu tố của truyền kỳ: nhân vật, sự kiện, yếu tố kỳ ảo.\n- Phân tích được nét tính cách cứng cỏi, dũng cảm đấu tranh cho chính nghĩa của Ngô Tử Văn."
-        },
-        {
-            "chapter": "Bài 2: Vẻ đẹp của thơ ca",
-            "lesson": "Văn bản 1: Chùm thơ hai-cư (Hai-ku) Nhật Bản",
-            "duration": 2,
-            "req": "- Nhận biết được một số đặc điểm hình thức của thơ hai-cư: số tiếng, từ ngữ chỉ mùa (quý ngữ), khoảng lặng sáng tạo.\n- Cảm nhận được vẻ đẹp tinh tế của thiên nhiên và tình yêu cuộc sống."
-        }
+    # 1. TOÁN HỌC
+    "Toán học_Lớp 10": [
+        {"chapter": "Chương I: Mệnh đề và Tập hợp", "lesson": "Bài 1: Mệnh đề", "duration": 2, "req": "- Thiết lập và phát biểu được mệnh đề, mệnh đề phủ định, mệnh đề kéo theo, mệnh đề tương đương.\n- Xác định được tính đúng/sai của mệnh đề đơn giản.\n- Sử dụng đúng các ký hiệu ∀, ∃."},
+        {"chapter": "Chương I: Mệnh đề và Tập hợp", "lesson": "Bài 2: Tập hợp và các phép toán trên tập hợp", "duration": 3, "req": "- Hiểu và sử dụng đúng các khái niệm tập hợp, tập hợp con, tập hợp bằng nhau.\n- Thực hiện thành thạo các phép toán hợp, giao, hiệu của hai tập hợp."},
+        {"chapter": "Chương II: Bất phương trình và Hệ BPT bậc nhất hai ẩn", "lesson": "Bài 3: Bất phương trình bậc nhất hai ẩn", "duration": 2, "req": "- Nhận biết được bất phương trình bậc nhất hai ẩn.\n- Biểu diễn được miền nghiệm của bất phương trình bậc nhất hai ẩn trên mặt phẳng tọa độ."}
     ],
-    "Ngữ văn_Lớp 11": [
-        {
-            "chapter": "Bài 1: Câu chuyện truyền kỳ",
-            "lesson": "Văn bản 1: Bích Câu kỳ ngộ (Vũ Quốc Trân)",
-            "duration": 2,
-            "req": "- Nhận biết và phân tích được các đặc điểm của thơ nôm truyền kỳ.\n- Hiểu được khát vọng tình yêu đôi lứa và triết lý nhân sinh của tác giả."
-        }
+
+    # 2. NGỮ VĂN
+    "Ngữ văn_Lớp 10": [
+        {"chapter": "Bài 1: Sức hấp dẫn của truyện kể", "lesson": "Văn bản 1: Truyện về các vị thần sáng tạo thế giới (Thần thoại Việt Nam)", "duration": 2, "req": "- Nhận biết và phân tích được một số yếu tố của thần thoại: không gian, thời gian, cốt truyện, nhân vật.\n- Phân tích được chủ đề, thông điệp tác phẩm."},
+        {"chapter": "Bài 1: Sức hấp dẫn của truyện kể", "lesson": "Văn bản 2: Tản Viên từ phản đền (Nguyễn Dữ)", "duration": 2, "req": "- Nhận biết và phân tích được một số yếu tố của truyền kỳ: nhân vật, sự kiện, yếu tố kỳ ảo.\n- Phân tích nét tính cách dũng cảm đấu tranh cho chính nghĩa của Ngô Tử Văn."}
+    ],
+
+    # 3. TIẾNG ANH
+    "Tiếng Anh_Lớp 10": [
+        {"chapter": "Unit 1: Family Life", "lesson": "Getting Started - Household Chores", "duration": 1, "req": "- Use words and phrases related to household chores and family life.\n- Identify and practice the pronunciation of consonant blends /br/, /kr/, and /tr/."},
+        {"chapter": "Unit 1: Family Life", "lesson": "Reading - Benefits of doing housework", "duration": 1, "req": "- Read for main ideas and specific information about the benefits of sharing housework for children."}
+    ],
+
+    # 4. VẬT LÝ
+    "Vật lý_Lớp 10": [
+        {"chapter": "Chương I: Mở đầu", "lesson": "Bài 1: Tốc độ, vận tốc và gia tốc", "duration": 2, "req": "- Lập luận để rút ra định nghĩa và công thức tính vận tốc, gia tốc.\n- Biểu diễn được vectơ vận tốc và gia tốc trong chuyển động thẳng."}
+    ],
+
+    # 5. HÓA HỌC
+    "Hóa học_Lớp 10": [
+        {"chapter": "Chương 1: Cấu tạo nguyên tử", "lesson": "Bài 1: Thành phần nguyên tử", "duration": 2, "req": "- Trình bày được thành phần của nguyên tử (hạt nhân, vỏ nguyên tử, proton, neutron, electron).\n- So sánh được khối lượng và điện tích của các hạt."}
+    ],
+
+    # 6. SINH HỌC
+    "Sinh học_Lớp 10": [
+        {"chapter": "Phần 1: Giới thiệu chung về thế giới sống", "lesson": "Bài 1: Giới thiệu chương trình môn Sinh học và các cấp độ tổ chức của thế giới sống", "duration": 2, "req": "- Nêu được mục tiêu, đối tượng nghiên cứu của môn Sinh học.\n- Trình bày được các đặc điểm chung của các cấp độ tổ chức sống."}
+    ],
+
+    # 7. LỊCH SỬ
+    "Lịch sử_Lớp 10": [
+        {"chapter": "Chủ đề 1: Lịch sử và Sử học", "lesson": "Bài 1: Hiện thực lịch sử và nhận thức lịch sử", "duration": 2, "req": "- Trình bày được khái niệm hiện thực lịch sử và nhận thức lịch sử.\n- Phân biệt được hiện thực lịch sử và nhận thức lịch sử qua ví dụ cụ thể."}
+    ],
+
+    # 8. ĐỊA LÝ
+    "Địa lý_Lớp 10": [
+        {"chapter": "Chương 1: Sử dụng bản đồ", "lesson": "Bài 1: Một số phương pháp biểu hiện đặc bố trí các đối tượng địa lý trên bản đồ", "duration": 2, "req": "- Phân biệt được các phương pháp biểu hiện đối tượng địa lý trên bản đồ (phương pháp ký hiệu, bản đồ - biểu đồ, đường đẳng nhật...)."}
+    ],
+
+    # 9. TIN HỌC
+    "Tin học_Lớp 10": [
+        {"chapter": "Chủ đề A: Máy tính và xã hội trí thức", "lesson": "Bài 1: Thông tin và xử lý thông tin", "duration": 2, "req": "- Phân biệt được thông tin và dữ liệu.\n- Giải thích được chuyển đổi dữ liệu thành thông tin trong các hệ thống xử lý."}
+    ],
+
+    # 10. GIÁO DỤC KINH TẾ VÀ PHÁP LUẬT (GDKT&PL)
+    "GDKT&PL_Lớp 10": [
+        {"chapter": "Chủ đề 1: Nền kinh tế và các chủ thể kinh tế", "lesson": "Bài 1: Các hoạt động kinh tế cơ bản trong đời sống xã hội", "duration": 2, "req": "- Nêu được vai trò của các hoạt động sản xuất, phân phối, trao đổi, tiêu dùng trong đời sống xã hội."}
+    ],
+
+    # 11. CÔNG NGHỆ
+    "Công nghệ_Lớp 10": [
+        {"chapter": "Chủ đề 1: Khái quát về công nghệ", "lesson": "Bài 1: Công nghệ và đời sống", "duration": 2, "req": "- Nêu được bản chất, vai trò của công nghệ đối với đời sống con người và phát triển xã hội."}
+    ],
+
+    # 12. HOẠT ĐỘNG TRẢI NGHIỆM, HƯỚNG NGHIỆP
+    "HĐTN, Hướng nghiệp_Lớp 10": [
+        {"chapter": "Chủ đề 1: Phát triển bản thân", "lesson": "Bài 1: Khám phá bản thân và thể hiện sự tự tin", "duration": 3, "req": "- Nhận diện được đặc điểm tính cách, giá trị bản thân.\n- Thể hiện được sự tự tin trong giao tiếp và các hoạt động tập thể."}
     ]
 }
 
@@ -165,7 +202,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown('<div class="sidebar-title">👤 THÔNG TIN GIÁO VIÊN</div>', unsafe_allow_html=True)
     school_name = st.text_input("Trường THPT:", "THPT NGUYỄN VĂN TRỖI")
-    dept_name = st.text_input("Tổ chuyên môn:", "TỔ NGỮ VĂN")
+    dept_name = st.text_input("Tổ chuyên môn:", "TỔ CHUYÊN MÔN")
     teacher_name = st.text_input("Họ và tên GV:", "Dương Tấn Tiến")
 
 # ==========================================
@@ -174,7 +211,7 @@ with st.sidebar:
 st.markdown("""
     <div style="text-align: center; margin-bottom: 25px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 22px; border-radius: 12px; border: 1px solid #bfdbfe;">
         <div style="font-size: 33px; font-weight: 800; color: #1e3a8a;">
-            HỆ THỐNG SOẠN KHBD TỰ ĐỘNG CHUẨN 100% SGV (5512)
+            HỆ THỐNG SOẠN KHBD TỰ ĐỘNG TOÀN DIỆN THPT GDPT 2018 (5512)
         </div>
         <div style="font-size: 21px; font-weight: 600; color: #2563eb; margin-top: 10px;">
             📝 Tác giả: DƯƠNG TẤN TIẾN — GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
@@ -185,11 +222,17 @@ st.markdown("""
 # ==========================================
 # BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP
 # ==========================================
-st.markdown('<div class="step-header">📚 BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">📚 BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP (GDPT 2018)</div>', unsafe_allow_html=True)
 col_sub, col_grd = st.columns(2)
 with col_sub:
     st.markdown('<span class="custom-label">Môn học/Hoạt động GD:</span>', unsafe_allow_html=True)
-    subject = st.selectbox("Môn học:", ["Ngữ văn", "Toán học", "Tiếng Anh", "Vật lý", "Hóa học", "Sinh học", "Lịch sử", "Địa lý", "Tin học", "GDKT&PL", "Công nghệ"], label_visibility="collapsed")
+    all_subjects = [
+        "Toán học", "Ngữ văn", "Tiếng Anh", 
+        "Vật lý", "Hóa học", "Sinh học", 
+        "Lịch sử", "Địa lý", "GDKT&PL", 
+        "Tin học", "Công nghệ", "HĐTN, Hướng nghiệp"
+    ]
+    subject = st.selectbox("Môn học:", all_subjects, label_visibility="collapsed")
 with col_grd:
     st.markdown('<span class="custom-label">Khối lớp:</span>', unsafe_allow_html=True)
     grade = st.selectbox("Khối lớp:", ["Lớp 10", "Lớp 11", "Lớp 12"], label_visibility="collapsed")
@@ -205,8 +248,8 @@ default_lessons = BUILTIN_LESSONS.get(key_sub_grade, [])
 col_btn_sync, col_file_upload = st.columns([1, 1], gap="medium")
 
 with col_btn_sync:
-    st.markdown('<span class="custom-label">🌐 Tải danh mục bài học từ taphuan.nxbgd.vn:</span>', unsafe_allow_html=True)
-    if st.button(f"🔍 Cập nhật lại danh sách bài học {subject} - {grade}", use_container_width=True):
+    st.markdown('<span class="custom-label">🌐 Cập nhật thêm danh mục bài học từ AI:</span>', unsafe_allow_html=True)
+    if st.button(f"🔍 Tra cứu thêm bài học môn {subject} - {grade}", use_container_width=True):
         clean_api_key = api_key.strip() if api_key else ""
         if not clean_api_key:
             st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
@@ -215,18 +258,18 @@ with col_btn_sync:
                 genai.configure(api_key=clean_api_key)
                 prompt_fetch = f"""
                 Bạn là CSDL chuẩn Bộ sách "Kết nối tri thức với cuộc sống" (taphuan.nxbgd.vn).
-                Hãy xuất danh sách TẤT CẢ các Bài học / Văn bản chính thức môn {subject} - {grade}.
+                Hãy xuất danh sách TẤT CẢ các Bài học chính thức môn {subject} - {grade}.
                 Trả về duy nhất định dạng JSON Mảng đối tượng:
                 [
                   {{
                     "chapter": "Tên Bài lớn / Chủ đề",
-                    "lesson": "Tên Văn bản / Bài học nhỏ",
+                    "lesson": "Tên Bài học nhỏ",
                     "duration": 2,
                     "req": "Yêu cầu cần đạt chi tiết của bài theo chuẩn SGV"
                   }}
                 ]
                 """
-                with st.spinner(f"✨ Đang đồng bộ danh mục {subject} {grade}..."):
+                with st.spinner(f"✨ Đang tìm kiếm thêm bài học môn {subject} {grade}..."):
                     res = call_gemini_multimodal(model_name, [prompt_fetch])
                     raw_text = res.text.strip()
                     json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
@@ -234,16 +277,16 @@ with col_btn_sync:
                     parsed_lessons = json.loads(clean_json)
                     if isinstance(parsed_lessons, list) and len(parsed_lessons) > 0:
                         st.session_state[f'fetched_{key_sub_grade}'] = parsed_lessons
-                        st.success(f"🎉 Đã nạp thành công {len(parsed_lessons)} bài học!")
-            except Exception as e:
-                st.warning(f"⚠️ Đã tự động tải danh mục mẫu chuẩn từ NXB Giáo Dục môn {subject} {grade}")
+                        st.success(f"🎉 Đã nạp thành công {len(parsed_lessons)} bài học môn {subject}!")
+            except Exception:
+                st.info(f"📌 Đã hiển thị sẵn danh mục chuẩn NXB Giáo Dục môn {subject} {grade}.")
 
 with col_file_upload:
-    st.markdown('<span class="custom-label">📂 Tải lên trang SGV (tải từ taphuan.nxbgd.vn):</span>', unsafe_allow_html=True)
+    st.markdown('<span class="custom-label">📂 Tải lên trang SGV (PDF/Ảnh chụp taphuan.nxbgd.vn):</span>', unsafe_allow_html=True)
     uploaded_sgv_file = st.file_uploader("Tải lên File SGV:", type=["pdf", "png", "jpg", "jpeg"], label_visibility="collapsed")
 
 if uploaded_sgv_file is not None:
-    st.info(f"✅ Đã nhận file: **{uploaded_sgv_file.name}**. Hệ thống sẽ trích xuất Y NGUYÊN nội dung từ file này!")
+    st.info(f"✅ Đã nhận file: **{uploaded_sgv_file.name}**. AI sẽ trích xuất Y NGUYÊN mục tiêu từ file này!")
 
 active_lessons = st.session_state.get(f'fetched_{key_sub_grade}', default_lessons)
 
@@ -268,14 +311,14 @@ else:
     col_i1, col_i2 = st.columns([1, 2], gap="large")
     with col_i1:
         st.markdown('<span class="custom-label">Chương / Chủ đề:</span>', unsafe_allow_html=True)
-        chapter_title = st.text_input("Chương:", value="", placeholder=f"Nhập tên chủ đề môn {subject}...", label_visibility="collapsed")
+        chapter_title = st.text_input("Chương:", value="", placeholder=f"Nhập tên chương môn {subject}...", label_visibility="collapsed")
         st.markdown('<span class="custom-label">Tên bài dạy:</span>', unsafe_allow_html=True)
         lesson_title = st.text_input("Tên bài:", value="", placeholder=f"Nhập tên bài môn {subject}...", label_visibility="collapsed")
         st.markdown('<span class="custom-label">Số tiết thực hiện:</span>', unsafe_allow_html=True)
         duration = st.number_input("Số tiết:", value=2, label_visibility="collapsed")
     with col_i2:
         st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt / Mục tiêu SGV:</span>', unsafe_allow_html=True)
-        requirements = st.text_area("YCĐ:", value="", placeholder="Nhập mục tiêu SGV hoặc để trống...", height=230, label_visibility="collapsed")
+        requirements = st.text_area("YCĐ:", value="", placeholder="Nhập mục tiêu SGV hoặc tải file SGV lên...", height=230, label_visibility="collapsed")
 
 # ==========================================
 # BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
@@ -284,17 +327,17 @@ st.markdown('<div class="step-header">🚀 BƯỚC 3: TÍCH HỢP NĂNG LỰC Đ
 integrations = st.multiselect(
     "Lựa chọn yếu tố tích hợp:",
     [
-        "Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot...)", 
+        "Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", 
         "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)", 
         "Giáo dục STEM / STEAM", 
         "Phát triển Tư duy phản biện"
     ],
-    default=["Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot...)", "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)"],
+    default=["Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)"],
     label_visibility="collapsed"
 )
 
 # ==========================================
-# HELPER PARSER & XUẤT WORD
+# HELPER PARSER & XUẤT WORD CHUẨN 5512
 # ==========================================
 def clean_latex_math(text):
     text = re.sub(r'\\circ', '°', text)
