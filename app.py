@@ -7,202 +7,49 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 import io
-import json
-import re
 import time
-import requests
-from bs4 import BeautifulSoup
 
 # Cấu hình trang Streamlit
 st.set_page_config(
-    page_title="Hệ thống Soạn Giáo án Tự Động 5512 (Chuẩn 100% SGV/SGK)", 
+    page_title="Hệ thống Soạn Giáo án Tự Động 5512", 
     layout="wide", 
     page_icon="📝"
 )
 
 # ==========================================
-# CẤU HÌNH GIAO DIỆN & FONT CHỮ
+# CẤU HÌNH GIAO DIỆN
 # ==========================================
 st.markdown("""
     <style>
-    .block-container {
-        padding-top: 2rem !important;
-        padding-bottom: 2rem !important;
-        max-width: 1300px;
-    }
-    html, body, [class*="css"] {
-        font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
-    }
-    section[data-testid="stSidebar"] {
-        background-color: #f8fafc;
-        border-right: 1px solid #e2e8f0;
-    }
-    .sidebar-title {
-        color: #0f172a;
-        font-size: 22px !important;
-        font-weight: 700;
-        margin-bottom: 14px;
-        border-bottom: 3px solid #2563eb;
-        padding-bottom: 6px;
-    }
-    .step-header {
-        color: #dc2626 !important;
-        font-size: 24px !important;
-        font-weight: 700 !important;
-        margin-top: 24px !important;
-        margin-bottom: 14px !important;
-        padding-left: 10px;
-        border-left: 5px solid #dc2626;
-    }
-    div[data-testid="stWidgetLabel"] p, .custom-label {
-        font-size: 21px !important;
-        font-weight: 700 !important;
-        color: #1e293b !important;
-        margin-bottom: 6px !important;
-    }
-    .stSelectbox div[data-baseweb="select"] *,
-    .stSelectbox [data-testid="stMarkdownContainer"] p,
-    div[data-baseweb="select"] div,
-    div[data-baseweb="select"] span,
-    div[data-baseweb="select"] p {
-        font-size: 21px !important;
-        font-weight: 700 !important;
-        color: #1e3a8a !important;
-    }
-    div[data-baseweb="input"] input, .stTextInput input, .stNumberInput input {
-        font-size: 21px !important;
-        font-weight: 700 !important;
-        color: #1e3a8a !important;
-    }
-    div[data-baseweb="textarea"] textarea, .stTextArea textarea {
-        font-size: 21px !important;
-        font-weight: 600 !important;
-        color: #1e3a8a !important;
-    }
-    .stButton button p {
-        font-size: 21px !important;
-        font-weight: 700 !important;
-    }
+    .block-container { padding-top: 2rem !important; padding-bottom: 2rem !important; max-width: 1300px; }
+    html, body, [class*="css"] { font-family: 'Segoe UI', Roboto, sans-serif; }
+    .sidebar-title { color: #0f172a; font-size: 20px !important; font-weight: 700; margin-bottom: 12px; border-bottom: 3px solid #2563eb; padding-bottom: 4px; }
+    .step-header { color: #dc2626 !important; font-size: 22px !important; font-weight: 700 !important; margin-top: 18px !important; margin-bottom: 10px !important; padding-left: 10px; border-left: 5px solid #dc2626; }
+    div[data-testid="stWidgetLabel"] p { font-size: 18px !important; font-weight: 700 !important; color: #1e293b !important; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# HÀM XỬ LÝ MODEL TỐI ƯU - CHỐNG LỖI 404/400
+# HÀM XỬ LÝ MODEL GEMINI CỰC NHANH
 # ==========================================
-def get_available_models():
-    """Lấy danh sách các model đang hoạt động thực tế từ API"""
+def get_working_model(api_key):
+    genai.configure(api_key=api_key)
     try:
-        available = []
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                name = m.name.replace("models/", "")
-                # Bỏ qua các model chuyên về âm thanh/TTS
-                if "-tts" in name.lower() or "audio" in name.lower():
-                    continue
-                available.append(name)
-        
-        # Ưu tiên các dòng Flash lên đầu để phản hồi siêu tốc
-        flash_models = [m for m in available if "flash" in m.lower()]
-        other_models = [m for m in available if "flash" not in m.lower()]
-        result = flash_models + other_models
-        
-        return result if result else ["gemini-2.0-flash", "gemini-1.5-flash-latest"]
+        models = [m.name.replace("models/", "") for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        # Ưu tiên flash
+        for m in models:
+            if "flash" in m.lower() and "-tts" not in m.lower():
+                return m
+        return models[0] if models else "gemini-1.5-flash"
     except Exception:
-        return ["gemini-2.0-flash", "gemini-1.5-flash-latest"]
-
-def call_gemini_fast(selected_model_str, contents):
-    """Gọi Gemini AI không lo lỗi 404/400, tối ưu tốc độ"""
-    clean_selected = selected_model_str.replace("models/", "").strip()
-    
-    # Danh sách các tên model dự phòng nâng cao
-    candidates = [
-        clean_selected,
-        "gemini-2.0-flash",
-        "gemini-1.5-flash-latest"
-    ]
-    
-    active_models = get_available_models()
-    for am in active_models:
-        if am not in candidates:
-            candidates.append(am)
-
-    last_exception = None
-    for target_model in candidates:
-        if "-tts" in target_model.lower():
-            continue
-        try:
-            model = genai.GenerativeModel(
-                model_name=target_model,
-                generation_config=genai.GenerationConfig(
-                    temperature=0.0,
-                    max_output_tokens=3072
-                )
-            )
-            return model.generate_content(contents)
-        except Exception as e:
-            last_exception = e
-            continue
-            
-    raise last_exception if last_exception else RuntimeError("Không thể kết nối tới mô hình Gemini xử lý văn bản.")
-
-# HÀM CÀO DỮ LIỆU TỪ LINK
-def fetch_data_from_taphuan_fast(url, cookie_str=""):
-    if not url:
-        return ""
-    
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9',
-        'Referer': 'https://taphuan.nxbgd.vn/'
-    }
-    if cookie_str:
-        headers['Cookie'] = cookie_str
-
-    try:
-        res = requests.get(url, headers=headers, timeout=5)
-        if res.status_code == 200:
-            soup = BeautifulSoup(res.text, 'html.parser')
-            for tag in soup(["script", "style", "nav", "footer", "header"]):
-                tag.extract()
-            text = soup.get_text(separator=' ')
-            clean_text = " ".join(text.split())
-            return clean_text[:4000]
-        return f"HTTP_ERROR_{res.status_code}"
-    except Exception as e:
-        return f"FETCH_EXCEPTION: {str(e)}"
+        return "gemini-1.5-flash"
 
 # ==========================================
-# THANH BÊN (SIDEBAR) ĐĂNG NHẬP
+# THANH BÊN (SIDEBAR)
 # ==========================================
 with st.sidebar:
     st.markdown('<div class="sidebar-title">🔑 ĐĂNG NHẬP & CẤU HÌNH</div>', unsafe_allow_html=True)
-    
-    api_key = st.text_input(
-        "Google Gemini API Key:", 
-        type="password", 
-        placeholder="Dán mã API Key vào đây..."
-    )
-    
-    default_models = ["gemini-2.0-flash", "gemini-1.5-flash-latest"]
-    
-    if api_key:
-        genai.configure(api_key=api_key.strip())
-        fetched_models = get_available_models()
-        if fetched_models:
-            default_models = fetched_models
-
-    model_name = st.selectbox(
-        "Mô hình AI xử lý (Khuyên dùng Flash):",
-        default_models,
-        index=0
-    )
-    st.markdown("---")
-    
-    st.markdown('<div class="sidebar-title">🌐 CẤU HÌNH TAPHUAN.NXBGD.VN</div>', unsafe_allow_html=True)
-    taphuan_cookie = st.text_input(
-        "Cookie TapHuan (Nếu link yêu cầu đăng nhập):",
-        type="password"
-    )
+    api_key = st.text_input("Google Gemini API Key:", type="password", placeholder="Dán mã API Key vào đây...")
     
     st.markdown("---")
     st.markdown('<div class="sidebar-title">👤 THÔNG TIN GIÁO VIÊN</div>', unsafe_allow_html=True)
@@ -211,152 +58,87 @@ with st.sidebar:
     teacher_name = st.text_input("Họ và tên GV:", "Dương Tấn Tiến")
 
 # ==========================================
-# TIÊU ĐỀ ỨNG DỤNG
+# TIÊU ĐỀ
 # ==========================================
 st.markdown("""
-    <div style="text-align: center; margin-bottom: 25px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 22px; border-radius: 12px; border: 1px solid #bfdbfe;">
-        <div style="font-size: 33px; font-weight: 800; color: #1e3a8a;">
-            HỆ THỐNG SOẠN KHBD TỰ ĐỘNG CHUẨN 100% SGV (5512)
-        </div>
-        <div style="font-size: 18px; font-weight: 600; color: #047857; margin-top: 6px;">
-            🌐 TRUY XUẤT TRỰC TIẾP TỪ LINK TAPHUAN.NXBGD.VN
-        </div>
-        <div style="font-size: 21px; font-weight: 600; color: #2563eb; margin-top: 8px;">
-            📝 Tác giả: DƯƠNG TẤN TIẾN — GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
-        </div>
+    <div style="text-align: center; margin-bottom: 20px; background: #eff6ff; padding: 18px; border-radius: 10px; border: 1px solid #bfdbfe;">
+        <div style="font-size: 28px; font-weight: 800; color: #1e3a8a;">HỆ THỐNG SOẠN KHBD TỰ ĐỘNG CHUẨN 5512</div>
+        <div style="font-size: 18px; font-weight: 600; color: #2563eb; margin-top: 5px;">Tác giả: DƯƠNG TẤN TIẾN — THPT NGUYỄN VĂN TRỖI</div>
     </div>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP
+# BƯỚC 1: BÀI HỌC & CHƯƠNG TRÌNH
 # ==========================================
-st.markdown('<div class="step-header">📚 BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">📚 BƯỚC 1: THÔNG TIN BÀI DẠY</div>', unsafe_allow_html=True)
 
-col_sub, col_grd = st.columns(2)
-with col_sub:
-    subject = st.selectbox(
-        "Môn học:", 
-        ["Toán học", "Ngữ văn", "Tiếng Anh", "Vật lý", "Hóa học", "Sinh học", "Lịch sử", "Địa lý", "Tin học", "GDKT&PL", "Công nghệ"]
-    )
-with col_grd:
-    grade = st.selectbox(
-        "Khối lớp:", 
-        ["Lớp 10", "Lớp 11", "Lớp 12"]
-    )
+c1, c2, c3 = st.columns([1, 1, 1])
+with c1:
+    subject = st.selectbox("Môn học:", ["Toán học", "Ngữ văn", "Tiếng Anh", "Vật lý", "Hóa học", "Sinh học", "Lịch sử", "Địa lý", "Tin học", "GDKT&PL", "Công nghệ"])
+with c2:
+    grade = st.selectbox("Khối lớp:", ["Lớp 10", "Lớp 11", "Lớp 12"])
+with c3:
+    book_series = st.selectbox("Bộ sách:", ["Kết nối tri thức với cuộc sống", "Cánh diều", "Chân trời sáng tạo"])
+
+c_l1, c_l2, c_l3 = st.columns([1.5, 2, 0.8])
+with c_l1:
+    chapter_title = st.text_input("Tên Chương/Chủ đề:", placeholder="Ví dụ: Chương I. Mệnh đề và Tập hợp")
+with c_l2:
+    lesson_title = st.text_input("Tên Bài dạy cụ thể:", placeholder="Ví dụ: Bài 1. Mệnh đề")
+with c_l3:
+    duration = st.number_input("Số tiết:", value=2, min_value=1)
 
 # ==========================================
-# BƯỚC 2: TRUY XUẤT DỮ LIỆU TỪ LINK
+# BƯỚC 2: YÊU CẦU CẦN ĐẠT (AI TỰ TẠO HOẶC NHẬP)
 # ==========================================
-st.markdown('<div class="step-header">🔗 BƯỚC 2: NHẬP LINK BÀI HỌC TỪ TAPHUAN.NXBGD.VN</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">🎯 BƯỚC 2: YÊU CẦU CẦN ĐẠT (YCĐ)</div>', unsafe_allow_html=True)
 
-taphuan_url = st.text_input(
-    "🔗 Nhập/Dán đường Link bài học:",
-    value="https://taphuan.nxbgd.vn/",
-    placeholder="https://taphuan.nxbgd.vn/..."
-)
+col_btn, col_file = st.columns([1, 1])
 
-col_btn_sync, col_file_upload = st.columns([1, 1], gap="medium")
-
-with col_btn_sync:
-    if st.button("⚡ Cập nhật Bài học từ Link", use_container_width=True, type="primary"):
-        clean_api_key = api_key.strip() if api_key else ""
-        if not clean_api_key:
-            st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
+with col_btn:
+    if st.button("✨ Tự động tra cứu YCĐ chuẩn SGV từ AI (Cực nhanh)", type="secondary", use_container_width=True):
+        if not api_key:
+            st.error("⚠️ Vui lòng nhập API Key ở menu bên trái!")
+        elif not lesson_title:
+            st.error("⚠️ Vui lòng nhập Tên Bài dạy trước!")
         else:
             try:
-                genai.configure(api_key=clean_api_key)
+                model_name = get_working_model(api_key.strip())
+                model = genai.GenerativeModel(model_name)
                 
-                with st.spinner("⚡ Đang cào dữ liệu nhanh từ link..."):
-                    raw_scraped_text = fetch_data_from_taphuan_fast(taphuan_url, taphuan_cookie)
+                prompt_ycd = f"""Bạn là Chuyên gia Giáo dục môn {subject}. Hãy trích xuất NGUYÊN VĂN Yêu cầu cần đạt theo đúng SGK {book_series} - {grade} cho bài: "{lesson_title}" (Thuộc {chapter_title}). Trả về ngắn gọn dạng các gạch đầu dòng."""
                 
-                context_payload = raw_scraped_text if "HTTP_ERROR" not in raw_scraped_text and raw_scraped_text.strip() else f"Môn {subject} - {grade}, chương trình SGK mới."
-
-                prompt_fetch = f"""
-                Trích xuất Yêu cầu cần đạt cho môn {subject} - {grade} từ văn bản sau:
-                {context_payload}
-
-                Chỉ trả về DUY NHẤT 1 MẢNG JSON, không kèm lời bình luận:
-                [
-                  {{
-                    "chapter": "Tên Chương",
-                    "lesson": "Tên Bài",
-                    "duration": 3,
-                    "req": "Yêu cầu cần đạt nguyên văn"
-                  }}
-                ]
-                """
-                
-                with st.spinner("⚡ AI đang bóc tách siêu tốc..."):
-                    res = call_gemini_fast(model_name, [prompt_fetch])
-                    raw_text = res.text.strip()
-                    
-                    # Regex lọc khối JSON
-                    match = re.search(r'\[\s*\{.*\}\s*\]', raw_text, re.DOTALL)
-                    clean_json_str = match.group(0) if match else raw_text
-
-                    try:
-                        st.session_state['fetched_lessons'] = json.loads(clean_json_str)
-                    except Exception:
-                        st.session_state['fetched_lessons'] = [{
-                            "chapter": f"Bài học môn {subject}",
-                            "lesson": f"Nội dung bài học {grade}",
-                            "duration": 3,
-                            "req": raw_text
-                        }]
-                    
-                    st.success("⚡ Cào và bóc tách dữ liệu thành công!")
+                with st.spinner("⚡ AI đang lấy YCĐ từ CSDL SGK..."):
+                    res = model.generate_content(prompt_ycd)
+                    st.session_state['auto_ycd'] = res.text
+                    st.success("✅ Đã tải thành công YCĐ chuẩn SGK!")
             except Exception as e:
-                st.error(f"❌ Lỗi truy cập/phân tích: {str(e)}")
+                st.error(f"Lỗi: {str(e)}")
 
-with col_file_upload:
-    uploaded_sgv_file = st.file_uploader(
-        "Tải tệp SGV bổ sung (Nếu có):", 
-        type=["pdf", "png", "jpg", "jpeg"]
-    )
+with col_file:
+    uploaded_sgv_file = st.file_uploader("Hoặc Tải ảnh/PDF trang SGV bài dạy này:", type=["pdf", "png", "jpg", "jpeg"])
 
-# HIỂN THỊ KẾT QUẢ CÀO
-if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
-    lessons_data = st.session_state['fetched_lessons']
-    lesson_titles = [f"{item.get('chapter', '')} - {item.get('lesson', '')}" for item in lessons_data]
-    
-    selected_idx = st.selectbox("👉 Bài học đã trích xuất:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x])
-    current_item = lessons_data[selected_idx]
-    
-    col_i1, col_i2 = st.columns([1, 2], gap="large")
-    with col_i1:
-        chapter_title = st.text_input("Chương:", value=current_item.get('chapter', ''))
-        lesson_title = st.text_input("Tên bài:", value=current_item.get('lesson', ''))
-        duration = st.number_input("Số tiết:", value=int(current_item.get('duration', 3)))
-    
-    with col_i2:
-        requirements = st.text_area("Yêu cầu cần đạt:", value=current_item.get('req', ''), height=200)
-else:
-    col_i1, col_i2 = st.columns([1, 2], gap="large")
-    with col_i1:
-        chapter_title = st.text_input("Chương:", value="", placeholder="Tên chương...")
-        lesson_title = st.text_input("Tên bài:", value="", placeholder="Tên bài...")
-        duration = st.number_input("Số tiết:", value=3)
-    with col_i2:
-        requirements = st.text_area("Yêu cầu cần đạt:", value="", placeholder="Dữ liệu YCĐ sẽ tự điền sau khi bấm Cập nhật...", height=200)
+ycd_default = st.session_state.get('auto_ycd', '')
+requirements = st.text_area("Nội dung Yêu cầu cần đạt (Có thể chỉnh sửa):", value=ycd_default, height=150, placeholder="Nhấn nút Tra cứu tự động ở trên hoặc tự điền YCĐ vào đây...")
 
 # ==========================================
-# BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
+# BƯỚC 3: TÍCH HỢP NĂNG LỰC
 # ==========================================
-st.markdown('<div class="step-header">🚀 BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">🚀 BƯỚC 3: TÍCH HỢP NĂNG LỰC & CÔNG NGHỆ</div>', unsafe_allow_html=True)
 
 integrations = st.multiselect(
-    "Lựa chọn yếu tố tích hợp:",
+    "Lựa chọn yếu tố tích hợp vào KHBD:",
     [
-        "Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", 
-        "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)", 
+        "Ứng dụng CNTT (Padlet, Kahoot, Geogebra, Azota...)", 
+        "Tích hợp AI trong dạy học (Gemini, ChatGPT, Canva...)", 
         "Giáo dục STEM / STEAM", 
-        "Phát triển Tư duy phản biện"
+        "Phát triển Tư duy phản biện & Tự học"
     ],
-    default=["Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)"]
+    default=["Ứng dụng CNTT (Padlet, Kahoot, Geogebra, Azota...)", "Tích hợp AI trong dạy học (Gemini, ChatGPT, Canva...)"]
 )
 
 # ==========================================
-# HÀM XUẤT FILE WORD 5512
+# XUẤT FILE WORD 5512
 # ==========================================
 def generate_doc(content_text):
     doc = docx.Document()
@@ -370,6 +152,7 @@ def generate_doc(content_text):
     style.font.name = 'Times New Roman'
     style.font.size = Pt(13)
 
+    # Bảng Header
     table = doc.add_table(rows=1, cols=2)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.columns[0].width = Inches(3.2)
@@ -394,16 +177,16 @@ def generate_doc(content_text):
 
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p_title.paragraph_format.space_before = Pt(18)
+    p_title.paragraph_format.space_before = Pt(16)
     p_title.paragraph_format.space_after = Pt(4)
-    r_title = p_title.add_run(f"TÊN BÀI DẠY: {lesson_title.upper()}")
+    r_title = p_title.add_run(f"KẾ HOẠCH BÀI DẠY: {lesson_title.upper()}")
     r_title.bold = True
     r_title.font.size = Pt(14)
 
     p_sub = doc.add_paragraph()
     p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_sub.paragraph_format.space_after = Pt(12)
-    p_sub.add_run(f"Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade}\nThời gian thực hiện: ({duration} tiết)").italic = True
+    p_sub.add_run(f"Môn: {subject} ({grade}) - Sách: {book_series}\nThời lượng: {duration} tiết").italic = True
 
     lines = content_text.split('\n')
     for line in lines:
@@ -417,20 +200,15 @@ def generate_doc(content_text):
         clean_text = line_str.replace("**", "").replace("*", "")
 
         if clean_text.startswith(("I. ", "II. ", "III. ", "IV. ")):
-            p.paragraph_format.space_before = Pt(12)
-            run = p.add_run(clean_text)
-            run.bold = True
-            run.font.size = Pt(14)
-        elif clean_text.startswith(("TIẾT ", "HOẠT ĐỘNG ", "Nội dung ", "Khối kiến thức ")):
-            p.paragraph_format.space_before = Pt(8)
+            p.paragraph_format.space_before = Pt(10)
             run = p.add_run(clean_text)
             run.bold = True
             run.font.size = Pt(13)
-        elif clean_text.startswith(("1. ", "2. ", "3. ", "4. ")):
+        elif clean_text.startswith(("HOẠT ĐỘNG ", "Tiết ", "1. ", "2. ", "3. ", "4. ")):
             p.paragraph_format.space_before = Pt(6)
-            p.add_run(clean_text).bold = True
+            run = p.add_run(clean_text)
+            run.bold = True
         elif clean_text.startswith(("a)", "b)", "c)", "d)")):
-            p.paragraph_format.space_before = Pt(4)
             p.paragraph_format.left_indent = Inches(0.15)
             p.add_run(clean_text).bold = True
         elif "Bước 1:" in clean_text or "Bước 2:" in clean_text or "Bước 3:" in clean_text or "Bước 4:" in clean_text:
@@ -445,61 +223,64 @@ def generate_doc(content_text):
     return bio
 
 st.markdown("<br>", unsafe_allow_html=True)
-if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", use_container_width=True):
-    clean_api_key = api_key.strip() if api_key else ""
-    if not clean_api_key:
-        st.error("⚠️ Vui lòng nhập Google Gemini API Key ở thanh menu bên trái!")
+if st.button("🚀 XUẤT GIÁO ÁN WORD CHUẨN 5512", type="primary", use_container_width=True):
+    if not api_key:
+        st.error("⚠️ Vui lòng nhập Google Gemini API Key ở bên trái!")
     elif not lesson_title:
-        st.error("⚠️ Vui lòng nhập hoặc chọn tên Bài dạy!")
+        st.error("⚠️ Vui lòng nhập Tên bài dạy!")
     else:
         try:
-            genai.configure(api_key=clean_api_key)
+            model_name = get_working_model(api_key.strip())
+            model = genai.GenerativeModel(model_name)
             integration_str = ", ".join(integrations) if integrations else "Không"
 
-            prompt = f"""
-            Soạn Kế hoạch bài dạy (KHBD) chuẩn Công văn 5512 môn {subject} - {grade}.
-            Bài dạy: {lesson_title} (Thuộc {chapter_title}). Thời lượng: {duration} tiết.
+            prompt_5512 = f"""
+            Hãy đóng vai Giáo viên Giỏi môn {subject}. Viết Kế hoạch bài dạy (Giáo án) CHUẨN CÔNG VĂN 5512 đầy đủ và chi tiết.
             
-            NỘI DUNG YÊU CẦU CẦN ĐẠT TRÍCH XUẤT TỪ LINK/SGV:
-            {requirements}
+            THÔNG TIN BÀI DẠY:
+            - Môn: {subject} ({grade}) - Bộ sách: {book_series}
+            - Bài dạy: {lesson_title} (Thuộc {chapter_title})
+            - Thời lượng: {duration} tiết
+            - Tích hợp: {integration_str}
+            - Yêu cầu cần đạt: {requirements}
 
-            CẤU TRÚC BẮT BUỘC KHBD 5512:
+            CẤU TRÚC BẮT BUỘC (ĐÚNG MẪU 5512):
             I. MỤC TIÊU
-            1. Về kiến thức, kỹ năng: (Sử dụng đúng YCĐ)
-            2. Về phẩm chất, năng lực:
-            - Tích hợp yếu tố: {integration_str}
-
-            II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
-
+            1. Về kiến thức
+            2. Về năng lực (Năng lực chung + Năng lực đặc thù môn học)
+            3. Về phẩm chất
+            
+            II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU (Giáo viên & Học sinh)
+            
             III. TIẾN TRÌNH DẠY HỌC
-            Cấu trúc đầy đủ 4 bước cho từng Hoạt động (Mở đầu, Hình thành kiến thức, Luyện tập, Vận dụng):
+            Chia chi tiết cho cả {duration} tiết học với các Hoạt động (Mở đầu, Hình thành kiến thức, Luyện tập, Vận dụng).
+            Mỗi hoạt động BẮT BUỘC có 4 mục:
             a) Mục tiêu
-            b) Nội dung (Bài tập, câu hỏi SGK)
-            c) Sản phẩm (Đáp án chi tiết)
-            d) Tổ chức thực hiện (Bước 1: Chuyển giao nhiệm vụ; Bước 2: Thực hiện; Bước 3: Báo cáo thảo luận; Bước 4: Kết luận, nhận định)
+            b) Nội dung (Câu hỏi/Bài tập cụ thể)
+            c) Sản phẩm (Đáp án/Kết quả chi tiết)
+            d) Tổ chức thực hiện (Bước 1: Chuyển giao NV; Bước 2: Thực hiện NV; Bước 3: Báo cáo thảo luận; Bước 4: Kết luận, nhận định)
             """
 
-            contents = [prompt]
+            contents = [prompt_5512]
             if uploaded_sgv_file is not None:
                 bytes_data = uploaded_sgv_file.getvalue()
-                mime_type = uploaded_sgv_file.type
-                contents.append({"mime_type": mime_type, "data": bytes_data})
+                contents.append({"mime_type": uploaded_sgv_file.type, "data": bytes_data})
 
-            with st.spinner("⚡ Đang khởi tạo KHBD Word chuẩn 5512..."):
-                response = call_gemini_fast(model_name, contents)
-                st.success("🎉 Tạo KHBD thành công!")
-                doc_file = generate_doc(response.text)
+            with st.spinner("⚡ Đang soạn Kế hoạch bài dạy 5512 chi tiết..."):
+                res = model.generate_content(contents)
+                doc_file = generate_doc(res.text)
                 
+                st.success("🎉 Đã tạo xong Giáo án Word 5512!")
                 st.download_button(
-                    label="📥 TẢI FILE WORD GIÁO ÁN (.DOCX)",
+                    label="📥 TẢI FILE WORD (.DOCX)",
                     data=doc_file,
                     file_name=f"KHBD_5512_{lesson_title.replace(' ', '_')}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     use_container_width=True
                 )
-
+                
                 st.markdown("---")
-                st.markdown(response.text)
+                st.markdown(res.text)
 
         except Exception as e:
-            st.error(f"❌ Lỗi xử lý: `{str(e)}`")
+            st.error(f"❌ Lỗi: {str(e)}")
