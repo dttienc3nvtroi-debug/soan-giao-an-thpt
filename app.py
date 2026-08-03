@@ -15,7 +15,7 @@ from bs4 import BeautifulSoup
 
 # Cấu hình trang Streamlit
 st.set_page_config(
-    page_title="Hệ thống Soạn Giáo án Tự Động 5512", 
+    page_title="Hệ thống Soạn Giáo án Tự Động 5512 (Chuẩn 100% SGV/SGK)", 
     layout="wide", 
     page_icon="📝"
 )
@@ -33,7 +33,7 @@ st.markdown("""
     html, body, [class*="css"] {
         font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
     }
-    section[data-testid="sidebar"] {
+    section[data-testid="stSidebar"] {
         background-color: #f8fafc;
         border-right: 1px solid #e2e8f0;
     }
@@ -87,47 +87,65 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# HÀM XỬ LÝ MODEL LỌC SẠCH TTS & LỖI MODALITY
+# HÀM XỬ LÝ MODEL TỐI ƯU - CHỐNG LỖI 404/400
 # ==========================================
 def get_available_models():
-    """Ưu tiên các dòng Flash để phản hồi tốc độ cao"""
+    """Lấy danh sách các model đang hoạt động thực tế từ API"""
     try:
         available = []
         for m in genai.list_models():
             if 'generateContent' in m.supported_generation_methods:
                 name = m.name.replace("models/", "")
+                # Bỏ qua các model chuyên về âm thanh/TTS
                 if "-tts" in name.lower() or "audio" in name.lower():
                     continue
                 available.append(name)
-        # Sắp xếp ưu tiên các dòng Flash lên đầu
+        
+        # Ưu tiên các dòng Flash lên đầu để phản hồi siêu tốc
         flash_models = [m for m in available if "flash" in m.lower()]
         other_models = [m for m in available if "flash" not in m.lower()]
-        return flash_models + other_models
+        result = flash_models + other_models
+        
+        return result if result else ["gemini-2.0-flash", "gemini-1.5-flash-latest"]
     except Exception:
-        return ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro"]
+        return ["gemini-2.0-flash", "gemini-1.5-flash-latest"]
 
 def call_gemini_fast(selected_model_str, contents):
-    """Gọi Gemini AI tối ưu tốc độ phản hồi"""
+    """Gọi Gemini AI không lo lỗi 404/400, tối ưu tốc độ"""
     clean_selected = selected_model_str.replace("models/", "").strip()
     
-    try:
-        model = genai.GenerativeModel(
-            model_name=clean_selected,
-            generation_config=genai.GenerationConfig(
-                temperature=0.0,
-                max_output_tokens=2048 # Giới hạn độ dài để xử lý siêu nhanh
-            )
-        )
-        return model.generate_content(contents)
-    except Exception:
-        # Fallback nhanh sang flash
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
-            generation_config=genai.GenerationConfig(temperature=0.0)
-        )
-        return model.generate_content(contents)
+    # Danh sách các tên model dự phòng nâng cao
+    candidates = [
+        clean_selected,
+        "gemini-2.0-flash",
+        "gemini-1.5-flash-latest"
+    ]
+    
+    active_models = get_available_models()
+    for am in active_models:
+        if am not in candidates:
+            candidates.append(am)
 
-# HÀM CÀO DỮ LIỆU SIÊU TỐC TỪ LINK
+    last_exception = None
+    for target_model in candidates:
+        if "-tts" in target_model.lower():
+            continue
+        try:
+            model = genai.GenerativeModel(
+                model_name=target_model,
+                generation_config=genai.GenerationConfig(
+                    temperature=0.0,
+                    max_output_tokens=3072
+                )
+            )
+            return model.generate_content(contents)
+        except Exception as e:
+            last_exception = e
+            continue
+            
+    raise last_exception if last_exception else RuntimeError("Không thể kết nối tới mô hình Gemini xử lý văn bản.")
+
+# HÀM CÀO DỮ LIỆU TỪ LINK
 def fetch_data_from_taphuan_fast(url, cookie_str=""):
     if not url:
         return ""
@@ -141,7 +159,6 @@ def fetch_data_from_taphuan_fast(url, cookie_str=""):
         headers['Cookie'] = cookie_str
 
     try:
-        # Giới hạn Timeout 5 giây để tránh treo
         res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
@@ -149,13 +166,13 @@ def fetch_data_from_taphuan_fast(url, cookie_str=""):
                 tag.extract()
             text = soup.get_text(separator=' ')
             clean_text = " ".join(text.split())
-            return clean_text[:4000] # Lấy 4000 ký tự đầu là đủ thông tin
+            return clean_text[:4000]
         return f"HTTP_ERROR_{res.status_code}"
     except Exception as e:
         return f"FETCH_EXCEPTION: {str(e)}"
 
 # ==========================================
-# THANH BÊN (SIDEBAR)
+# THANH BÊN (SIDEBAR) ĐĂNG NHẬP
 # ==========================================
 with st.sidebar:
     st.markdown('<div class="sidebar-title">🔑 ĐĂNG NHẬP & CẤU HÌNH</div>', unsafe_allow_html=True)
@@ -166,7 +183,7 @@ with st.sidebar:
         placeholder="Dán mã API Key vào đây..."
     )
     
-    default_models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+    default_models = ["gemini-2.0-flash", "gemini-1.5-flash-latest"]
     
     if api_key:
         genai.configure(api_key=api_key.strip())
@@ -175,7 +192,7 @@ with st.sidebar:
             default_models = fetched_models
 
     model_name = st.selectbox(
-        "Mô hình AI xử lý (Khuyên dùng Flash để xử lý nhanh):",
+        "Mô hình AI xử lý (Khuyên dùng Flash):",
         default_models,
         index=0
     )
@@ -183,7 +200,7 @@ with st.sidebar:
     
     st.markdown('<div class="sidebar-title">🌐 CẤU HÌNH TAPHUAN.NXBGD.VN</div>', unsafe_allow_html=True)
     taphuan_cookie = st.text_input(
-        "Cookie TapHuan (Nếu có):",
+        "Cookie TapHuan (Nếu link yêu cầu đăng nhập):",
         type="password"
     )
     
@@ -228,12 +245,12 @@ with col_grd:
     )
 
 # ==========================================
-# BƯỚC 2: TRUY XUẤT DỮ LIỆU
+# BƯỚC 2: TRUY XUẤT DỮ LIỆU TỪ LINK
 # ==========================================
 st.markdown('<div class="step-header">🔗 BƯỚC 2: NHẬP LINK BÀI HỌC TỪ TAPHUAN.NXBGD.VN</div>', unsafe_allow_html=True)
 
 taphuan_url = st.text_input(
-    "🔗 Nhập đường Link bài học:",
+    "🔗 Nhập/Dán đường Link bài học:",
     value="https://taphuan.nxbgd.vn/",
     placeholder="https://taphuan.nxbgd.vn/..."
 )
@@ -241,7 +258,7 @@ taphuan_url = st.text_input(
 col_btn_sync, col_file_upload = st.columns([1, 1], gap="medium")
 
 with col_btn_sync:
-    if st.button("⚡ Phân tích siêu tốc từ Link", use_container_width=True, type="primary"):
+    if st.button("⚡ Cập nhật Bài học từ Link", use_container_width=True, type="primary"):
         clean_api_key = api_key.strip() if api_key else ""
         if not clean_api_key:
             st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
@@ -249,16 +266,16 @@ with col_btn_sync:
             try:
                 genai.configure(api_key=clean_api_key)
                 
-                with st.spinner("⚡ Đang cào dữ liệu nhanh..."):
+                with st.spinner("⚡ Đang cào dữ liệu nhanh từ link..."):
                     raw_scraped_text = fetch_data_from_taphuan_fast(taphuan_url, taphuan_cookie)
                 
-                context_payload = raw_scraped_text if "HTTP_ERROR" not in raw_scraped_text and raw_scraped_text.strip() else f"Môn {subject} - {grade}"
+                context_payload = raw_scraped_text if "HTTP_ERROR" not in raw_scraped_text and raw_scraped_text.strip() else f"Môn {subject} - {grade}, chương trình SGK mới."
 
                 prompt_fetch = f"""
                 Trích xuất Yêu cầu cần đạt cho môn {subject} - {grade} từ văn bản sau:
                 {context_payload}
 
-                Trả về ĐÚNG 1 MẢNG JSON duy nhất, không thêm lời thoại:
+                Chỉ trả về DUY NHẤT 1 MẢNG JSON, không kèm lời bình luận:
                 [
                   {{
                     "chapter": "Tên Chương",
@@ -269,11 +286,11 @@ with col_btn_sync:
                 ]
                 """
                 
-                with st.spinner("⚡ AI đang xử lý..."):
+                with st.spinner("⚡ AI đang bóc tách siêu tốc..."):
                     res = call_gemini_fast(model_name, [prompt_fetch])
                     raw_text = res.text.strip()
                     
-                    # Trích xuất JSON siêu tốc
+                    # Regex lọc khối JSON
                     match = re.search(r'\[\s*\{.*\}\s*\]', raw_text, re.DOTALL)
                     clean_json_str = match.group(0) if match else raw_text
 
@@ -287,9 +304,9 @@ with col_btn_sync:
                             "req": raw_text
                         }]
                     
-                    st.success("⚡ Hoàn thành bóc tách siêu tốc!")
+                    st.success("⚡ Cào và bóc tách dữ liệu thành công!")
             except Exception as e:
-                st.error(f"❌ Lỗi: {str(e)}")
+                st.error(f"❌ Lỗi truy cập/phân tích: {str(e)}")
 
 with col_file_upload:
     uploaded_sgv_file = st.file_uploader(
@@ -297,12 +314,12 @@ with col_file_upload:
         type=["pdf", "png", "jpg", "jpeg"]
     )
 
-# HIỂN THỊ KẾT QUẢ
+# HIỂN THỊ KẾT QUẢ CÀO
 if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
     lessons_data = st.session_state['fetched_lessons']
     lesson_titles = [f"{item.get('chapter', '')} - {item.get('lesson', '')}" for item in lessons_data]
     
-    selected_idx = st.selectbox("Bài học trích xuất:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x])
+    selected_idx = st.selectbox("👉 Bài học đã trích xuất:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x])
     current_item = lessons_data[selected_idx]
     
     col_i1, col_i2 = st.columns([1, 2], gap="large")
@@ -316,14 +333,14 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
 else:
     col_i1, col_i2 = st.columns([1, 2], gap="large")
     with col_i1:
-        chapter_title = st.text_input("Chương:", value="")
-        lesson_title = st.text_input("Tên bài:", value="")
+        chapter_title = st.text_input("Chương:", value="", placeholder="Tên chương...")
+        lesson_title = st.text_input("Tên bài:", value="", placeholder="Tên bài...")
         duration = st.number_input("Số tiết:", value=3)
     with col_i2:
-        requirements = st.text_area("Yêu cầu cần đạt:", value="", height=200)
+        requirements = st.text_area("Yêu cầu cần đạt:", value="", placeholder="Dữ liệu YCĐ sẽ tự điền sau khi bấm Cập nhật...", height=200)
 
 # ==========================================
-# BƯỚC 3: TÍCH HỢP
+# BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
 # ==========================================
 st.markdown('<div class="step-header">🚀 BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ</div>', unsafe_allow_html=True)
 
@@ -335,11 +352,11 @@ integrations = st.multiselect(
         "Giáo dục STEM / STEAM", 
         "Phát triển Tư duy phản biện"
     ],
-    default=["Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)"]
+    default=["Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)"]
 )
 
 # ==========================================
-# XUẤT FILE WORD 5512
+# HÀM XUẤT FILE WORD 5512
 # ==========================================
 def generate_doc(content_text):
     doc = docx.Document()
@@ -431,7 +448,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", use_container_width=True):
     clean_api_key = api_key.strip() if api_key else ""
     if not clean_api_key:
-        st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái!")
+        st.error("⚠️ Vui lòng nhập Google Gemini API Key ở thanh menu bên trái!")
     elif not lesson_title:
         st.error("⚠️ Vui lòng nhập hoặc chọn tên Bài dạy!")
     else:
@@ -440,16 +457,26 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
             integration_str = ", ".join(integrations) if integrations else "Không"
 
             prompt = f"""
-            Soạn KHBD 5512 môn {subject} - {grade}.
-            Bài dạy: {lesson_title} ({chapter_title}). Thời lượng: {duration} tiết.
+            Soạn Kế hoạch bài dạy (KHBD) chuẩn Công văn 5512 môn {subject} - {grade}.
+            Bài dạy: {lesson_title} (Thuộc {chapter_title}). Thời lượng: {duration} tiết.
             
-            Yêu cầu cần đạt nguyên văn:
+            NỘI DUNG YÊU CẦU CẦN ĐẠT TRÍCH XUẤT TỪ LINK/SGV:
             {requirements}
 
-            CẤU TRÚC 5512:
-            I. MỤC TIÊU (Kiến thức, Phẩm chất, Năng lực, Tích hợp: {integration_str})
+            CẤU TRÚC BẮT BUỘC KHBD 5512:
+            I. MỤC TIÊU
+            1. Về kiến thức, kỹ năng: (Sử dụng đúng YCĐ)
+            2. Về phẩm chất, năng lực:
+            - Tích hợp yếu tố: {integration_str}
+
             II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
-            III. TIẾN TRÌNH DẠY HỌC (Các Hoạt động Mở đầu, Hình thành KT, Luyện tập, Vận dụng chuẩn 4 bước: a.Mục tiêu, b.Nội dung, c.Sản phẩm, d.Tổ chức thực hiện)
+
+            III. TIẾN TRÌNH DẠY HỌC
+            Cấu trúc đầy đủ 4 bước cho từng Hoạt động (Mở đầu, Hình thành kiến thức, Luyện tập, Vận dụng):
+            a) Mục tiêu
+            b) Nội dung (Bài tập, câu hỏi SGK)
+            c) Sản phẩm (Đáp án chi tiết)
+            d) Tổ chức thực hiện (Bước 1: Chuyển giao nhiệm vụ; Bước 2: Thực hiện; Bước 3: Báo cáo thảo luận; Bước 4: Kết luận, nhận định)
             """
 
             contents = [prompt]
@@ -458,7 +485,7 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                 mime_type = uploaded_sgv_file.type
                 contents.append({"mime_type": mime_type, "data": bytes_data})
 
-            with st.spinner("⚡ Đang tạo KHBD..."):
+            with st.spinner("⚡ Đang khởi tạo KHBD Word chuẩn 5512..."):
                 response = call_gemini_fast(model_name, contents)
                 st.success("🎉 Tạo KHBD thành công!")
                 doc_file = generate_doc(response.text)
