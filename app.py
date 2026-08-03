@@ -37,13 +37,11 @@ div[data-testid="stWidgetLabel"] p { font-size: 18px !important; font-weight: 70
 def clean_and_parse_json(raw_text):
     text = raw_text.strip()
     
-    # Loại bỏ codeblock markdown
     if "```" in text:
         text = re.sub(r'^```(?:json)?\s*', '', text, flags=re.IGNORECASE)
         text = re.sub(r'\s*```$', '', text)
     text = text.strip()
 
-    # Parse trực tiếp
     try:
         data = json.loads(text)
         if isinstance(data, dict):
@@ -55,7 +53,6 @@ def clean_and_parse_json(raw_text):
     except Exception:
         pass
 
-    # Tách mảng JSON từ chuỗi text
     match_array = re.search(r'\[\s*\{.*?\}\s*\]', text, re.DOTALL)
     if match_array:
         try:
@@ -63,7 +60,6 @@ def clean_and_parse_json(raw_text):
         except Exception:
             pass
 
-    # Tách Object JSON từ chuỗi text
     match_object = re.search(r'\{\s*".*?"\s*:.*?\}', text, re.DOTALL)
     if match_object:
         try:
@@ -159,3 +155,17 @@ st.markdown('<div class="step-header">📚 BƯỚC 1: CHỌN MÔN HỌC & KHỐI
 
 col_sub, col_grd, col_book = st.columns(3)
 with col_sub:
+    subject = st.selectbox("Môn học/Hoạt động GD:", ["Toán học", "Ngữ văn", "Tiếng Anh", "Vật lý", "Hóa học", "Sinh học", "Lịch sử", "Địa lý", "Tin học", "GDKT&PL", "Công nghệ"])
+with col_grd:
+    grade = st.selectbox("Khối lớp:", ["Lớp 10", "Lớp 11", "Lớp 12"])
+with col_book:
+    book_series = st.selectbox("Bộ sách (Áp dụng từ 2026-2027):", ["Kết nối tri thức với cuộc sống"])
+
+# ==========================================
+# BƯỚC 2: XÁC ĐỊNH BÀI HỌC & MỤC TIÊU
+# ==========================================
+st.markdown('<div class="step-header">📖 BƯỚC 2: TRA CỨU BÀI HỌC NXB GIÁO DỤC & YÊU CẦU CẦN ĐẠT</div>', unsafe_allow_html=True)
+
+col_left, col_right = st.columns([1, 1])
+
+clean_api_key = api_
