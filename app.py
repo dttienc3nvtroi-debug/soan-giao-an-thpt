@@ -18,7 +18,7 @@ st.set_page_config(page_title="Hệ thống Soạn Giáo án Tự Động 5512",
 # ==========================================
 st.markdown("""
     <style>
-    /* Điều chỉnh lề trên để tiêu đề không bị lấp sát mép màn hình */
+    /* Điều chỉnh lề trên để tiêu đề hiển thị thoáng đẹp */
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 2rem !important;
@@ -65,12 +65,15 @@ st.markdown("""
         color: #0F172A !important;
     }
 
-    /* TĂNG 5PT CHO CÁC Ô NHẬP LIỆU (INPUT, TEXTAREA, SELECTBOX) */
+    /* TĂNG THÊM 5PT CHO CHỮ TRONG Ô NHẬP LIỆU & DANH SÁCH CHỌN (CHỮ XANH ĐẬM, SIZE 26PX) */
     div[data-baseweb="input"] input, 
     div[data-baseweb="textarea"] textarea,
-    div[data-baseweb="select"] div {
-        font-size: 21px !important;
-        font-weight: 500 !important;
+    div[data-baseweb="select"] span,
+    div[data-baseweb="select"] div,
+    ul[role="listbox"] li {
+        font-size: 26px !important;
+        font-weight: 700 !important;
+        color: #1E3A8A !important; /* Màu xanh đậm */
     }
 
     /* Kích thước chữ trên các nút bấm */
@@ -98,11 +101,12 @@ with st.sidebar:
         help="Nhập API Key để kích hoạt trợ lý AI"
     )
     
+    # Ưu tiên gemini-2.0-flash để hạn chế tối đa lỗi Quota 429
     model_name = st.selectbox(
         "Mô hình AI xử lý:",
-        ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],
+        ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"],
         index=0,
-        help="Khuyên dùng 2.5-flash cho tốc độ soạn thảo nhanh nhất"
+        help="Khuyên dùng 2.0-flash để tránh bị giới hạn lượt gọi API trong ngày"
     )
     
     st.markdown("---")
@@ -121,7 +125,7 @@ with st.sidebar:
     st.caption("🟢 **Trạng thái:** Hệ thống sẵn sàng")
 
 # ==========================================
-# TIÊU ĐỀ ỨNG DỤNG (RÕ RÀNG, KHÔNG BỊ KHUẤT)
+# TIÊU ĐỀ ỨNG DỤNG
 # ==========================================
 st.markdown("""
     <div style="text-align: center; margin-bottom: 20px;">
@@ -186,7 +190,7 @@ if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nx
             Chỉ trả về mã JSON nguyên bản trong mảng [ ... ], không thêm bất kỳ văn bản giải thích nào khác.
             """
             
-            with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade} (bao gồm Bài tập cuối chương)..."):
+            with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade}..."):
                 res = model.generate_content(prompt_fetch)
                 raw_text = res.text.strip()
                 
@@ -196,7 +200,12 @@ if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nx
                 st.session_state['fetched_lessons'] = json.loads(clean_json)
                 st.success("🎉 Đã tải xong danh mục bài học chuẩn đầy đủ!")
         except Exception as e:
-            st.error(f"Lỗi khi tải danh mục bài học: {e}")
+            err_msg = str(e)
+            if "429" in err_msg or "Quota exceeded" in err_msg:
+                st.error("⚠️ **API Key của thầy đã hết lượt dùng miễn phí trong ngày đối với mô hình này!**")
+                st.warning("👉 **Cách khắc phục nhanh:** Hãy nhìn sang menu bên trái, đổi mục **'Mô hình AI xử lý'** thành **`gemini-2.0-flash`** rồi bấm thử lại nhé!")
+            else:
+                st.error(f"Lỗi khi tải danh mục bài học: {e}")
 
 if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
     lessons_data = st.session_state['fetched_lessons']
@@ -265,7 +274,7 @@ integrations = st.multiselect(
 )
 
 # ==========================================
-# XỬ LÝ XUẤT FILE WORD 5512 (FONTS GIỮ NGUYÊN 13pt & 14pt CHUẨN)
+# XỬ LÝ XUẤT FILE WORD 5512
 # ==========================================
 def generate_doc(content_text):
     doc = docx.Document()
@@ -445,4 +454,9 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                 st.markdown(response.text)
 
         except Exception as e:
-            st.error(f"Đã có lỗi xảy ra: {e}")
+            err_msg = str(e)
+            if "429" in err_msg or "Quota exceeded" in err_msg:
+                st.error("⚠️ **API Key đã hết hạn mức sử dụng trong ngày đối với mô hình này.**")
+                st.warning("👉 Hãy chọn sang mô hình **`gemini-2.0-flash`** ở bên thanh menu trái và nhấn tạo lại!")
+            else:
+                st.error(f"Đã có lỗi xảy ra: {e}")
