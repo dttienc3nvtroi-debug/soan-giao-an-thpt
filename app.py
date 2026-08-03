@@ -87,44 +87,49 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# HÀM XỬ LÝ MODEL CHỐNG LỖI 404
+# HÀM XỬ LÝ MODEL LỌC SẠCH TTS & LỖI MODALITY
 # ==========================================
 def get_available_models():
-    """Lấy danh sách các model khả dụng từ API Key"""
+    """Lấy danh sách các model chữ (TEXT) từ API Key, tự động loại bỏ mô hình Audio/TTS"""
     try:
         available = []
         for m in genai.list_models():
+            # Chỉ lấy model hỗ trợ generateContent VÀ không phải là model TTS / Audio
             if 'generateContent' in m.supported_generation_methods:
-                # Lấy tên không có tiền tố models/
                 name = m.name.replace("models/", "")
+                # Loại bỏ các mô hình TTS hoặc Chuyên Âm thanh
+                if "-tts" in name.lower() or "audio" in name.lower():
+                    continue
                 available.append(name)
-        return available
+        return available if available else ["gemini-1.5-flash-latest", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]
     except Exception:
-        # Danh sách dự phòng nếu không list được
         return ["gemini-1.5-flash-latest", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]
 
 def call_gemini_multimodal(selected_model_str, contents):
-    """Gọi Gemini AI với cơ chế tự động thử danh sách Model dự phòng"""
-    # Xây dựng ưu tiên thử nghiệm
+    """Gọi Gemini AI với danh sách Model Text an toàn"""
     clean_selected = selected_model_str.replace("models/", "").strip()
     
+    # Ưu tiên danh sách các mô hình chuẩn xử lý văn bản
     candidates = [
         clean_selected,
         "gemini-1.5-flash-latest",
         "gemini-2.0-flash",
-        "gemini-1.5-pro",
         "gemini-1.5-flash",
-        "gemini-pro"
+        "gemini-1.5-pro"
     ]
     
-    # Lấy thêm các model thực tế hỗ trợ từ API nếu có
+    # Bổ sung các model text khả dụng từ API
     active_models = get_available_models()
     for am in active_models:
-        if am not in candidates:
+        if am not in candidates and "-tts" not in am.lower():
             candidates.append(am)
 
     last_error = None
     for model_name in candidates:
+        # Bỏ qua tuyệt đối các model tts nếu còn sót
+        if "-tts" in model_name.lower():
+            continue
+            
         try:
             model = genai.GenerativeModel(
                 model_name=model_name,
@@ -135,17 +140,16 @@ def call_gemini_multimodal(selected_model_str, contents):
         except Exception as e:
             last_error = e
             err_str = str(e)
-            # Nếu gặp lỗi 404 (Not Found) thì thử model tiếp theo
-            if "404" in err_str or "not found" in err_str.lower():
+            # Thử model tiếp theo nếu dính lỗi 404 (Not Found) hoặc lỗi 400 Modality
+            if any(k in err_str.lower() for k in ["404", "400", "not found", "modalities"]):
                 continue
-            # Nếu vướng giới hạn băng thông (Rate limit) thì đợi nhẹ
-            elif "429" in err_str or "Quota" in err_str:
-                time.sleep(3)
+            elif "429" in err_str or "quota" in err_str.lower():
+                time.sleep(2)
                 continue
             else:
                 raise e
                 
-    raise last_error if last_error else RuntimeError("Không thể kết nối tới bất kỳ mô hình Gemini nào. Vui lòng kiểm tra lại API Key.")
+    raise last_error if last_error else RuntimeError("Không thể kết nối tới mô hình Gemini xử lý văn bản. Vui lòng kiểm tra lại API Key.")
 
 # HÀM CÀO DỮ LIỆU TRỰC TIẾP TỪ LINK TAPHUAN.NXBGD.VN
 def fetch_data_from_taphuan(url, cookie_str=""):
@@ -195,7 +199,6 @@ with st.sidebar:
         help="Nhập API Key từ Google AI Studio"
     )
     
-    # Cấu hình danh sách Model chọn lựa
     default_models = ["gemini-1.5-flash-latest", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]
     
     if api_key:
@@ -205,10 +208,10 @@ with st.sidebar:
             default_models = fetched_models
 
     model_name = st.selectbox(
-        "Mô hình AI xử lý:",
+        "Mô hình AI xử lý (Text):",
         default_models,
         index=0,
-        help="Hệ thống sẽ tự động quét danh sách các Model khả dụng từ API Key của thầy"
+        help="Đã lọc sạch các mô hình TTS/Audio không tương thích"
     )
     st.markdown("---")
     
