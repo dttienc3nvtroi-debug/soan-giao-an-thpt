@@ -9,11 +9,11 @@ from docx.oxml.ns import nsdecls
 import io
 import json
 import re
-import time
+from pypdf import PdfReader
 
 # Cấu hình trang Streamlit
 st.set_page_config(
-    page_title="Hệ thống Soạn Giáo án Tự Động 5512 (Tối Ưu Tốc Độ)", 
+    page_title="Hệ thống Soạn Giáo án Tự Động 5512 (Chuẩn Dữ Liệu)", 
     layout="wide", 
     page_icon="📝"
 )
@@ -84,16 +84,41 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# HÀM GỌI AI SIÊU TỐC VỚI THAM SỐ CẤU HÌNH TỐI ƯU
+# HÀM XỬ LÝ FILE TẢI LÊN (ĐỌC TEXT VỚI PDF HOẶC CHUYỂN IMAGE PART DÙNG CHO GEMINI)
+def extract_file_content(uploaded_file):
+    if uploaded_file is None:
+        return None, ""
+    
+    file_type = uploaded_file.type
+    bytes_data = uploaded_file.getvalue()
+    
+    # Nếu là PDF: Đọc trực tiếp chữ ra String để gửi cho Gemini (Siêu nhanh + Chính xác 100%)
+    if "pdf" in file_type:
+        try:
+            pdf_reader = PdfReader(io.BytesIO(bytes_data))
+            extracted_text = ""
+            for page in pdf_reader.pages:
+                text = page.extract_text()
+                if text:
+                    extracted_text += text + "\n"
+            return "text", extracted_text
+        except Exception as e:
+            # Fallback nếu PDF dạng ảnh chụp không đọc được chữ
+            return "image_part", {"mime_type": "application/pdf", "data": bytes_data}
+            
+    # Nếu là tệp Ảnh (JPG, PNG)
+    elif "image" in file_type or "jpg" in file_type or "png" in file_type or "jpeg" in file_type:
+        return "image_part", {"mime_type": file_type if file_type else "image/jpeg", "data": bytes_data}
+        
+    return None, ""
+
+# HÀM GỌI GEMINI AN TOÀN & TỐI ƯU
 def call_gemini_fast(api_key, model_choice, contents):
     genai.configure(api_key=api_key)
-    
-    # Ưu tiên các dòng mô hình Flash tối ưu tốc độ cực cao
     clean_model_name = model_choice.replace("models/", "").strip()
     
-    # Cấu hình giảm thời gian suy nghĩ không cần thiết, tăng tốc trích xuất dữ liệu
     generation_config = genai.types.GenerationConfig(
-        temperature=0.2,  # Thấp để trích xuất chính xác và phản hồi nhanh hơn
+        temperature=0.1,  # Nhiệt độ thấp giúp giữ nguyên văn bản gốc từ SGV
         top_p=0.8,
         top_k=40
     )
@@ -103,7 +128,6 @@ def call_gemini_fast(api_key, model_choice, contents):
         response = model.generate_content(contents)
         return response
     except Exception as e:
-        # Dự phòng tự động chuyển sang gemini-2.0-flash nếu model được chọn gặp sự cố
         if clean_model_name != "gemini-2.0-flash":
             model = genai.GenerativeModel(model_name="gemini-2.0-flash", generation_config=generation_config)
             return model.generate_content(contents)
@@ -126,7 +150,7 @@ with st.sidebar:
         "Mô hình AI ưu tiên (Khuyên dùng Flash):",
         ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"],
         index=0,
-        help="Model Flash phản hồi nhanh gấp 3 lần model Pro"
+        help="Model Flash phản hồi nhanh và đọc file cực tốt"
     )
     st.markdown("---")
     
@@ -186,7 +210,6 @@ with col_btn_sync:
         else:
             try:
                 prompt_fetch = f"""
-                Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam.
                 Liệt kê ĐẦY ĐỦ tất cả các Bài học thuộc môn {subject} - {grade} (KNTT).
                 Trả về duy nhất dạng JSON mảng:
                 [
@@ -223,12 +246,11 @@ with col_file_upload:
     uploaded_sgv_file = st.file_uploader(
         "Tải lên File SGV:", 
         type=["pdf", "png", "jpg", "jpeg"], 
-        label_visibility="collapsed",
-        help="Khuyên dùng ảnh chụp hoặc file PDF ngắn (1-3 trang) để AI xử lý cực nhanh"
+        label_visibility="collapsed"
     )
 
 if uploaded_sgv_file is not None:
-    st.info(f"✅ Đã nhận file: **{uploaded_sgv_file.name}**. Mục 'I. MỤC TIÊU' sẽ được AI trích xuất NGUYÊN VĂN từ file này!")
+    st.info(f"✅ Đã nhận tệp: **{uploaded_sgv_file.name}**. Hệ thống sẽ ưu tiên trích xuất MỤC TIÊU từ tệp này.")
 
 if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
     lessons_data = st.session_state['fetched_lessons']
@@ -241,33 +263,21 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
     
     col_i1, col_i2 = st.columns([1, 2], gap="large")
     with col_i1:
-        st.markdown('<span class="custom-label">Chương / Chủ đề:</span>', unsafe_allow_html=True)
-        chapter_title = st.text_input("Chương:", value=current_item['chapter'], label_visibility="collapsed")
-        
-        st.markdown('<span class="custom-label">Tên bài dạy:</span>', unsafe_allow_html=True)
-        lesson_title = st.text_input("Tên bài:", value=current_item['lesson'], label_visibility="collapsed")
-        
-        st.markdown('<span class="custom-label">Số tiết thực hiện:</span>', unsafe_allow_html=True)
-        duration = st.number_input("Số tiết:", value=int(current_item['duration']), label_visibility="collapsed")
+        chapter_title = st.text_input("Chương / Chủ đề:", value=current_item['chapter'])
+        lesson_title = st.text_input("Tên bài dạy:", value=current_item['lesson'])
+        duration = st.number_input("Số tiết thực hiện:", value=int(current_item['duration']))
     
     with col_i2:
-        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt / Mục tiêu SGV (Nếu không upload file):</span>', unsafe_allow_html=True)
-        requirements = st.text_area("YCĐ:", value=current_item['req'], height=230, label_visibility="collapsed")
+        requirements = st.text_area("📌 Yêu cầu cần đạt / Mục tiêu SGV (Mặc định):", value=current_item['req'], height=230)
 else:
     col_i1, col_i2 = st.columns([1, 2], gap="large")
     with col_i1:
-        st.markdown('<span class="custom-label">Chương / Chủ đề:</span>', unsafe_allow_html=True)
-        chapter_title = st.text_input("Chương:", value="", placeholder="Nhập tên chương...", label_visibility="collapsed")
-        
-        st.markdown('<span class="custom-label">Tên bài dạy:</span>', unsafe_allow_html=True)
-        lesson_title = st.text_input("Tên bài:", value="", placeholder="Nhập tên bài...", label_visibility="collapsed")
-        
-        st.markdown('<span class="custom-label">Số tiết thực hiện:</span>', unsafe_allow_html=True)
-        duration = st.number_input("Số tiết:", value=3, label_visibility="collapsed")
+        chapter_title = st.text_input("Chương / Chủ đề:", value="", placeholder="Nhập tên chương...")
+        lesson_title = st.text_input("Tên bài dạy:", value="", placeholder="Nhập tên bài...")
+        duration = st.number_input("Số tiết thực hiện:", value=3)
         
     with col_i2:
-        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt / Mục tiêu SGV (Nếu không upload file):</span>', unsafe_allow_html=True)
-        requirements = st.text_area("YCĐ:", value="", placeholder="Nhập mục tiêu SGV hoặc để trống nếu đã upload file...", height=230, label_visibility="collapsed")
+        requirements = st.text_area("📌 Yêu cầu cần đạt / Mục tiêu SGV (Mặc định):", value="", placeholder="Nhập mục tiêu hoặc đính kèm tệp SGV ở trên...", height=230)
 
 # ==========================================
 # BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
@@ -385,57 +395,68 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
     else:
         try:
             integration_str = ", ".join(integrations) if integrations else "Không"
+            
+            # Xử lý file upload
+            file_mode, file_payload = extract_file_content(uploaded_sgv_file)
+            
+            file_instruction = ""
+            contents = []
 
-            # OPTIMIZED PROMPT - Ngắn gọn hơn giúp AI sinh phản hồi cực nhanh
+            if file_mode == "text":
+                file_instruction = f"\n⚠️ DỮ LIỆU TỰ ĐỘNG ĐỌC TỪ FILE TẢI LÊN (ƯU TIÊN TRÍCH XUẤT NGUYÊN VĂN 100%): \n'''\n{file_payload}\n'''"
+            elif file_mode == "image_part":
+                file_instruction = "\n⚠️ ĐÃ ĐÍNH KÈM FILE TẢI LÊN. HÃY ĐỌC TRỰC TIẾP TỆP ĐÍNH KÈM BÊN DƯỚI ĐỂ TRÍCH XUẤT MỤC TIÊU."
+                contents.append(file_payload)
+
             prompt = f"""
-            Tạo Kế hoạch bài dạy chuẩn Công văn 5512/BGDĐT.
+            Hãy đóng vai một Chuyên gia Giáo dục. Hãy lập Kế hoạch bài dạy (Giáo án) theo chuẩn Công văn 5512/BGDĐT.
 
-            YÊU CẦU MỤC TIÊU:
-            1. Nếu có tệp đính kèm: Trích xuất CHÍNH XÁC NGUYÊN VĂN (100%) phần "MỤC TIÊU" (Kiến thức, Năng lực, Phẩm chất) từ file đính kèm. Không tự bịa thêm.
-            2. Nếu không có file: Dùng nội dung sau: {requirements}
+            {file_instruction}
 
-            CẤU TRÚC 5512:
+            MÔN HỌC: {subject} - {grade}
+            TÊN BÀI DẠY: {lesson_title}
+            SỐ TIẾT: {duration}
+            MỤC TIÊU BỔ SUNG (NẾU KHÔNG CÓ FILE): {requirements}
+            YẾU TỐ TÍCH HỢP: {integration_str}
+
+            YÊU CẦU BẮT BUỘC VỀ CẤU TRÚC GIÁO ÁN:
             I. MỤC TIÊU
-            1. Về kiến thức: (Nguyên văn file/SGV)
-            2. Về năng lực: (Nguyên văn file/SGV)
-               - Năng lực Số / AI: {integration_str}
-            3. Về phẩm chất: (Nguyên văn file/SGV)
+            1. Về kiến thức: (Trích xuất nguyên văn từ dữ liệu file/Mục tiêu SGV).
+            2. Về năng lực: 
+               - Năng lực chung & Năng lực đặc thù của môn học.
+               - Yếu tố tích hợp: {integration_str}
+            3. Về phẩm chất: (Trích xuất nguyên văn hoặc chuẩn GDPT 2018).
 
             II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
+            - GV: ...
+            - HS: ...
 
             III. TIẾN TRÌNH DẠY HỌC
-            Nêu rõ các Hoạt động (Khởi động, Khám phá, Luyện tập, Vận dụng). Mỗi hoạt động gồm:
+            Trình bày chi tiết các Hoạt động (Khởi động, Khám phá/Hình thành kiến thức, Luyện tập, Vận dụng).
+            Mỗi Hoạt động PHẢI có đủ 4 phần:
             a) Mục tiêu
             b) Nội dung
             c) Sản phẩm
-            d) Tổ chức thực hiện (Bước 1 -> Bước 2 -> Bước 3 -> Bước 4).
-
-            THÔNG TIN BÀI DẠY:
-            - Môn: {subject} ({grade}) | Bài: {lesson_title} | Thời lượng: {duration} tiết
+            d) Tổ chức thực hiện:
+               - Bước 1: Chuyển giao nhiệm vụ
+               - Bước 2: Thực hiện nhiệm vụ
+               - Bước 3: Báo cáo, thảo luận
+               - Bước 4: Kết luận, nhận định
             """
 
-            contents = [prompt]
-            
-            if uploaded_sgv_file is not None:
-                bytes_data = uploaded_sgv_file.getvalue()
-                mime_type = uploaded_sgv_file.type
-                file_part = {
-                    "mime_type": mime_type,
-                    "data": bytes_data
-                }
-                contents.append(file_part)
-                st.toast("⚡ Đã đính kèm file! Đang tăng tốc xử lý...", icon="🚀")
+            # Đưa prompt vào danh sách gửi cho AI
+            contents.append(prompt)
 
-            with st.spinner("⚡ AI đang xử lý và xuất giáo án siêu tốc..."):
+            with st.spinner("⚡ AI đang phân tích dữ liệu tệp và khởi tạo giáo án..."):
                 response = call_gemini_fast(clean_api_key, model_name, contents)
-                st.success("🎉 Đã tạo xong giáo án chuẩn 5512!")
+                st.success("🎉 Đã tạo xong giáo án chuẩn 5512 từ dữ liệu SGV!")
                 
                 doc_file = generate_doc(response.text)
                 
                 st.download_button(
                     label="📥 TẢI FILE WORD GIÁO ÁN (.DOCX)",
                     data=doc_file,
-                    file_name=f"KHBD_5512_SGV_{lesson_title.replace(' ', '_')}.docx",
+                    file_name=f"KHBD_5512_{lesson_title.replace(' ', '_')}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     use_container_width=True
                 )
@@ -445,4 +466,4 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
 
         except Exception as e:
             err_str = str(e)
-            st.error(f"❌ Lỗi xử lý: `{err_str}`. Thầy hãy kiểm tra lại API Key hoặc giảm số trang của file PDF đính kèm!")
+            st.error(f"❌ Lỗi xử lý dữ liệu: `{err_str}`. Thầy vui lòng kiểm tra lại API Key!")
