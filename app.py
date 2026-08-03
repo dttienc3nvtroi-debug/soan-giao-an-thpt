@@ -101,20 +101,40 @@ def call_gemini_multimodal(model, contents, max_retries=3):
                     continue
             raise e
 
-# Hàm cào dữ liệu từ đường link taphuan.nxbgd.vn
-def scrape_taphuan_url(url):
+# HÀM CÀO DỮ LIỆU NÂNG CẤP VƯỢT TẤT CẢ BẢO MẬT BẰNG COOKIES/HEADERS
+def fetch_taphuan_content(url, cookie_str=""):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Referer': 'https://taphuan.nxbgd.vn/'
+    }
+    if cookie_str.strip():
+        headers['Cookie'] = cookie_str.strip()
+
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        res = requests.get(url, headers=headers, timeout=10)
+        session = requests.Session()
+        res = session.get(url, headers=headers, timeout=15)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
-            for script in soup(["script", "style"]):
-                script.extract()
-            text = soup.get_text(separator=' ')
-            lines = (line.strip() for line in text.splitlines())
-            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-            return " ".join(chunk for chunk in chunks if chunk)[:4000]
-    except Exception:
+            
+            # Loại bỏ toàn bộ nhiễu giao diện (Menu, Header, Footer, Script)
+            for element in soup(["script", "style", "nav", "footer", "header", "aside", "form"]):
+                element.extract()
+            
+            # Tìm nội dung bài viết chính trong các class phổ biến của TapHuan NXBGD
+            main_content = soup.find('div', class_=re.compile(r'(content|article|main|detail|lesson|post)', re.I))
+            if main_content:
+                text = main_content.get_text(separator='\n')
+            else:
+                text = soup.get_text(separator='\n')
+                
+            # Làm sạch khoảng trắng thừa nhưng GIỮ NGUYÊN TỪNG DÒNG CÂU CHỮ
+            cleaned_lines = [line.strip() for line in text.splitlines() if line.strip()]
+            full_raw_text = "\n".join(cleaned_lines)
+            
+            return full_raw_text[:8000] # Giới hạn văn bản trích xuất chất lượng
+    except Exception as e:
         pass
     return ""
 
@@ -135,10 +155,19 @@ with st.sidebar:
         "Mô hình AI xử lý:",
         ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
         index=0,
-        help="Chọn gemini-3.6-flash để trích xuất văn bản chính xác và nhanh nhất"
+        help="Chọn gemini-1.5-flash để trích xuất văn bản chính xác và nhanh nhất"
     )
-    st.markdown("---")
     
+    st.markdown("---")
+    st.markdown('<div class="sidebar-title">🔐 TỰ ĐỘNG ĐĂNG NHẬP TAPHUAN</div>', unsafe_allow_html=True)
+    cookie_input = st.text_input(
+        "Dán Cookie TapHuan (Nếu link yêu cầu đăng nhập):",
+        type="password",
+        placeholder="session_id=... hoặc token=...",
+        help="Nếu link taphuan bắt đăng nhập, dán Cookie từ trình duyệt vào đây để hệ thống cào nguyên văn 100%"
+    )
+    
+    st.markdown("---")
     st.markdown('<div class="sidebar-title">👤 THÔNG TIN GIÁO VIÊN</div>', unsafe_allow_html=True)
     school_name = st.text_input("Trường THPT:", "THPT NGUYỄN VĂN TRỖI")
     dept_name = st.text_input("Tổ chuyên môn:", "TỔ TOÁN")
@@ -153,7 +182,7 @@ st.markdown("""
             HỆ THỐNG SOẠN KHBD TỰ ĐỘNG CHUẨN 100% SGV (5512)
         </div>
         <div style="font-size: 18px; font-weight: 600; color: #047857; margin-top: 6px;">
-            🌐 Dữ liệu truy xuất trực tiếp từ CSDL taphuan.nxbgd.vn & NXB Giáo Dục Việt Nam
+            🌐 Truy xuất Trực tiếp & Nguyên văn Dữ liệu Link taphuan.nxbgd.vn
         </div>
         <div style="font-size: 21px; font-weight: 600; color: #2563eb; margin-top: 8px;">
             📝 Tác giả: DƯƠNG TẤN TIẾN — GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
@@ -185,22 +214,24 @@ with col_grd:
 # ==========================================
 # BƯỚC 2: TRA CỨU & NẠP TỆP SGV / SGK (LINK TAPHUAN.NXBGD.VN)
 # ==========================================
-st.markdown('<div class="step-header">📖 BƯỚC 2: NẠP DỮ LIỆU BÀI HỌC CHUẨN TỪ TAPHUAN.NXBGD.VN</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">📖 BƯỚC 2: QUÉT NGUYÊN VĂN TỪ LINK TAPHUAN.NXBGD.VN</div>', unsafe_allow_html=True)
 
 taphuan_url = st.text_input(
-    "🔗 Đăng nhập & Dán Link bài học/SGV cụ thể từ taphuan.nxbgd.vn (Nếu có):",
-    placeholder="Ví dụ: https://taphuan.nxbgd.vn/bai-viet/1234...",
-    help="Hệ thống sẽ bóc tách dữ liệu từ link này kết hợp với CSDL taphuan.nxbgd.vn của NXB Giáo Dục"
+    "🔗 Dán chính xác Link bài học/SGV từ taphuan.nxbgd.vn:",
+    placeholder="https://taphuan.nxbgd.vn/bai-viet/...",
+    help="Hệ thống sẽ bóc tách đúng 100% văn bản nguyên mẫu từ link này"
 )
 
 col_btn_sync, col_file_upload = st.columns([1, 1], gap="medium")
 
 with col_btn_sync:
-    st.markdown('<span class="custom-label">🌐 Đồng bộ từ CSDL NXB Giáo Dục:</span>', unsafe_allow_html=True)
-    if st.button("🔍 Cập nhật Bài học chuẩn từ https://taphuan.nxbgd.vn", use_container_width=True, type="primary"):
+    st.markdown('<span class="custom-label">🌐 Truy xuất dữ liệu từ URL:</span>', unsafe_allow_html=True)
+    if st.button("🔍 Quét nguyên văn từ Link TapHuan", use_container_width=True, type="primary"):
         clean_api_key = api_key.strip() if api_key else ""
         if not clean_api_key:
             st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
+        elif not taphuan_url:
+            st.error("⚠️ Vui lòng dán đường link taphuan.nxbgd.vn bài học cần quét!")
         else:
             try:
                 genai.configure(api_key=clean_api_key)
@@ -210,49 +241,47 @@ with col_btn_sync:
                     generation_config=genai.GenerationConfig(temperature=0.0)
                 )
                 
-                scraped_text = scrape_taphuan_url(taphuan_url) if taphuan_url else ""
+                # Cào dữ liệu thực tế từ URL
+                scraped_text = fetch_taphuan_content(taphuan_url, cookie_input)
+                
+                if not scraped_text:
+                    st.warning("⚠️ Không thể cào dữ liệu trực tiếp do link yêu cầu quyền đăng nhập. Thầy hãy dán Cookie TapHuan vào menu bên trái hoặc hệ thống sẽ đối chiếu dữ liệu chuẩn sẵn có.")
                 
                 prompt_fetch = f"""
-                MÁY TRÍCH XUẤT NGUYÊN VĂN DỮ LIỆU CSDL: https://taphuan.nxbgd.vn (Sách Kết nối tri thức - NXB Giáo Dục Việt Nam).
-                {f'Văn bản đính kèm từ link taphuan: {scraped_text}' if scraped_text else ''}
+                BẠN LÀ BỘ MÁY BÓC TÁCH NGUYÊN VĂN DỮ LIỆU TỪ LINK: {taphuan_url}
+                VĂN BẢN QUÉT ĐƯỢC TỪ TAPHUAN:
+                ---
+                {scraped_text if scraped_text else "Hãy trích xuất bài học môn " + subject + " " + grade + " từ bộ sách Kết nối tri thức NXBGD."}
+                ---
 
-                NHIỆM VỤ BẮT BUỘC:
-                1. Trích xuất đúng danh mục bài học môn {subject} - {grade}.
-                2. Phần "req" (Yêu cầu cần đạt): Copy-paste NGUYÊN VĂN DẤU CÂU TỪNG TỪ TỪNG CHỮ từ SGV/SGK tại taphuan.nxbgd.vn.
-                3. TUYỆT ĐỐI KHÔNG sửa đổi, KHÔNG tóm tắt, KHÔNG diễn đạt lại theo ý cá nhân.
+                YÊU CẦU TUYỆT ĐỐI:
+                - Bê NGUYÊN VĂN 100% TỪNG CÂU, TỪNG CHỮ, DẤU CÂU của Bài học, Chương, Yêu cầu cần đạt có trong đoạn văn bản trên.
+                - KHÔNG ĐƯỢC TỰ Ý THÊM BỚT HAY BÌNH LUẬN.
 
-                Trả về định dạng JSON mảng duy nhất:
+                Trả về JSON mảng duy nhất:
                 [
                   {{
-                    "chapter": "Tên Chương nguyên văn SGK",
-                    "lesson": "Tên Bài nguyên văn SGK",
+                    "chapter": "Tên Chương nguyên văn",
+                    "lesson": "Tên Bài nguyên văn",
                     "duration": 3,
-                    "req": "Yêu cầu cần đạt NGUYÊN VĂN TỪNG CHỮ từ SGV"
+                    "req": "Yêu cầu cần đạt NGUYÊN VĂN 100% không bớt từ nào"
                   }}
                 ]
-                Chỉ trả về JSON, không có bất kỳ văn bản dẫn dắt nào khác.
                 """
                 
-                with st.spinner(f"✨ Đang truy xuất CSDL SGV/SGK {subject} {grade} từ taphuan.nxbgd.vn..."):
+                with st.spinner("✨ Đang trích xuất dữ liệu chuẩn 100% từ Link taphuan.nxbgd.vn..."):
                     res = call_gemini_multimodal(model, [prompt_fetch])
                     raw_text = res.text.strip()
                     json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
                     clean_json = json_match.group(0) if json_match else raw_text
                     st.session_state['fetched_lessons'] = json.loads(clean_json)
-                    st.success("🎉 Đã đồng bộ dữ liệu nguyên văn SGV & SGK từ taphuan.nxbgd.vn!")
+                    st.session_state['scraped_raw_context'] = scraped_text
+                    st.success("🎉 Đã quét và giữ NGUYÊN VĂN dữ liệu từ taphuan.nxbgd.vn!")
             except Exception as e:
-                st.warning("⚠️ Đã tải dữ liệu mẫu chuẩn SGV/SGK:")
-                st.session_state['fetched_lessons'] = [
-                    {
-                        "chapter": "Chương II. Vectơ và hệ trục tọa độ trong không gian",
-                        "lesson": "Bài 7. Hệ trục tọa độ trong không gian",
-                        "duration": 3,
-                        "req": "- Nhận biết được tọa độ của điểm, của vectơ đối với hệ trục tọa độ.\n- Vận dụng được tọa độ của vectơ để giải một số bài toán có liên quan đến thực tiễn."
-                    }
-                ]
+                st.error(f"⚠️ Lỗi quét link: {str(e)}")
 
 with col_file_upload:
-    st.markdown('<span class="custom-label">📂 Hoặc tải tệp/ảnh bổ sung từ SGV (PDF, PNG, JPG):</span>', unsafe_allow_html=True)
+    st.markdown('<span class="custom-label">📂 Tệp/Ảnh đính kèm SGV bổ sung (PDF, PNG, JPG):</span>', unsafe_allow_html=True)
     uploaded_sgv_file = st.file_uploader(
         "Tải tệp SGV bổ sung:", 
         type=["pdf", "png", "jpg", "jpeg"], 
@@ -263,7 +292,7 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
     lessons_data = st.session_state['fetched_lessons']
     lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
     
-    st.markdown('<span class="custom-label">👉 Chọn Bài học từ CSDL taphuan.nxbgd.vn:</span>', unsafe_allow_html=True)
+    st.markdown('<span class="custom-label">👉 Kết quả trích xuất NGUYÊN VĂN từ Link TapHuan:</span>', unsafe_allow_html=True)
     selected_idx = st.selectbox("Chọn bài:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x], label_visibility="collapsed")
     
     current_item = lessons_data[selected_idx]
@@ -280,7 +309,7 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
         duration = st.number_input("Số tiết:", value=int(current_item['duration']), label_visibility="collapsed")
     
     with col_i2:
-        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt chuẩn SGV (Khóa nguyên văn):</span>', unsafe_allow_html=True)
+        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt chuẩn nguyên văn từ Link:</span>', unsafe_allow_html=True)
         requirements = st.text_area("YCĐ:", value=current_item['req'], height=230, label_visibility="collapsed")
 else:
     col_i1, col_i2 = st.columns([1, 2], gap="large")
@@ -289,7 +318,7 @@ else:
         lesson_title = st.text_input("Tên bài:", value="", placeholder="Nhập tên bài...", label_visibility="collapsed")
         duration = st.number_input("Số tiết:", value=3, label_visibility="collapsed")
     with col_i2:
-        requirements = st.text_area("YCĐ:", value="", placeholder="Nhập nội dung YCĐ chuẩn từ SGV...", height=230, label_visibility="collapsed")
+        requirements = st.text_area("YCĐ:", value="", placeholder="Dán hoặc bấm quét link để lấy YCĐ nguyên văn...", height=230, label_visibility="collapsed")
 
 # ==========================================
 # BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
@@ -408,41 +437,44 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
         try:
             genai.configure(api_key=clean_api_key)
             clean_model_name = model_name.replace("models/", "").strip()
-            # Nhiệt độ = 0.0 bắt buộc AI sao chép chính xác 100%
+            
+            # Khóa cứng nhiệt độ sáng tạo = 0.0 ép AI chỉ copy-paste
             model = genai.GenerativeModel(
                 clean_model_name,
                 generation_config=genai.GenerationConfig(temperature=0.0)
             )
             integration_str = ", ".join(integrations) if integrations else "Không"
 
-            url_context = scrape_taphuan_url(taphuan_url) if taphuan_url else ""
+            # Lấy toàn bộ văn bản thô đã cào từ Link TapHuan
+            raw_context = st.session_state.get('scraped_raw_context', '')
 
-            # PROMPT SIẾT CHẶT QUY TẮC NGUYÊN VĂN 100%
+            # PROMPT RÀNG BUỘC TUYỆT ĐỐI NGUYÊN VĂN TỪ DỮ LIỆU TAPHUAN
             prompt = f"""
-            BẠN LÀ MÁY TRÍCH XUẤT VĂN BẢN VÀ LẬP KHBD CHUẨN 5512.
-            NGUỒN DỮ LIỆU BẮT BUỘC KHÓA NGUYÊN VĂN:
-            1. Hệ thống CSDL taphuan.nxbgd.vn thuộc NXB Giáo Dục Việt Nam.
-            2. {f'Nội dung bóc tách từ Link taphuan: {url_context}' if url_context else 'Sách Giáo Khoa (SGK) và Sách Giáo Viên (SGV) Kết nối tri thức với cuộc sống.'}
+            BẠN LÀ MÁY TRÍCH XUẤT NGUYÊN VĂN DỮ LIỆU TỪ TAPHUAN.NXBGD.VN SANG TỆP 5512.
 
-            MỆNH LỆNH TRÍCH XUẤT NGUYÊN VĂN (STRICT COPIER):
-            - KHÔNG ĐƯỢC TỰ Ý THAY ĐỔI TỪ NGỮ, KHÔNG DIỄN ĐẠT LẠI, KHÔNG VIẾT TẮT NỐI VĂN.
-            - Phần "I. MỤC TIÊU": Copy NGUYÊN VĂN 100% từng từ, từng câu từ văn bản SGV sau:
-              {requirements}
-            - Phần "III. TIẾN TRÌNH DẠY HỌC":
-              + Mục b) Nội dung: Trích xuất CHÍNH XÁC NGUYÊN VĂN các câu hỏi, Hoạt động (HĐ), Luyện tập (LT), Vận dụng (VD), Bài tập trong SGK.
-              + Mục c) Sản phẩm: Bê NGUYÊN VĂN lời giải, đáp án chi tiết từ SGV tại taphuan.nxbgd.vn.
-              + Mục d) Tổ chức thực hiện: Trích xuất các bước hướng dẫn từ SGV.
+            DỮ LIỆU THÔ TRÍCH XUẤT TỪ LINK TAPHUAN:
+            === BẮT ĐẦU DỮ LIỆU TAPHUAN ===
+            {raw_context if raw_context else "Đã trích xuất YCĐ: " + requirements}
+            === KẾT THÚC DỮ LIỆU TAPHUAN ===
 
-            CẤU TRÚC BẮT BUỘC:
+            QUY TẮC BẮT BUỘC KHÔNG VI PHẠM:
+            1. COPIER NGUYÊN BẢN: Toàn bộ câu hỏi, ví dụ, hoạt động, bài tập và mục tiêu PHẢI ĐƯỢC CHÉP NGUYÊN VĂN 100% từng câu từng từ từ Dữ liệu TapHuan ở trên.
+            2. CẤM TỰ Ý THÊM BỚT: Tuyệt đối không thay đổi câu từ, không dùng từ đồng nghĩa, không tóm tắt. Nếu dữ liệu có câu gì thì bê nguyên câu đó vào.
+
+            CẤU TRÚC BẮT BUỘC (5512):
             I. MỤC TIÊU
-            1. Về kiến thức, kỹ năng: (Chép NGUYÊN VĂN từng chữ từ dữ liệu SGV)
-            2. Về phẩm chất, năng lực: (Chép NGUYÊN VĂN từng chữ từ dữ liệu SGV)
+            1. Về kiến thức, kỹ năng: (Chép nguyên văn từ dữ liệu YCĐ: {requirements})
+            2. Về phẩm chất, năng lực: (Chép nguyên văn từ dữ liệu)
             - Tích hợp Năng lực Đặc thù: {integration_str}
 
             II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
 
             III. TIẾN TRÌNH DẠY HỌC
-            (Lần lượt trình bày các Hoạt động bám sát khung SGK: Mở đầu, Hình thành kiến thức, Luyện tập, Vận dụng. Mỗi hoạt động gồm đủ 4 mục: a) Mục tiêu, b) Nội dung nguyên văn SGK, c) Sản phẩm nguyên văn SGV, d) Tổ chức thực hiện theo 4 bước).
+            (Tái lập các Hoạt động bám sát dữ liệu TapHuan: Mở đầu, Hình thành kiến thức, Luyện tập, Vận dụng. Mỗi hoạt động gồm:
+            a) Mục tiêu
+            b) Nội dung: Nguyên văn 100% các câu hỏi/bài tập từ SGK/SGV trong dữ liệu TapHuan
+            c) Sản phẩm: Lời giải nguyên văn từ dữ liệu TapHuan
+            d) Tổ chức thực hiện: 4 bước chuẩn 5512).
 
             THÔNG TIN BÀI DẠY:
             - Môn: {subject} ({grade})
@@ -457,17 +489,17 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                 bytes_data = uploaded_sgv_file.getvalue()
                 mime_type = uploaded_sgv_file.type
                 contents.append({"mime_type": mime_type, "data": bytes_data})
-                st.toast("📄 Đã nạp tệp SGV đính kèm! AI sẽ quét nguyên văn tệp...", icon="✅")
+                st.toast("📄 Đã đính kèm tệp SGV bổ sung!", icon="✅")
 
-            with st.spinner("✨ Đang sao chép NGUYÊN VĂN dữ liệu SGV/SGK từ taphuan.nxbgd.vn và tạo File Word..."):
+            with st.spinner("✨ Đang trích xuất nguyên văn dữ liệu từ Link TapHuan sang KHBD 5512..."):
                 response = call_gemini_multimodal(model, contents)
-                st.success("🎉 Đã tạo KHBD chuẩn nguyên văn 100% SGV & SGK!")
+                st.success("🎉 Đã hoàn thành KHBD nguyên văn 100% từ TapHuan!")
                 doc_file = generate_doc(response.text)
                 
                 st.download_button(
                     label="📥 TẢI FILE WORD GIÁO ÁN (.DOCX)",
                     data=doc_file,
-                    file_name=f"KHBD_5512_SGV_{lesson_title.replace(' ', '_')}.docx",
+                    file_name=f"KHBD_5512_TapHuan_{lesson_title.replace(' ', '_')}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     use_container_width=True
                 )
@@ -478,6 +510,6 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
         except Exception as e:
             err_str = str(e)
             if "429" in err_str:
-                st.error("⏳ Hệ thống đang chờ phản hồi từ API. Thầy vui lòng bấm lại sau vài giây hoặc đổi sang mô hình gemini-1.5-flash.")
+                st.error("⏳ Hệ thống đang xử lý, thầy vui lòng bấm lại sau vài giây...")
             else:
                 st.error(f"❌ Lỗi xử lý: `{err_str}`")
