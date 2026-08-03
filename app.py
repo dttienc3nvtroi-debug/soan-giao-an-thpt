@@ -88,10 +88,9 @@ st.markdown("""
 # CƠ SỞ DỮ LIỆU MẶC ĐỊNH (KẾT NỐI TRI THỨC VỚI CUỘC SỐNG)
 # ==========================================
 BUILTIN_LESSONS = {
-    # TOÁN HỌC
     "Toán học_Lớp 10": [
         {"chapter": "Chương I: Mệnh đề và Tập hợp", "lesson": "Bài 1: Mệnh đề", "duration": 2, "req": "- Thiết lập và phát biểu được mệnh đề, mệnh đề phủ định, mệnh đề kéo theo, mệnh đề tương đương.\n- Xác định tính đúng/sai của mệnh đề.\n- Sử dụng đúng ký hiệu ∀, ∃."},
-        {"chapter": "Chương I: Mệnh đề và Tập hợp", "lesson": "Bài 2: Tập hợp và các phép toán trên tập hợp", "duration": 3, "req": "- Thực hiện thành thạo các phép toán hợp, giao, hiệu của hai tập hợp, phần bù của tập con."}
+        {"chapter": "Chương I: Mệnh đề và Tập hợp", "lesson": "Bài 2: Tập hợp và các phép toán trên tập hợp", "duration": 3, "req": "- Thực hiện thành thạo các phép toán hợp, giao, hiệu của hai tập hợp."}
     ],
     "Toán học_Lớp 11": [
         {"chapter": "Chương I: Hàm số lượng giác và Phương trình lượng giác", "lesson": "Bài 1: Góc lượng giác", "duration": 2, "req": "- Nhận biết khái niệm góc lượng giác, đường tròn lượng giác.\n- Đổi đơn vị từ độ sang radian và ngược lại."}
@@ -99,8 +98,6 @@ BUILTIN_LESSONS = {
     "Toán học_Lớp 12": [
         {"chapter": "Chương I: Ứng dụng đạo hàm để khảo sát hàm số", "lesson": "Bài 1: Tính đơn điệu và cực trị của hàm số", "duration": 3, "req": "- Xét tính đơn điệu và tìm cực trị của hàm số dựa vào dấu của đạo hàm bậc nhất."}
     ],
-
-    # TIẾNG ANH (GLOBAL SUCCESS)
     "Tiếng Anh_Lớp 10": [
         {"chapter": "Unit 1: Family Life", "lesson": "Getting Started - Household Chores", "duration": 1, "req": "- Use words and phrases related to household chores and family life.\n- Identify and practice /br/, /kr/, and /tr/."}
     ],
@@ -110,50 +107,66 @@ BUILTIN_LESSONS = {
     "Tiếng Anh_Lớp 12": [
         {"chapter": "Unit 1: Life Stories", "lesson": "Getting Started - Historical figures", "duration": 1, "req": "- Use vocabulary related to achievements and life stories of famous people."}
     ],
-
-    # NGỮ VĂN
     "Ngữ văn_Lớp 10": [
         {"chapter": "Bài 1: Sức hấp dẫn của truyện kể", "lesson": "Văn bản 1: Truyện về các vị thần sáng tạo thế giới (Thần thoại VN)", "duration": 2, "req": "- Phân tích các yếu tố không gian, thời gian, cốt truyện, nhân vật thần thoại."}
     ],
     "Ngữ văn_Lớp 11": [
-        {"chapter": "Bài 1: Khai phá thế giới kì ảo", "lesson": "Văn bản 1: Truyện thơ dân gian (Xống chắp tam xao)", "duration": 2, "req": "- Phân tích đặc điểm truyện thơ, nhân vật, cốt truyện và thông điệp."}
+        {"chapter": "Bài 1: Khai phá thế giới kì ảo", "lesson": "Văn bản 1: Truyện thơ dân gian", "duration": 2, "req": "- Phân tích đặc điểm truyện thơ, nhân vật, cốt truyện và thông điệp."}
     ],
     "Ngữ văn_Lớp 12": [
         {"chapter": "Bài 1: Khả năng lớn lao của tiểu thuyết", "lesson": "Văn bản 1: Nhìn về vốn văn hóa dân tộc", "duration": 2, "req": "- Phân tích tư tưởng, nhận thức luận và nghệ thuật lập luận trong văn bản nghị luận."}
     ]
 }
 
-def get_robust_model(selected_name):
-    candidate_models = [selected_name, "gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash", "gemini-1.5-pro"]
-    seen = set()
-    unique_candidates = [x for x in candidate_models if not (x in seen or seen.add(x))]
-    for m_name in unique_candidates:
-        try:
-            clean_name = m_name.replace("models/", "").strip()
-            model = genai.GenerativeModel(clean_name)
-            return model, clean_name
-        except Exception:
-            continue
-    return genai.GenerativeModel("gemini-1.5-flash"), "gemini-1.5-flash"
+# ==========================================
+# CƠ CHẾ KHẮC PHỤC LỖI 404 & GỌI MODEL TỰ ĐỘNG
+# ==========================================
+def get_available_models(api_key):
+    """Lấy danh sách các model thực sự hỗ trợ generateContent từ API Key"""
+    if not api_key:
+        return []
+    try:
+        genai.configure(api_key=api_key.strip())
+        valid_models = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                valid_models.append(m.name)
+        return valid_models
+    except Exception:
+        return []
 
-def call_gemini_multimodal(model_name_input, contents, max_retries=3):
-    model, _ = get_robust_model(model_name_input)
-    for attempt in range(max_retries):
+def call_gemini_safe(api_key, target_model_name, contents, max_retries=3):
+    genai.configure(api_key=api_key.strip())
+    
+    # Chuẩn hóa tên model
+    clean_name = target_model_name.replace("models/", "").strip() if target_model_name else "gemini-1.5-flash"
+    
+    # Lập danh sách ưu tiên fallback nếu model chọn bị lỗi 404
+    fallback_candidates = [
+        clean_name,
+        f"models/{clean_name}",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-pro-latest",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash"
+    ]
+    
+    last_error = None
+    for model_code in fallback_candidates:
         try:
+            model = genai.GenerativeModel(model_code)
             return model.generate_content(contents)
         except Exception as e:
-            err_msg = str(e)
-            if ("404" in err_msg or "not found" in err_msg) and attempt == 0:
-                try:
-                    fb = genai.GenerativeModel("gemini-1.5-flash-latest")
-                    return fb.generate_content(contents)
-                except Exception:
-                    pass
-            if "429" in err_msg or "Quota" in err_msg:
-                if attempt < max_retries - 1:
-                    time.sleep((attempt + 1) * 6)
-                    continue
-            raise e
+            last_error = e
+            if "404" in str(e) or "not found" in str(e):
+                continue  # Thử model tiếp theo trong danh sách fallback
+            elif "429" in str(e) or "Quota" in str(e):
+                time.sleep(3)
+                continue
+            else:
+                raise e
+    
+    raise last_error
 
 # ==========================================
 # THANH BÊN (SIDEBAR)
@@ -161,7 +174,15 @@ def call_gemini_multimodal(model_name_input, contents, max_retries=3):
 with st.sidebar:
     st.markdown('<div class="sidebar-title">🔑 ĐĂNG NHẬP & CẤU HÌNH</div>', unsafe_allow_html=True)
     api_key = st.text_input("Google Gemini API Key:", type="password", placeholder="Dán API Key vào đây...")
-    model_name = st.selectbox("Mô hình AI xử lý:", ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash", "gemini-1.5-pro"], index=0)
+    
+    # Tự động lấy danh sách model thực tế từ API Key để tránh lỗi 404
+    available_models = get_available_models(api_key) if api_key else []
+    
+    if available_models:
+        model_name = st.selectbox("Mô hình AI khả dụng:", available_models, index=0)
+    else:
+        model_name = st.selectbox("Mô hình AI mặc định:", ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"], index=0)
+
     st.markdown("---")
     st.markdown('<div class="sidebar-title">👤 THÔNG TIN GIÁO VIÊN</div>', unsafe_allow_html=True)
     school_name = st.text_input("Trường THPT:", "THPT NGUYỄN VĂN TRỖI")
@@ -209,11 +230,10 @@ st.markdown('<div class="step-header">📖 BƯỚC 2: DANH MỤC BÀI HỌC VÀ 
 
 key_sub_grade = f"{subject}_{grade}"
 
-# Cơ chế Dynamic Fallback tự tạo dữ liệu nếu chưa nạp sẵn
 default_fallback = [
     {
         "chapter": f"Chương I / Chủ đề 1 môn {subject} ({grade})",
-        "lesson": f"Bài 1: Khái quát chương trình {subject} {grade}",
+        "lesson": f"Bài 1: Bài học mở đầu môn {subject} {grade}",
         "duration": 2,
         "req": f"- Nắm vững các kiến thức trọng tâm môn {subject} {grade} theo bộ sách Kết nối tri thức với cuộc sống.\n- Vận dụng giải quyết các bài tập thực hành theo YCĐ của Bộ GD&ĐT."
     }
@@ -231,9 +251,8 @@ with col_btn_sync:
             st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
         else:
             try:
-                genai.configure(api_key=clean_api_key)
                 prompt_fetch = f"""
-                Bạn là CSDL chuẩn Bộ sách "Kết nối tri thức với cuộc sống" (NXB Giáo dục Việt Nam, cập nhật 2026).
+                Bạn là CSDL chuẩn Bộ sách "Kết nối tri thức với cuộc sống" (NXB Giáo dục Việt Nam).
                 Hãy xuất danh sách TẤT CẢ các Bài học chính thức thuộc SGK môn {subject} - {grade}.
                 Trả về duy nhất định dạng JSON Mảng đối tượng không chứa markdown:
                 [
@@ -246,7 +265,7 @@ with col_btn_sync:
                 ]
                 """
                 with st.spinner(f"✨ Đang kết nối CSDL NXB Giáo Dục cho môn {subject} {grade}..."):
-                    res = call_gemini_multimodal(model_name, [prompt_fetch])
+                    res = call_gemini_safe(clean_api_key, model_name, [prompt_fetch])
                     raw_text = res.text.strip()
                     json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
                     clean_json = json_match.group(0) if json_match else raw_text
@@ -405,7 +424,6 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
         st.error("⚠️ Vui lòng chọn hoặc nhập tên Bài dạy!")
     else:
         try:
-            genai.configure(api_key=clean_api_key)
             integration_str = ", ".join(integrations) if integrations else "Không"
 
             prompt = f"""
@@ -430,7 +448,7 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                 contents.append({"mime_type": uploaded_sgv_file.type, "data": uploaded_sgv_file.getvalue()})
 
             with st.spinner(f"✨ AI đang trích xuất SGV môn {subject} và tạo file Word..."):
-                response = call_gemini_multimodal(model_name, contents)
+                response = call_gemini_safe(clean_api_key, model_name, contents)
                 st.success("🎉 Đã tạo giáo án bám sát SGV!")
                 doc_file = generate_doc(response.text)
                 
