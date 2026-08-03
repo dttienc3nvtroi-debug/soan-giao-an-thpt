@@ -61,31 +61,32 @@ DATABASE_KNTT = {
     }
 }
 
-# HÀM GỌI AI VỚI MODEL CHUẨN GEMINI 2.5 FLASH
+# HÀM GỌI AI THÔNG MINH - TỰ ĐỘNG CHUYỂN MODEL KHI TRÚNG NGHẼN QUOTA
 def generate_content_safe(api_key, contents):
     genai.configure(api_key=api_key)
-    # Sử dụng model chuẩn Gemini 2.5 Flash
-    model = genai.GenerativeModel("gemini-2.5-flash")
     
-    max_retries = 3
-    for attempt in range(max_retries):
+    # Danh sách ưu tiên model hoạt động tốt nhất cho Free Tier
+    candidate_models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
+    
+    last_error = None
+    for model_name in candidate_models:
         try:
-            return model.generate_content(contents)
-        except Exception as e:
-            err_msg = str(e)
-            if "429" in err_msg or "Quota" in err_msg:
-                if attempt < max_retries - 1:
-                    wait_time = (attempt + 1) * 10
-                    st.warning(f"⏳ Hệ thống bận. Tự động thử lại sau {wait_time}s... (Lần {attempt + 1}/{max_retries})")
-                    time.sleep(wait_time)
-                else:
-                    raise Exception("❌ Hệ thống tạm thời quá tải. Vui lòng thử lại sau 1 phút.")
-            elif "404" in err_msg or "not found" in err_msg:
-                # Nếu tài khoản chưa cập nhật 2.5 thì tự chuyển sang 2.0-flash
-                fallback_model = genai.GenerativeModel("gemini-2.0-flash")
-                return fallback_model.generate_content(contents)
-            else:
-                raise e
+            model = genai.GenerativeModel(model_name)
+            # Thử tối đa 3 lần cho mỗi model nếu dính Rate Limit ngắn
+            for attempt in range(2):
+                try:
+                    return model.generate_content(contents)
+                except Exception as e:
+                    err_str = str(e)
+                    if "429" in err_str or "Quota" in err_str:
+                        time.sleep(12)  # Đợi 12s theo khuyến nghị từ Google API
+                    else:
+                        raise e
+        except Exception as err:
+            last_error = err
+            continue  # Chuyển sang model tiếp theo trong danh sách
+
+    raise Exception(f"❌ Không thể kết nối API Google Gemini (Lỗi Quota/Key). Chi tiết: {str(last_error)}")
 
 # SIDEBAR
 with st.sidebar:
@@ -155,7 +156,7 @@ with col_load_ycd:
                     st.session_state['auto_ycd'] = res.text
                     st.success("✅ Đã tải xong YCĐ!")
             except Exception as e:
-                st.error(f"Lỗi: {str(e)}")
+                st.error(f"{str(e)}")
 
 with col_upload:
     uploaded_sgv_file = st.file_uploader("Hoặc Tải file ảnh/PDF trang SGV (Nếu có):", type=["pdf", "png", "jpg", "jpeg"])
@@ -283,6 +284,7 @@ if st.button("🚀 BẤM TẠO GIÁO ÁN WORD CHUẨN 5512", type="primary", use
                 
             res1 = generate_content_safe(api_key.strip(), contents1)
             
+            # Đợi ngắn để tránh nghẽn luồng API
             time.sleep(3)
             
             # PHẦN 2
