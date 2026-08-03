@@ -32,7 +32,7 @@ div[data-testid="stWidgetLabel"] p { font-size: 18px !important; font-weight: 70
 </style>""", unsafe_allow_html=True)
 
 # ==========================================
-# HÀM BÓC TÁCH JSON AN TOÀN TUYỆT ĐỐI
+# HÀM BÓC TÁCH JSON AN TOÀN
 # ==========================================
 def clean_and_parse_json(raw_text):
     text = raw_text.strip()
@@ -89,13 +89,14 @@ def process_uploaded_file(uploaded_file):
     return {"mime_type": mime, "data": bytes_data}
 
 # ==========================================
-# HÀM GỌI API GEMINI (TỐI ƯU TỐC ĐỘ, CHỐNG TREO)
+# HÀM GỌI API GEMINI (ĐÃ CẬP NHẬT MODEL CHUẨN)
 # ==========================================
 def call_gemini(api_key, preferred_model, contents, force_json=False):
     genai.configure(api_key=api_key)
     
     pref_clean = preferred_model.replace("models/", "").strip()
-    models_to_try = [pref_clean, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+    # Chỉ giữ các mô hình còn hoạt động trên API hiện tại
+    models_to_try = [pref_clean, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"]
     
     seen = set()
     models_to_try = [m for m in models_to_try if not (m in seen or seen.add(m))]
@@ -149,37 +150,35 @@ header_html = """<div style="text-align: center; margin-bottom: 20px; background
 st.markdown(header_html, unsafe_allow_html=True)
 
 # ==========================================
-# BƯỚC 1: CHỌN MÔN HỌC
+# BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP
 # ==========================================
-st.markdown('<div class="step-header">📚 BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">📚 BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP (GDPT 2018)</div>', unsafe_allow_html=True)
 
-col_sub, col_grd, col_book = st.columns(3)
+col_sub, col_grd = st.columns(2)
 with col_sub:
     subject = st.selectbox("Môn học/Hoạt động GD:", ["Toán học", "Ngữ văn", "Tiếng Anh", "Vật lý", "Hóa học", "Sinh học", "Lịch sử", "Địa lý", "Tin học", "GDKT&PL", "Công nghệ"])
 with col_grd:
     grade = st.selectbox("Khối lớp:", ["Lớp 10", "Lớp 11", "Lớp 12"])
-with col_book:
-    book_series = st.selectbox("Bộ sách:", ["Kết nối tri thức với cuộc sống", "Chân trời sáng tạo", "Cánh diều"])
 
 # ==========================================
 # BƯỚC 2: XÁC ĐỊNH BÀI HỌC & MỤC TIÊU
 # ==========================================
-st.markdown('<div class="step-header">📖 BƯỚC 2: TRA CỨU BÀI HỌC NXB GIÁO DỤC & YÊU CẦU CẦN ĐẠT</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">📖 BƯỚC 2: TRA CỨU BÀI HỌC & YÊU CẦU CẦN ĐẠT (CHUẨN GDPT 2018)</div>', unsafe_allow_html=True)
 
 col_left, col_right = st.columns([1, 1])
 
 clean_api_key = api_key.strip() if api_key else ""
 
 with col_left:
-    st.subheader("1. Lấy thông tin Bài học (Chuẩn taphuan.nxbgd.vn)")
-    if st.button("🔍 Tra cứu Danh sách Bài học chuẩn NXB Giáo Dục", use_container_width=True):
+    st.subheader("1. Lấy thông tin Bài học")
+    if st.button("🔍 Tra cứu Danh sách Bài học chuẩn GDPT 2018", use_container_width=True):
         if not clean_api_key:
             st.error("⚠️ Vui lòng nhập API Key ở menu bên trái!")
         else:
-            with st.spinner("⚡ Đang kết nối dữ liệu NXB Giáo Dục..."):
+            with st.spinner("⚡ Đang tra cứu danh sách bài học..."):
                 try:
                     prompt_lookup = f"""
-                    Yêu cầu: Liệt kê danh sách bài học môn {subject} {grade} - Bộ sách {book_series} theo chương trình GDPT 2018.
+                    Yêu cầu: Liệt kê danh sách bài học môn {subject} {grade} theo chương trình GDPT 2018.
                     ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ LÀ MẢNG JSON. KHÔNG VIẾT THÊM LỜI DẪN.
                     Cấu trúc:
                     [
@@ -192,7 +191,7 @@ with col_left:
                         st.session_state['ai_lessons'] = data
                         st.success(f"✅ Đã tìm thấy {len(data)} bài học chuẩn!")
                     else:
-                        st.error("⚠️ Dữ liệu trả về chưa đúng mảng JSON. Thầy thử bấm lại lần nữa nhé!")
+                        st.error("⚠️ Dữ liệu trả về chưa đúng mảng JSON. Thầy bấm tra cứu lại lần nữa nhé!")
                 except Exception as e:
                     st.error(f"❌ Lỗi: {e}")
 
@@ -210,7 +209,7 @@ with col_left:
         duration = st.number_input("Số tiết thực hiện:", value=duration, min_value=1, max_value=20)
     else:
         chapter_title = st.text_input("Chương / Chủ đề:", value="")
-        lesson_title = st.text_input("Tên Bài dạy nguyên văn SGK (Hoặc nhập thủ công tại đây):", value="")
+        lesson_title = st.text_input("Tên Bài dạy (Hoặc nhập thủ công tại đây):", value="")
         duration = st.number_input("Số tiết thực hiện:", value=3, min_value=1, max_value=20)
 
 with col_right:
@@ -247,7 +246,7 @@ integrations = st.multiselect(
         "Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra, Azota...)",
         "Tích hợp Công cụ AI trong dạy và học (Gemini, ChatGPT, Canva AI...)",
         "Giáo dục STEM / STEAM",
-        "Phát triển Tư duy phản biện & Giải quyết vấn đề thực tậi",
+        "Phát triển Tư duy phản biện & Giải quyết vấn đề thực tiễn",
         "Tích hợp Giáo dục Đạo đức, Căn cước công dân & Pháp luật"
     ],
     default=[
@@ -264,3 +263,126 @@ def generate_doc(content_text, locked_chapter_title, locked_lesson_title):
     
     for section in doc.sections:
         section.top_margin = Inches(0.79)
+        section.bottom_margin = Inches(0.79)
+        section.left_margin = Inches(1.18)
+        section.right_margin = Inches(0.79)
+
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Times New Roman'
+    font.size = Pt(13)
+
+    # HEADER TRƯỜNG & TỔ
+    table = doc.add_table(rows=1, cols=2)
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table.columns[0].width = Inches(3.2)
+    table.columns[1].width = Inches(3.2)
+
+    cell_left = table.cell(0, 0)
+    p_left = cell_left.paragraphs[0]
+    p_left.paragraph_format.line_spacing = 1.15
+    run_left = p_left.add_run(f"TRƯỜNG: {school_name.upper()}\nTỔ: {dept_name.upper()}")
+    run_left.bold = True
+
+    cell_right = table.cell(0, 1)
+    p_right = cell_right.paragraphs[0]
+    p_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    p_right.paragraph_format.line_spacing = 1.15
+    run_right = p_right.add_run(f"Họ và tên giáo viên:\n{teacher_name}")
+    run_right.bold = True
+
+    for row in table.rows:
+        for cell in row.cells:
+            tcPr = cell._tc.get_or_add_tcPr()
+            tcBorders = parse_xml(r'<w:tcBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>' % nsdecls('w'))
+            tcPr.append(tcBorders)
+
+    # TIÊU ĐỀ BÀI DẠY
+    if locked_chapter_title:
+        p_chap = doc.add_paragraph()
+        p_chap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_chap.paragraph_format.space_before = Pt(14)
+        p_chap.paragraph_format.space_after = Pt(2)
+        r_chap = p_chap.add_run(locked_chapter_title.upper())
+        r_chap.bold = True
+        r_chap.font.size = Pt(13)
+
+    p_title = doc.add_paragraph()
+    p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_title.paragraph_format.space_before = Pt(4)
+    p_title.paragraph_format.space_after = Pt(4)
+    r_title = p_title.add_run(f"TÊN BÀI DẠY: {locked_lesson_title.upper()}")
+    r_title.bold = True
+    r_title.font.size = Pt(14)
+
+    p_sub = doc.add_paragraph()
+    p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_sub.paragraph_format.space_after = Pt(12)
+    r_sub = p_sub.add_run(f"Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade}\nThời gian thực hiện: ({duration} tiết)")
+    r_sub.italic = True
+
+    # NỘI DUNG GIÁO ÁN
+    lines = content_text.split('\n')
+    for line in lines:
+        line_str = line.strip()
+        if not line_str or line_str.startswith("---") or line_str.startswith("# "):
+            continue
+            
+        p = doc.add_paragraph()
+        p.paragraph_format.line_spacing = 1.15
+        p.paragraph_format.space_after = Pt(4)
+        clean_text = line_str.replace("**", "").replace("*", "")
+
+        main_headers = ("I. ", "II. ", "III. ", "IV. ")
+        sub_headers = ("TIẾT ", "HOẠT ĐỘNG ", "Nội dung ", "Khối kiến thức ")
+        num_headers = ("1. ", "2. ", "3. ", "4. ")
+        alpha_headers = ("a)", "b)", "c)", "d)")
+
+        if clean_text.startswith(main_headers):
+            p.paragraph_format.space_before = Pt(12)
+            run = p.add_run(clean_text)
+            run.bold = True
+            run.font.size = Pt(14)
+        elif clean_text.startswith(sub_headers):
+            p.paragraph_format.space_before = Pt(8)
+            run = p.add_run(clean_text)
+            run.bold = True
+            run.font.size = Pt(13)
+        elif clean_text.startswith(num_headers):
+            p.paragraph_format.space_before = Pt(6)
+            run = p.add_run(clean_text)
+            run.bold = True
+        elif clean_text.startswith(alpha_headers):
+            p.paragraph_format.space_before = Pt(4)
+            p.paragraph_format.left_indent = Inches(0.15)
+            run = p.add_run(clean_text)
+            run.bold = True
+        elif "Bước 1:" in clean_text or "Bước 2:" in clean_text or "Bước 3:" in clean_text or "Bước 4:" in clean_text:
+            p.paragraph_format.left_indent = Inches(0.3)
+            run = p.add_run(clean_text)
+            run.bold = True
+        else:
+            p.add_run(clean_text)
+
+    bio = io.BytesIO()
+    doc.save(bio)
+    bio.seek(0)
+    return bio
+
+# ==========================================
+# BƯỚC 4: TẠO GIÁO ÁN
+# ==========================================
+st.markdown("<br>", unsafe_allow_html=True)
+if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", use_container_width=True):
+    if not clean_api_key:
+        st.error("⚠️ Vui lòng nhập Google Gemini API Key ở menu bên trái!")
+    elif not lesson_title:
+        st.error("⚠️ Vui lòng chọn hoặc nhập Tên bài dạy ở Bước 2!")
+    else:
+        try:
+            integration_str = ", ".join(integrations) if integrations else "Không"
+            req_prompt = requirements_text if requirements_text.strip() else "Hãy tự xây dựng hệ thống Yêu cầu cần đạt chuẩn SGV cho bài học này."
+            
+            prompt_main = f"""
+            Bạn là Chuyên gia Giáo dục hàng đầu của Bộ Giáo dục và Đào tạo Việt Nam.
+            Hãy biên soạn Kế hoạch bài dạy (Giáo án) CHI TIẾT KỸ LƯỠNG, CHUẨN 100% C
