@@ -86,27 +86,52 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Hàm gọi AI Gemini
-def call_gemini_multimodal(model, contents, max_retries=3):
-    for attempt in range(max_retries):
+# Hàm khởi tạo và gọi Gemini AI chống lỗi 404 Model Not Found
+def call_gemini_multimodal(selected_model_str, contents, max_retries=3):
+    # Danh sách ưu tiên danh định tên model chuẩn
+    fallback_models = [
+        selected_model_str,
+        "gemini-1.5-flash-latest",
+        "gemini-2.0-flash",
+        "gemini-1.5-pro",
+        "gemini-1.5-flash"
+    ]
+    
+    # Bỏ trùng lặp nhưng giữ thứ tự
+    models_to_try = []
+    for m in fallback_models:
+        clean_m = m.replace("models/", "").strip()
+        if clean_m not in models_to_try:
+            models_to_try.append(clean_m)
+
+    last_error = None
+    for target_model in models_to_try:
         try:
+            model = genai.GenerativeModel(
+                target_model,
+                generation_config=genai.GenerationConfig(temperature=0.0)
+            )
             response = model.generate_content(contents)
             return response
         except Exception as e:
+            last_error = e
             err_msg = str(e)
-            if "429" in err_msg or "Quota" in err_msg:
-                if attempt < max_retries - 1:
-                    wait_time = (attempt + 1) * 8
-                    time.sleep(wait_time)
-                    continue
-            raise e
+            # Nếu lỗi 404 Not Found thì thử model tiếp theo trong danh sách
+            if "404" in err_msg or "not found" in err_msg.lower():
+                continue
+            elif "429" in err_msg or "Quota" in err_msg:
+                time.sleep(5)
+                continue
+            else:
+                raise e
+    
+    raise last_error
 
-# HÀM CÀO DỮ LIỆU TRỰC TIẾP TỪ LINK TAPHUAN.NXBGD.VN (ĐÃ NÂNG CẤP BASS PASSTHROUGH)
+# HÀM CÀO DỮ LIỆU TRỰC TIẾP TỪ LINK TAPHUAN.NXBGD.VN
 def fetch_data_from_taphuan(url, cookie_str=""):
     if not url:
         return ""
     
-    # Cấu hình Header giả lập Trình duyệt Chrome thật
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
@@ -124,7 +149,6 @@ def fetch_data_from_taphuan(url, cookie_str=""):
         
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
-            # Loại bỏ các thẻ script/style không cần thiết
             for script in soup(["script", "style", "nav", "footer", "header"]):
                 script.extract()
             
@@ -132,7 +156,7 @@ def fetch_data_from_taphuan(url, cookie_str=""):
             lines = (line.strip() for line in text.splitlines())
             chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
             extracted_content = " ".join(chunk for chunk in chunks if chunk)
-            return extracted_content[:10000] # Giới hạn ký tự lấy về
+            return extracted_content[:10000]
         else:
             return f"HTTP_ERROR_{res.status_code}"
     except Exception as e:
@@ -153,9 +177,9 @@ with st.sidebar:
     
     model_name = st.selectbox(
         "Mô hình AI xử lý:",
-        ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"],
+        ["gemini-1.5-flash-latest", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
         index=0,
-        help="Chọn gemini-1.5-flash hoặc gemini-2.0-flash"
+        help="Đã cập nhật các tên mô hình chính thức tránh lỗi 404"
     )
     st.markdown("---")
     
@@ -236,11 +260,6 @@ with col_btn_sync:
         else:
             try:
                 genai.configure(api_key=clean_api_key)
-                clean_model_name = model_name.replace("models/", "").strip()
-                model = genai.GenerativeModel(
-                    clean_model_name,
-                    generation_config=genai.GenerationConfig(temperature=0.0)
-                )
                 
                 with st.spinner("🌐 Đang kết nối và tải nội dung từ link taphuan.nxbgd.vn..."):
                     raw_scraped_text = fetch_data_from_taphuan(taphuan_url, taphuan_cookie)
@@ -273,14 +292,14 @@ with col_btn_sync:
                 """
                 
                 with st.spinner("✨ Gemini AI đang bóc tách Yêu cầu cần đạt nguyên văn..."):
-                    res = call_gemini_multimodal(model, [prompt_fetch])
+                    res = call_gemini_multimodal(model_name, [prompt_fetch])
                     raw_text = res.text.strip()
                     json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
                     clean_json = json_match.group(0) if json_match else raw_text
                     st.session_state['fetched_lessons'] = json.loads(clean_json)
                     st.success("🎉 Đã cào và bóc tách dữ liệu từ Link taphuan.nxbgd.vn thành công!")
             except Exception as e:
-                st.error(f"❌ Lỗi truy cập link: {str(e)}")
+                st.error(f"❌ Lỗi truy cập/phân tích: {str(e)}")
 
 with col_file_upload:
     st.markdown('<span class="custom-label">📂 Hoặc tải tệp bổ sung (Nối nguồn):</span>', unsafe_allow_html=True)
@@ -439,14 +458,8 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
     else:
         try:
             genai.configure(api_key=clean_api_key)
-            clean_model_name = model_name.replace("models/", "").strip()
-            model = genai.GenerativeModel(
-                clean_model_name,
-                generation_config=genai.GenerationConfig(temperature=0.0)
-            )
             integration_str = ", ".join(integrations) if integrations else "Không"
 
-            # PROMPT ÉP NHIỆT ĐỘ 0 & KHÓA NGUYÊN VĂN TỪ LINK
             prompt = f"""
             BẠN LÀ MÁY SOẠN BÀI DẠY THEO NGUYÊN VĂN TỪ TAP HUAN NXBGD.
             BẮT BUỘC BÊ NGUYÊN VĂN TỪNG CÂU TỪNG TỪ CỦA SÁCH GIÁO VIÊN (SGV) VÀ SGK VÀO KHBD 5512.
@@ -487,7 +500,7 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                 contents.append({"mime_type": mime_type, "data": bytes_data})
 
             with st.spinner("✨ Đang trích xuất dữ liệu nguyên văn và tạo File Word..."):
-                response = call_gemini_multimodal(model, contents)
+                response = call_gemini_multimodal(model_name, contents)
                 st.success("🎉 Đã tạo KHBD thành công từ dữ liệu Link taphuan.nxbgd.vn!")
                 doc_file = generate_doc(response.text)
                 
