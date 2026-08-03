@@ -61,32 +61,49 @@ DATABASE_KNTT = {
     }
 }
 
-# HÀM GỌI GEMINI VỚI GEMINI-1.5-FLASH
+# HÀM GỌI GEMINI THÔNG MINH - TỰ ĐỘNG CHỌN MODEL TƯƠNG THÍCH (CHỐNG LỖI 404 VÀ 429)
 def generate_content_safe(api_key, contents):
     genai.configure(api_key=api_key)
     
-    # Sử dụng gemini-1.5-flash để tránh nghẽn Quota của dòng 2.0
-    model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
-        generation_config=genai.GenerationConfig(
-            temperature=0.3,
-            max_output_tokens=2048
-        )
-    )
+    # Danh sách các model theo thứ tự ưu tiên
+    candidate_models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"]
     
+    selected_model = None
+    for m in candidate_models:
+        try:
+            # Thử khởi tạo model xem SDK có hỗ trợ không
+            model_obj = genai.GenerativeModel(
+                model_name=m,
+                generation_config=genai.GenerationConfig(
+                    temperature=0.3,
+                    max_output_tokens=2048
+                )
+            )
+            selected_model = model_obj
+            break
+        except Exception:
+            continue
+            
+    if not selected_model:
+        selected_model = genai.GenerativeModel("gemini-pro")
+
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            return model.generate_content(contents)
+            return selected_model.generate_content(contents)
         except Exception as e:
             err_msg = str(e)
-            if "429" in err_msg or "Quota" in err_msg:
+            if "404" in err_msg:
+                # Nếu model hiện tại bị 404, dùng hạ cấp ngay về gemini-pro
+                fallback_model = genai.GenerativeModel("gemini-pro")
+                return fallback_model.generate_content(contents)
+            elif "429" in err_msg or "Quota" in err_msg:
                 if attempt < max_retries - 1:
-                    wait_time = (attempt + 1) * 15
-                    st.warning(f"⏳ Tạm thời đạt trần Token. Tự động nghỉ {wait_time}s... (Lần {attempt + 1}/{max_retries})")
+                    wait_time = (attempt + 1) * 12
+                    st.warning(f"⏳ Hạn ngạch Google tạm đầy. Đang nghỉ {wait_time} giây để hồi Quota... (Lần {attempt + 1}/{max_retries})")
                     time.sleep(wait_time)
                 else:
-                    raise Exception("❌ Đã hết Quota miễn phí trong phút này! Vui lòng tạo API Key ở Gmail KHÁC hoặc chờ 1-2 phút rồi bấm lại.")
+                    raise Exception("❌ Hạn ngạch phút này của Google đã hết! Thầy vui lòng đợi 1-2 phút rồi bấm lại, hoặc tạo API Key ở một Gmail MỚI HOÀN TOÀN nhé!")
             else:
                 raise e
 
@@ -267,7 +284,7 @@ if st.button("🚀 BẤM TẠO GIÁO ÁN WORD CHUẨN 5512", type="primary", use
         try:
             integration_str = ", ".join(integrations) if integrations else "Không"
             
-            # XỬ LÝ PHẦN 1
+            # PHẦN 1
             st.info("🔄 Đang xử lý Phần 1: Mục tiêu, Thiết bị & Khởi động...")
             prompt_part1 = f"""
             Soạn Phần 1 KHBD 5512 bài: {selected_lesson} ({grade}, {subject}, Kết nối tri thức).
@@ -286,10 +303,10 @@ if st.button("🚀 BẤM TẠO GIÁO ÁN WORD CHUẨN 5512", type="primary", use
                 
             res1 = generate_content_safe(api_key.strip(), contents1)
             
-            # Tạm nghỉ 5 giây để Google reset Quota
-            time.sleep(5)
+            # Tạm nghỉ 4s giữa 2 đợt gọi
+            time.sleep(4)
             
-            # XỬ LÝ PHẦN 2
+            # PHẦN 2
             st.info("🔄 Đang xử lý Phần 2: Hình thành kiến thức, Luyện tập & Vận dụng...")
             prompt_part2 = f"""
             Soạn tiếp Phần 2 KHBD 5512 bài: {selected_lesson} ({grade}, {subject}, Kết nối tri thức).
