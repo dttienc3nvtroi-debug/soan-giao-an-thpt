@@ -61,26 +61,24 @@ DATABASE_KNTT = {
     }
 }
 
-# HÀM GỌI GEMINI AN TOÀN - TƯƠNG THÍCH MỌI PHIÊN BẢN
+# HÀM GỌI GEMINI AN TOÀN - CHỈ DÙNG DÒNG GEMINI 1.5 CHUẨN
 def generate_content_safe(api_key, contents):
     genai.configure(api_key=api_key)
     
-    # Danh sách model dự phòng theo thứ tự từ mới tới cũ
-    candidate_names = ["gemini-1.5-flash", "gemini-pro", "models/gemini-pro"]
+    # Chỉ dùng các model Gemini 1.5 đã được Google kích hoạt hoàn toàn
+    candidate_names = ["gemini-1.5-flash", "gemini-1.5-pro"]
     
     selected_model = None
     for name in candidate_names:
         try:
             m = genai.GenerativeModel(name)
-            # Thử gọi kiểm tra siêu ngắn
-            m.generate_content("Hi", generation_config={"max_output_tokens": 1})
             selected_model = m
             break
         except Exception:
             continue
 
     if not selected_model:
-        selected_model = genai.GenerativeModel("gemini-pro")
+        selected_model = genai.GenerativeModel("gemini-1.5-flash")
 
     max_retries = 3
     for attempt in range(max_retries):
