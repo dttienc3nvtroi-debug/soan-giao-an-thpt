@@ -10,11 +10,10 @@ import io
 import json
 import re
 import time
-from PIL import Image
 
 # Cấu hình trang Streamlit
 st.set_page_config(
-    page_title="Hệ thống Soạn Giáo án Tự Động 5512", 
+    page_title="Hệ thống Soạn Giáo án Tự Động 5512 (Bám sát SGV)", 
     layout="wide", 
     page_icon="📝"
 )
@@ -85,7 +84,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Hàm gọi API xử lý đa phương thức (Văn bản + File SGV/Ảnh/PDF)
 def call_gemini_multimodal(model, contents, max_retries=3):
     for attempt in range(max_retries):
         try:
@@ -132,7 +130,7 @@ with st.sidebar:
 st.markdown("""
     <div style="text-align: center; margin-bottom: 25px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 22px; border-radius: 12px; border: 1px solid #bfdbfe;">
         <div style="font-size: 33px; font-weight: 800; color: #1e3a8a;">
-            HỆ THỐNG SOẠN KHBD TỰ ĐỘNG (CHUẨN 5512)
+            HỆ THỐNG SOẠN KHBD TỰ ĐỘNG CHUẨN 100% SGV (5512)
         </div>
         <div style="font-size: 21px; font-weight: 600; color: #2563eb; margin-top: 10px;">
             📝 Tác giả: DƯƠNG TẤN TIẾN — GIÁO VIÊN TRƯỜNG THPT NGUYỄN VĂN TRỖI
@@ -164,7 +162,7 @@ with col_grd:
 # ==========================================
 # BƯỚC 2: TRA CỨU & NẠP TỆP SGV / SGK
 # ==========================================
-st.markdown('<div class="step-header">📖 BƯỚC 2: BÁM SÁT SGK / TẢI FILE NỘI DUNG SGV</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">📖 BƯỚC 2: NẠP FILE SGV (ĐẢM BẢO CHÍNH XÁC 100%)</div>', unsafe_allow_html=True)
 
 col_btn_sync, col_file_upload = st.columns([1, 1], gap="medium")
 
@@ -207,30 +205,30 @@ with col_btn_sync:
                 st.warning("⚠️ Đã nạp bài học mẫu chuẩn SGK:")
                 st.session_state['fetched_lessons'] = [
                     {
-                        "chapter": "Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị hàm số",
-                        "lesson": "Bài 1. Tính đơn điệu và cực trị của hàm số",
+                        "chapter": "Chương II. Vectơ và hệ trục tọa độ trong không gian",
+                        "lesson": "Bài 7. Hệ trục tọa độ trong không gian",
                         "duration": 3,
-                        "req": "Nhận biết được tính đơn điệu, điểm cực trị của hàm số thông qua bảng biến thiên hoặc đồ thị."
+                        "req": "- Nhận biết được tọa độ của điểm, của vectơ đối với hệ trục tọa độ.\n- Vận dụng được tọa độ của vectơ để giải một số bài toán có liên quan đến thực tiễn."
                     }
                 ]
 
 with col_file_upload:
-    st.markdown('<span class="custom-label">📂 Tải lên File SGV / Ảnh trang SGK (PDF, JPG, PNG):</span>', unsafe_allow_html=True)
+    st.markdown('<span class="custom-label">📂 Tải lên File/Ảnh trang SGV (PDF, JPG, PNG):</span>', unsafe_allow_html=True)
     uploaded_sgv_file = st.file_uploader(
         "Tải lên File SGV:", 
         type=["pdf", "png", "jpg", "jpeg"], 
         label_visibility="collapsed",
-        help="Nội dung file này sẽ được AI đọc trực tiếp để soạn bài đúng chuẩn 100%!"
+        help="Tải ảnh/PDF trang SGV lên đây để AI chép chính xác 100% mục tiêu kiến thức, kỹ năng!"
     )
 
 if uploaded_sgv_file is not None:
-    st.info(f"✅ Đã nhận file: **{uploaded_sgv_file.name}**. Hệ thống sẽ đọc toàn bộ kiến thức, hoạt động từ file này khi sinh giáo án!")
+    st.info(f"✅ Đã nhận file: **{uploaded_sgv_file.name}**. Hệ thống sẽ trích xuất Y NGUYÊN nội dung từ file này!")
 
 if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
     lessons_data = st.session_state['fetched_lessons']
     lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
     
-    st.markdown('<span class="custom-label">👉 Chọn Bài học chuẩn từ danh sách vừa tải:</span>', unsafe_allow_html=True)
+    st.markdown('<span class="custom-label">👉 Chọn Bài học từ danh sách:</span>', unsafe_allow_html=True)
     selected_idx = st.selectbox("Chọn bài:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x], label_visibility="collapsed")
     
     current_item = lessons_data[selected_idx]
@@ -247,7 +245,7 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
         duration = st.number_input("Số tiết:", value=int(current_item['duration']), label_visibility="collapsed")
     
     with col_i2:
-        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt chuẩn SGK:</span>', unsafe_allow_html=True)
+        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt / Mục tiêu SGV:</span>', unsafe_allow_html=True)
         requirements = st.text_area("YCĐ:", value=current_item['req'], height=230, label_visibility="collapsed")
 else:
     col_i1, col_i2 = st.columns([1, 2], gap="large")
@@ -259,16 +257,16 @@ else:
         lesson_title = st.text_input("Tên bài:", value="", placeholder="Nhập tên bài...", label_visibility="collapsed")
         
         st.markdown('<span class="custom-label">Số tiết thực hiện:</span>', unsafe_allow_html=True)
-        duration = st.number_input("Số tiết:", value=2, label_visibility="collapsed")
+        duration = st.number_input("Số tiết:", value=3, label_visibility="collapsed")
         
     with col_i2:
-        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt chuẩn SGK:</span>', unsafe_allow_html=True)
-        requirements = st.text_area("YCĐ:", value="", placeholder="Nhập yêu cầu cần đạt...", height=230, label_visibility="collapsed")
+        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt / Mục tiêu SGV:</span>', unsafe_allow_html=True)
+        requirements = st.text_area("YCĐ:", value="", placeholder="Nhập mục tiêu SGV hoặc để trống nếu đã upload file...", height=230, label_visibility="collapsed")
 
 # ==========================================
 # BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
 # ==========================================
-st.markdown('<div class="step-header">🚀 BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">🚀 BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ (BỔ SUNG VÀO CẤU TRÚC 5512)</div>', unsafe_allow_html=True)
 
 integrations = st.multiselect(
     "Lựa chọn yếu tố tích hợp:",
@@ -276,8 +274,7 @@ integrations = st.multiselect(
         "Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", 
         "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)", 
         "Giáo dục STEM / STEAM", 
-        "Phát triển Tư duy phản biện", 
-        "Học tập qua Dự án (PBL)"
+        "Phát triển Tư duy phản biện"
     ],
     default=["Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)"],
     label_visibility="collapsed"
@@ -386,67 +383,59 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
             model = genai.GenerativeModel(clean_model_name)
             integration_str = ", ".join(integrations) if integrations else "Không"
 
-            # CHUẨN BỊ LỆNH PROMPT BÁM SÁT SGK / SGV
+            # PROMPT TẬP TRUNG TRÍCH XUẤT NGUYÊN BẢN TỪ SGV (CÁCH A)
             prompt = f"""
-            Bạn là Chuyên gia Giáo dục hàng đầu của Bộ GD&ĐT Việt Nam.
-            Nhiệm vụ: Soạn Kế hoạch bài dạy (Giáo án) CHUẨN 100% CÔNG VĂN 5512/BGDĐT, bám sát Sách giáo khoa Kết nối tri thức với cuộc sống.
+            Bạn là trợ lý trích xuất và chuyển đổi Kế hoạch bài dạy chuẩn Công văn 5512/BGDĐT.
+
+            NGUYÊN TẮC VÀNG CHÍNH XÁC 100% (BẮT BUỘC TUÂN THỦ):
+            1. TRÍCH XUẤT CHÍNH XÁC TỪ FILE SGV: 
+               - Nếu có tệp tài liệu đính kèm (SGV/Ảnh trang sách), bạn BẮT BUỘC phải đọc nguyên văn phần "I. MỤC TIÊU" (Kiến thức, kỹ năng, phẩm chất, năng lực) từ file SGV đó sang. 
+               - TUYỆT ĐỐI KHÔNG TỰ VIẾT THÊM, KHÔNG TỰ BỞI DÃI, KHÔNG TỰ MỞ RỘNG các khái niệm kiến thức nếu trong SGV không ghi. Chép chính exact từng gạch đầu dòng!
+               - Nếu không có file đính kèm, sử dụng chính xác nội dung ghi ở phần "Yêu cầu cần đạt / Mục tiêu SGV": {requirements}
+
+            2. CẤU TRÚC BÁM SÁT 5512:
+               I. MỤC TIÊU
+               1. Về kiến thức, kỹ năng: (Chép Y NGUYÊN các gạch đầu dòng từ SGV/ảnh)
+               2. Về phẩm chất, năng lực: (Chép Y NGUYÊN các gạch đầu dòng năng lực, phẩm chất từ SGV/ảnh)
+               - Thêm mục nhỏ: "Năng lực Số / Tích hợp AI:" (Nêu ngắn gọn việc dùng {integration_str})
+
+               II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
+
+               III. TIẾN TRÌNH DẠY HỌC
+               Trình bày theo các Hoạt động (Khởi động, Khám phá, Luyện tập, Vận dụng) lấy đúng theo mạch nội dung của SGV/SGK. Mỗi hoạt động gồm đủ 4 mục:
+               a) Mục tiêu
+               b) Nội dung (Mô tả bài tập/câu hỏi bám sát SGK/SGV)
+               c) Sản phẩm (Đáp án, lời giải)
+               d) Tổ chức thực hiện (Bước 1: Chuyển giao nhiệm vụ -> Bước 2: Thực hiện nhiệm vụ -> Bước 3: Báo cáo, thảo luận -> Bước 4: Kết luận, nhận định).
 
             THÔNG TIN BÀI DẠY:
             - Môn: {subject} ({grade})
             - Chương/Chủ đề: {chapter_title}
             - Bài dạy: {lesson_title}
             - Thời lượng: {duration} tiết
-            - Yêu cầu cần đạt chuẩn SGK: {requirements}
-            - YẾU TỐ TÍCH HỢP: {integration_str}
-
-            YÊU CẦU QUAN TRỌNG VỀ NỘI DUNG SGK/SGV:
-            1. BÁM SÁT 100% KIẾN THỨC, KỸ NĂNG & CÁC DẠNG BÀI TẬP trong SGK/SGV {subject} {grade}.
-            2. Nếu có tệp tài liệu đính kèm (SGV/Ảnh trang sách), hãy trích xuất CHÍNH XÁC các câu hỏi, ví dụ, hoạt động khám phá và luyện tập có trong tệp đó đưa vào giáo án.
-            3. Không tự sáng tạo ra các ví dụ/kiến thức xa rời nội dung SGK.
-
-            QUY ĐỊNH TRÌNH BÀY:
-            - Không dùng ký tự kẻ ngang (---).
-            - Trình bày chính xác cấu trúc:
-              I. MỤC TIÊU
-              1. Kiến thức: (Nêu cụ thể từng kiến thức học sinh cần nắm được theo SGK)
-              2. Năng lực: 
-                 2.1. Năng lực chuyên môn (Đặc thù môn học)
-                 2.2. Năng lực chung
-                 2.3. Năng lực Số / Tích hợp AI (Nêu công cụ Padlet, Kahoot, Gemini, Geogebra... cụ thể)
-              3. Phẩm chất:
-              II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
-              III. TIẾN TRÌNH DẠY HỌC
-              Mỗi hoạt động (Khởi động, Khám phá, Luyện tập, Vận dụng) phải trình bày đủ 4 mục: 
-              a) Mục tiêu
-              b) Nội dung (Mô tả chi tiết câu hỏi, bài tập lấy từ SGK/SGV)
-              c) Sản phẩm (Đáp án, lời giải chi tiết, sản phẩm của học sinh)
-              d) Tổ chức thực hiện (Rõ 4 bước: Bước 1: Chuyển giao nhiệm vụ -> Bước 2: Thực hiện nhiệm vụ -> Bước 3: Báo cáo, thảo luận -> Bước 4: Kết luận, nhận định).
             """
 
-            # Xử lý đóng gói dữ liệu đầu vào (Văn bản + Tệp đính kèm)
             contents = [prompt]
             
             if uploaded_sgv_file is not None:
                 bytes_data = uploaded_sgv_file.getvalue()
                 mime_type = uploaded_sgv_file.type
-                
-                # Nếu file là PDF hoặc Ảnh
                 file_part = {
                     "mime_type": mime_type,
                     "data": bytes_data
                 }
                 contents.append(file_part)
-                st.toast("📄 Đã nạp dữ liệu từ File SGV/SGK thành công!", icon="✅")
+                st.toast("📄 Đã nạp dữ liệu từ File SGV! Đang ép AI chép chính xác 100%...", icon="✅")
 
-            with st.spinner("✨ AI đang phân tích File SGV/SGK và soạn giáo án chuẩn 5512..."):
+            with st.spinner("✨ AI đang trích xuất Y NGUYÊN từ SGV và xuất giáo án 5512..."):
                 response = call_gemini_multimodal(model, contents)
-                st.success("🎉 Tạo giáo án chuẩn SGK/SGV thành công!")
+                st.success("🎉 Đã tạo giáo án bám sát 100% SGV!")
                 doc_file = generate_doc(response.text)
                 
                 st.download_button(
                     label="📥 TẢI FILE WORD GIÁO ÁN (.DOCX)",
                     data=doc_file,
-                    file_name=f"KHBD_5512_{lesson_title.replace(' ', '_')}.docx",
+                    file_name=f"KHBD_5512_SGV_{lesson_title.replace(' ', '_')}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     use_container_width=True
                 )
