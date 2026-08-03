@@ -10,7 +10,7 @@ import io
 import time
 
 st.set_page_config(
-    page_title="Hệ thống Soạn Giáo án 5512 (Sách KNTT Chuẩn)", 
+    page_title="Hệ thống Soạn Giáo án 5512 (KNTT Chuẩn)", 
     layout="wide", 
     page_icon="📝"
 )
@@ -61,18 +61,18 @@ DATABASE_KNTT = {
     }
 }
 
-# HÀM GỌI AI ĐÃ TỐI ƯU HẠN NGẠCH TOKEN
+# HÀM GỌI GEMINI AN TOÀN
 def generate_content_safe(api_key, contents):
     genai.configure(api_key=api_key)
     
-    # Sử dụng gemini-2.0-flash hoặc gemini-1.5-flash
+    # Ưu tiên các mô hình tiết kiệm Quota
     model_name = "gemini-2.0-flash"
     
     model = genai.GenerativeModel(
         model_name=model_name,
         generation_config=genai.GenerationConfig(
             temperature=0.3,
-            max_output_tokens=4096  # Giảm bớt Token đầu ra để tránh vọt trần Quota/phút
+            max_output_tokens=3000 # Giảm bớt token đầu ra để an toàn tuyệt đối
         )
     )
     
@@ -84,11 +84,11 @@ def generate_content_safe(api_key, contents):
             err_msg = str(e)
             if "429" in err_msg or "Quota" in err_msg:
                 if attempt < max_retries - 1:
-                    wait_time = (attempt + 1) * 15
-                    st.warning(f"⏳ Hạn ngạch phút này tạm đầy. Đang tự động nghỉ {wait_time}s để reset Quota Google... (Lần {attempt + 1}/{max_retries})")
+                    wait_time = (attempt + 1) * 10
+                    st.warning(f"⏳ Tạm thời đạt trần Token. Tự động nghỉ {wait_time}s... (Lần {attempt + 1}/{max_retries})")
                     time.sleep(wait_time)
                 else:
-                    raise Exception("❌ Đã chạm trần hạn ngạch miễn phí/phút của Google. Vui lòng đợi 1-2 phút rồi bấm lại, hoặc tạo API Key ở một Gmail mới!")
+                    raise Exception("❌ Đã hết Quota miễn phí trong phút này! Vui lòng tạo API Key ở Gmail KHÁC hoặc chờ 1 phút rồi bấm lại.")
             else:
                 raise e
 
@@ -111,7 +111,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# BƯỚC 1
+# BƯỚC 1: CHỌN MÔN, LỚP
 st.markdown('<div class="step-header">📚 BƯỚC 1: CHỌN MÔN, LỚP, CHƯƠNG & BÀI HỌC</div>', unsafe_allow_html=True)
 
 c1, c2, c3 = st.columns([1, 1, 1])
@@ -140,7 +140,7 @@ else:
     with col_les:
         selected_lesson = st.text_input("Tên Bài dạy cụ thể:", placeholder="Nhập tên bài...")
 
-# BƯỚC 2
+# BƯỚC 2: YCĐ
 st.markdown('<div class="step-header">🎯 BƯỚC 2: YÊU CẦU CẦN ĐẠT (SGVKẾT NỐI TRI THỨC)</div>', unsafe_allow_html=True)
 
 if 'current_lesson_key' not in st.session_state or st.session_state['current_lesson_key'] != selected_lesson:
@@ -154,7 +154,7 @@ with col_load_ycd:
             st.error("⚠️ Vui lòng dán Gemini API Key ở menu bên trái!")
         else:
             try:
-                prompt_ycd = f"Trích xuất ngắn gọn các Yêu cầu cần đạt chuẩn SGV Kết nối tri thức - {grade}, môn {subject}, bài: '{selected_lesson}'. Dạng gạch đầu dòng."
+                prompt_ycd = f"Trích xuất Yêu cầu cần đạt SGV Kết nối tri thức - {grade}, môn {subject}, bài '{selected_lesson}'. Dạng gạch đầu dòng ngắn gọn."
                 with st.spinner("⚡ AI đang tải YCĐ..."):
                     res = generate_content_safe(api_key.strip(), [prompt_ycd])
                     st.session_state['auto_ycd'] = res.text
@@ -165,9 +165,9 @@ with col_load_ycd:
 with col_upload:
     uploaded_sgv_file = st.file_uploader("Hoặc Tải file ảnh/PDF trang SGV (Nếu có):", type=["pdf", "png", "jpg", "jpeg"])
 
-ycd_content = st.text_area("Mô tả Yêu cầu cần đạt:", value=st.session_state.get('auto_ycd', ''), height=120, placeholder="Nhấn nút 'Tải nhanh Yêu cầu cần đạt' ở trên để AI tự điền...")
+ycd_content = st.text_area("Mô tả Yêu cầu cần đạt:", value=st.session_state.get('auto_ycd', ''), height=100, placeholder="Bấm 'Tải nhanh Yêu cầu cần đạt' để tự điền...")
 
-# BƯỚC 3
+# BƯỚC 3: TÍCH HỢP
 st.markdown('<div class="step-header">🚀 BƯỚC 3: YẾU TỐ TÍCH HỢP</div>', unsafe_allow_html=True)
 
 integrations = st.multiselect(
@@ -258,7 +258,7 @@ def generate_doc(content_text):
     bio.seek(0)
     return bio
 
-# BUTTON TẠO GIÁO ÁN
+# TẠO GIÁO ÁN
 st.markdown("<br>", unsafe_allow_html=True)
 if st.button("🚀 BẤM TẠO GIÁO ÁN WORD CHUẨN 5512", type="primary", use_container_width=True):
     if not api_key:
@@ -268,42 +268,54 @@ if st.button("🚀 BẤM TẠO GIÁO ÁN WORD CHUẨN 5512", type="primary", use
     else:
         try:
             integration_str = ", ".join(integrations) if integrations else "Không"
-            prompt_5512 = f"""
-            Soạn Kế hoạch bài dạy chuẩn CV 5512 cho bài: {selected_lesson} ({grade}, môn {subject}, sách Kết nối tri thức).
-            Thời lượng: {duration} tiết. Tích hợp: {integration_str}. YCĐ: {ycd_content}
-
-            CẤU TRÚC 5512:
+            
+            # CHIA LÀM 2 LẦN GỌI ĐỂ CHỐNG NGHẼN QUOTA MIỄN PHÍ
+            st.info("🔄 Đang xử lý Phần 1: Mục tiêu, Thiết bị & Khởi động...")
+            prompt_part1 = f"""
+            Soạn Phần 1 cho KHBD 5512 bài: {selected_lesson} ({grade}, {subject}, Kết nối tri thức).
+            YCĐ: {ycd_content}. Tích hợp: {integration_str}.
+            Gồm:
             I. MỤC TIÊU (Kiến thức, Năng lực, Phẩm chất)
             II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
-            III. TIẾN TRÌNH DẠY HỌC (Đủ {duration} tiết):
-               - Hoạt động 1: Mở đầu
-               - Hoạt động 2: Hình thành kiến thức mới
-               - Hoạt động 3: Luyện tập (bài tập + lời giải)
-               - Hoạt động 4: Vận dụng
-
-            Mỗi hoạt động có đủ 4 mục: a) Mục tiêu, b) Nội dung, c) Sản phẩm, d) Tổ chức thực hiện (Bước 1->4).
+            III. TIẾN TRÌNH DẠY HỌC:
+            Hoạt động 1: Mở đầu (Mục tiêu, Nội dung, Sản phẩm, Tổ chức thực hiện 4 bước).
             """
-
-            contents = [prompt_5512]
+            
+            contents1 = [prompt_part1]
             if uploaded_sgv_file is not None:
                 bytes_data = uploaded_sgv_file.getvalue()
-                contents.append({"mime_type": uploaded_sgv_file.type, "data": bytes_data})
-
-            with st.spinner("⚡ AI đang tạo Giáo án 5512..."):
-                res = generate_content_safe(api_key.strip(), contents)
-                doc_file = generate_doc(res.text)
+                contents1.append({"mime_type": uploaded_sgv_file.type, "data": bytes_data})
                 
-                st.success("🎉 Đã tạo xong Giáo án!")
-                st.download_button(
-                    label="📥 TẢI FILE WORD GIÁO ÁN (.DOCX)",
-                    data=doc_file,
-                    file_name=f"KHBD_5512_{selected_lesson.replace(' ', '_')}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    use_container_width=True
-                )
-                
-                st.markdown("---")
-                st.markdown(res.text)
+            res1 = generate_content_safe(api_key.strip(), contents1)
+            
+            # Nghỉ 3 giây giữa 2 lần gọi để Google reset Quota
+            time.sleep(3)
+            
+            st.info("🔄 Đang xử lý Phần 2: Hình thành kiến thức, Luyện tập & Vận dụng...")
+            prompt_part2 = f"""
+            Soạn Tiếp Phần 2 cho KHBD 5512 bài: {selected_lesson} ({grade}, {subject}, Kết nối tri thức).
+            Gồm các Hoạt động còn lại chuẩn 5512 (Mỗi hoạt động có đủ 4 mục a, b, c, d):
+            Hoạt động 2: Hình thành kiến thức mới
+            Hoạt động 3: Luyện tập (Có bài tập + lời giải)
+            Hoạt động 4: Vận dụng
+            """
+            res2 = generate_content_safe(api_key.strip(), [prompt_part2])
+            
+            # TỔNG HỢP NỘI DUNG
+            full_text = res1.text + "\n\n" + res2.text
+            doc_file = generate_doc(full_text)
+            
+            st.success("🎉 Đã tạo xong toàn bộ Giáo án 5512!")
+            st.download_button(
+                label="📥 TẢI FILE WORD GIÁO ÁN (.DOCX)",
+                data=doc_file,
+                file_name=f"KHBD_5512_{selected_lesson.replace(' ', '_')}.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True
+            )
+            
+            st.markdown("---")
+            st.markdown(full_text)
 
         except Exception as e:
             st.error(f"{str(e)}")
