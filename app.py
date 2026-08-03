@@ -4,8 +4,8 @@ import docx
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.oxml import parse_xml, OxmlElement
-from docx.oxml.ns import nsdecls, qn
+from docx.oxml import parse_xml
+from docx.oxml.ns import nsdecls
 import io
 import json
 import re
@@ -178,37 +178,53 @@ with col_btn_sync:
                 clean_model_name = model_name.replace("models/", "").strip()
                 model = genai.GenerativeModel(clean_model_name)
                 
+                # Prompt cải tiến ép AI phải liệt kê đầy đủ toàn bộ các bài học theo SGK chuẩn
                 prompt_fetch = f"""
-                Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
-                Liệt kê ĐẦY ĐỦ tất cả các Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức với cuộc sống).
+                Bạn là Chuyên gia Quản lý Dữ liệu Chương trình GDPT 2018 của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
+                Hãy liệt kê ĐẦY ĐỦ, CHÍNH XÁC TOÀN BỘ tất cả các Chương/Chủ đề và các Bài học chính thức của môn {subject} - {grade} thuộc bộ sách "Kết nối tri thức với cuộc sống".
                 
-                Trả về duy nhất dạng JSON mảng:
+                YÊU CẦU:
+                - Liệt kê đủ tất cả các bài từ Học kỳ 1 đến Học kỳ 2.
+                - Ghi rõ tên Chương, Tên Bài, Số tiết dự kiến theo SGV, và Yêu cầu cần đạt chuẩn của từng bài.
+                
+                Trả về duy nhất định dạng JSON Mảng đối tượng như sau (Không thêm văn bản giải thích hay markdown codeblock):
                 [
                   {{
-                    "chapter": "Tên Chương 1",
-                    "lesson": "Tên Bài 1",
+                    "chapter": "Tên Chương/Chủ đề chính xác",
+                    "lesson": "Bài X: Tên bài học chính xác",
                     "duration": 2,
-                    "req": "Yêu cầu cần đạt chuẩn của bài"
+                    "req": "Yêu cầu cần đạt chi tiết của bài theo chuẩn SGV"
                   }}
                 ]
-                Chỉ trả về mã JSON mảng [ ... ], không viết lời chào.
                 """
                 
-                with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade}..."):
+                with st.spinner(f"✨ Đang cập nhật đầy đủ danh mục bài học môn {subject} - {grade}..."):
                     res = call_gemini_multimodal(model, [prompt_fetch])
                     raw_text = res.text.strip()
                     json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
                     clean_json = json_match.group(0) if json_match else raw_text
-                    st.session_state['fetched_lessons'] = json.loads(clean_json)
-                    st.success("🎉 Đã tải xong danh mục bài học chuẩn SGK!")
+                    parsed_lessons = json.loads(clean_json)
+                    
+                    if len(parsed_lessons) > 0:
+                        st.session_state['fetched_lessons'] = parsed_lessons
+                        st.success(f"🎉 Đã nạp thành công {len(parsed_lessons)} bài học chuẩn SGK môn {subject} {grade}!")
+                    else:
+                        raise ValueError("Dữ liệu danh sách trống.")
+
             except Exception as e:
-                st.warning("⚠️ Đã nạp bài học mẫu chuẩn SGK:")
+                st.warning("⚠️ Đã nạp bài học mẫu chuẩn SGK môn Toán 10 (Chương III):")
                 st.session_state['fetched_lessons'] = [
                     {
-                        "chapter": "Chương II. Vectơ và hệ trục tọa độ trong không gian",
-                        "lesson": "Bài 7. Hệ trục tọa độ trong không gian",
+                        "chapter": "Chương III. Giá trị lượng giác của một góc từ 0° đến 180°",
+                        "lesson": "Bài 5. Giá trị lượng giác của một góc từ 0° đến 180°",
+                        "duration": 2,
+                        "req": "- Nhận biết và định nghĩa được giá trị lượng giác (sin, cos, tan, cot) của một góc từ 0° đến 180° trên nửa đường tròn đơn vị.\n- Giải thích được mối quan hệ giữa các giá trị lượng giác của hai góc bù nhau.\n- Biết cách sử dụng máy tính cầm tay để tính giá trị lượng giác."
+                    },
+                    {
+                        "chapter": "Chương III. Giá trị lượng giác của một góc từ 0° đến 180°",
+                        "lesson": "Bài 6. Hệ thức lượng trong tam giác",
                         "duration": 3,
-                        "req": "- Nhận biết được tọa độ của điểm, của vectơ đối với hệ trục tọa độ.\n- Vận dụng được tọa độ của vectơ để giải một số bài toán có liên quan đến thực tiễn."
+                        "req": "- Nhận biết và giải thích được Định lý côsin, Định lý sin trong tam giác.\n- Vận dụng được các công thức tính diện tích tam giác và giải tam giác vào các bài toán thực tế."
                     }
                 ]
 
@@ -257,7 +273,7 @@ else:
         lesson_title = st.text_input("Tên bài:", value="", placeholder="Nhập tên bài...", label_visibility="collapsed")
         
         st.markdown('<span class="custom-label">Số tiết thực hiện:</span>', unsafe_allow_html=True)
-        duration = st.number_input("Số tiết:", value=3, label_visibility="collapsed")
+        duration = st.number_input("Số tiết:", value=2, label_visibility="collapsed")
         
     with col_i2:
         st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt / Mục tiêu SGV:</span>', unsafe_allow_html=True)
@@ -281,10 +297,9 @@ integrations = st.multiselect(
 )
 
 # ==========================================
-# HELPER PARSER: RENDER MARKDOWN & LATEX SANG WORD RUNS
+# HELPER PARSER: RENDER MARKDOWN & LATEX SANG WORD
 # ==========================================
 def clean_latex_math(text):
-    """Chuyển đổi công thức LaTeX dạng $180^\circ$ thành văn bản đọc được 180°"""
     text = re.sub(r'\\circ', '°', text)
     text = re.sub(r'\\sin', 'sin', text)
     text = re.sub(r'\\cos', 'cos', text)
@@ -299,10 +314,6 @@ def clean_latex_math(text):
     return text
 
 def parse_formatted_text_to_paragraph(paragraph, raw_text):
-    """
-    Hàm phân tích cú pháp Markdown **bold** và *italic* và $latex$
-    để ép font Times New Roman 13pt chuẩn xác.
-    """
     raw_text = clean_latex_math(raw_text)
     pattern = r'(\*\*.*?\*\*|\*.*?\*)'
     tokens = re.split(pattern, raw_text)
@@ -348,11 +359,10 @@ def generate_doc(content_text):
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
     
-    # Độ rộng 2 cột chuẩn lề
     table.columns[0].width = Inches(3.2)
     table.columns[1].width = Inches(3.2)
 
-    # Cột trái: TRƯỜNG, TỔ
+    # Cột trái
     cell_left = table.cell(0, 0)
     p_left = cell_left.paragraphs[0]
     p_left.paragraph_format.line_spacing = 1.15
@@ -369,7 +379,7 @@ def generate_doc(content_text):
     r_dept.font.name = 'Times New Roman'
     r_dept.font.size = Pt(12)
 
-    # Cột phải: HỌ VÀ TÊN GIÁO VIÊN
+    # Cột phải
     cell_right = table.cell(0, 1)
     p_right = cell_right.paragraphs[0]
     p_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
@@ -387,14 +397,14 @@ def generate_doc(content_text):
     r_teacher_val.font.name = 'Times New Roman'
     r_teacher_val.font.size = Pt(12)
 
-    # Xoá viền bảng để sạch đẹp
+    # Xoá viền bảng
     for row in table.rows:
         for cell in row.cells:
             tcPr = cell._tc.get_or_add_tcPr()
             tcBorders = parse_xml(r'<w:tcBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>' % nsdecls('w'))
             tcPr.append(tcBorders)
 
-    # 4. TÊN BÀI DẠY (Căn giữa, In hoa, Đậm 14pt)
+    # 4. TÊN BÀI DẠY
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_title.paragraph_format.space_before = Pt(16)
@@ -409,7 +419,7 @@ def generate_doc(content_text):
     r_title.font.name = 'Times New Roman'
     r_title.font.size = Pt(14)
 
-    # Dòng Phụ đề (Môn học / Thời gian thực hiện - Căn giữa, In nghiêng)
+    # Phụ đề
     p_sub = doc.add_paragraph()
     p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_sub.paragraph_format.space_before = Pt(0)
@@ -419,12 +429,11 @@ def generate_doc(content_text):
     r_sub.font.name = 'Times New Roman'
     r_sub.font.size = Pt(13)
 
-    # 5. XỬ LÝ NỘI DUNG CHÍNH (PARSING NỘI DUNG 5512)
+    # 5. XỬ LÝ NỘI DUNG CHÍNH
     lines = content_text.split('\n')
     for line in lines:
         line_str = line.strip()
         
-        # Bỏ qua các dòng phân cách thừa
         if not line_str or line_str.startswith("---") or line_str.startswith("# "):
             continue
             
@@ -432,7 +441,7 @@ def generate_doc(content_text):
         p.paragraph_format.line_spacing = 1.15
         p.paragraph_format.space_after = Pt(4)
         
-        # Xử lý các tiêu đề lớn I., II., III., IV.
+        # Tiêu đề I, II, III, IV
         if re.match(r'^(I|II|III|IV)\.\s+', line_str, re.IGNORECASE):
             p.paragraph_format.space_before = Pt(12)
             p.paragraph_format.space_after = Pt(6)
@@ -442,7 +451,7 @@ def generate_doc(content_text):
             run.font.name = 'Times New Roman'
             run.font.size = Pt(14)
 
-        # Xử lý các Tiêu đề Hoạt động & Nội dung lớn
+        # Tiêu đề Hoạt động
         elif line_str.startswith(("HOẠT ĐỘNG ", "NỘI DUNG ", "TIẾT ", "Khối kiến thức ")):
             p.paragraph_format.space_before = Pt(10)
             p.paragraph_format.space_after = Pt(4)
@@ -452,26 +461,25 @@ def generate_doc(content_text):
             run.font.name = 'Times New Roman'
             run.font.size = Pt(13)
 
-        # Xử lý các mục 1., 2., 3. (1. Kiến thức, 2. Năng lực...)
+        # Các mục 1., 2., 3.
         elif re.match(r'^\d+\.\s+', line_str):
             p.paragraph_format.space_before = Pt(6)
             p.paragraph_format.space_after = Pt(3)
             parse_formatted_text_to_paragraph(p, line_str)
 
-        # Xử lý các mục a), b), c), d) của Hoạt động
+        # Các mục a), b), c), d)
         elif re.match(r'^[a-d]\)\s+', line_str):
             p.paragraph_format.space_before = Pt(5)
             p.paragraph_format.space_after = Pt(3)
             p.paragraph_format.left_indent = Inches(0.15)
             parse_formatted_text_to_paragraph(p, line_str)
 
-        # Xử lý các Bước tổ chức thực hiện (Bước 1:, Bước 2:...)
+        # Các bước
         elif "Bước 1:" in line_str or "Bước 2:" in line_str or "Bước 3:" in line_str or "Bước 4:" in line_str:
             p.paragraph_format.space_before = Pt(4)
             p.paragraph_format.left_indent = Inches(0.3)
             parse_formatted_text_to_paragraph(p, line_str)
 
-        # Các dòng văn bản bình thường hoặc gạch đầu dòng
         else:
             if line_str.startswith(("- ", "+ ", "* ")):
                 p.paragraph_format.left_indent = Inches(0.2)
@@ -496,7 +504,6 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
             model = genai.GenerativeModel(clean_model_name)
             integration_str = ", ".join(integrations) if integrations else "Không"
 
-            # PROMPT TẬP TRUNG TRÍCH XUẤT NGUYÊN BẢN TỪ SGV (CÁCH A)
             prompt = f"""
             Bạn là trợ lý trích xuất và chuyển đổi Kế hoạch bài dạy chuẩn Công văn 5512/BGDĐT.
 
