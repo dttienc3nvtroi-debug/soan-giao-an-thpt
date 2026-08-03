@@ -89,23 +89,29 @@ def process_uploaded_file(uploaded_file):
     return {"mime_type": mime, "data": bytes_data}
 
 # ==========================================
-# HÀM GỌI API GEMINI (ĐÃ TỐI ƯU DANH SÁCH MODEL)
+# HÀM GỌI API GEMINI (TỰ ĐỘNG DÙNG MODEL KHẢ DỤNG)
 # ==========================================
 def call_gemini(api_key, preferred_model, contents, force_json=False):
     genai.configure(api_key=api_key)
     
     pref_clean = preferred_model.replace("models/", "").strip()
     
-    # Sử dụng các tên mô hình chuẩn xác nhất hiện tại của Gemini API
-    models_to_try = [
-        pref_clean,
-        "gemini-1.5-flash",
-        "gemini-1.5-pro",
-        "gemini-1.0-pro"
-    ]
-    
-    seen = set()
-    models_to_try = [m for m in models_to_try if not (m in seen or seen.add(m))]
+    # Lấy danh sách các model thực tế hỗ trợ generateContent từ tài khoản API
+    available_models = []
+    try:
+        for m in genai.list_models():
+            if "generateContent" in m.supported_generation_methods:
+                clean_name = m.name.replace("models/", "").strip()
+                available_models.append(clean_name)
+    except Exception:
+        pass
+
+    # Ưu tiên các model phổ biến hiện hành nếu không quét được danh sách
+    if not available_models:
+        available_models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.5-flash"]
+
+    # Đưa model ưu tiên được chọn lên đầu danh sách
+    models_to_try = [pref_clean] + [m for m in available_models if m != pref_clean]
 
     config_dict = {"temperature": 0.2}
     if force_json:
@@ -141,7 +147,7 @@ def call_gemini(api_key, preferred_model, contents, force_json=False):
 with st.sidebar:
     st.markdown('<div class="sidebar-title">🔑 ĐĂNG NHẬP & CẤU HÌNH</div>', unsafe_allow_html=True)
     api_key = st.text_input("Google Gemini API Key:", type="password", placeholder="Dán API Key vào đây...")
-    model_name = st.selectbox("Mô hình AI ưu tiên:", ["gemini-1.5-flash", "gemini-1.5-pro"], index=0)
+    model_name = st.selectbox("Mô hình AI ưu tiên:", ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.5-flash"], index=0)
     
     st.markdown("---")
     st.markdown('<div class="sidebar-title">👤 THÔNG TIN GIÁO VIÊN</div>', unsafe_allow_html=True)
@@ -321,3 +327,78 @@ def generate_doc(content_text, locked_chapter_title, locked_lesson_title):
     r_sub.italic = True
 
     # NỘI DUNG GIÁO ÁN
+    lines = content_text.split('\n')
+    for line in lines:
+        line_str = line.strip()
+        if not line_str or line_str.startswith("---") or line_str.startswith("# "):
+            continue
+            
+        p = doc.add_paragraph()
+        p.paragraph_format.line_spacing = 1.15
+        p.paragraph_format.space_after = Pt(4)
+        clean_text = line_str.replace("**", "").replace("*", "")
+
+        main_headers = ("I. ", "II. ", "III. ", "IV. ")
+        sub_headers = ("TIẾT ", "HOẠT ĐỘNG ", "Nội dung ", "Khối kiến thức ")
+        num_headers = ("1. ", "2. ", "3. ", "4. ")
+        alpha_headers = ("a)", "b)", "c)", "d)")
+
+        if clean_text.startswith(main_headers):
+            p.paragraph_format.space_before = Pt(12)
+            run = p.add_run(clean_text)
+            run.bold = True
+            run.font.size = Pt(14)
+        elif clean_text.startswith(sub_headers):
+            p.paragraph_format.space_before = Pt(8)
+            run = p.add_run(clean_text)
+            run.bold = True
+            run.font.size = Pt(13)
+        elif clean_text.startswith(num_headers):
+            p.paragraph_format.space_before = Pt(6)
+            run = p.add_run(clean_text)
+            run.bold = True
+        elif clean_text.startswith(alpha_headers):
+            p.paragraph_format.space_before = Pt(4)
+            p.paragraph_format.left_indent = Inches(0.15)
+            run = p.add_run(clean_text)
+            run.bold = True
+        elif "Bước 1:" in clean_text or "Bước 2:" in clean_text or "Bước 3:" in clean_text or "Bước 4:" in clean_text:
+            p.paragraph_format.left_indent = Inches(0.3)
+            run = p.add_run(clean_text)
+            run.bold = True
+        else:
+            p.add_run(clean_text)
+
+    bio = io.BytesIO()
+    doc.save(bio)
+    bio.seek(0)
+    return bio
+
+# ==========================================
+# BƯỚC 4: TẠO GIÁO ÁN
+# ==========================================
+st.markdown("<br>", unsafe_allow_html=True)
+if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", use_container_width=True):
+    if not clean_api_key:
+        st.error("⚠️ Vui lòng nhập Google Gemini API Key ở menu bên trái!")
+    elif not lesson_title:
+        st.error("⚠️ Vui lòng chọn hoặc nhập Tên bài dạy ở Bước 2!")
+    else:
+        try:
+            integration_str = ", ".join(integrations) if integrations else "Không"
+            req_prompt = requirements_text if requirements_text.strip() else "Hãy tự xây dựng hệ thống Yêu cầu cần đạt chuẩn SGV cho bài học này."
+            
+            prompt_main = (
+                f"Bạn là Chuyên gia Giáo dục hàng đầu của Bộ Giáo dục và Đào tạo Việt Nam.\n"
+                f"Hãy biên soạn Kế hoạch bài dạy (Giáo án) CHI TIẾT KỸ LƯỠNG, CHUẨN 100% CÔNG VĂN 5512/BGDĐT (Chương trình GDPT 2018).\n\n"
+                f"THÔNG TIN BÀI DẠY:\n"
+                f"- Môn học: {subject} | {grade}\n"
+                f"- Chương/Chủ đề: {chapter_title}\n"
+                f"- Tên Bài dạy chính xác nguyên văn: {lesson_title}\n"
+                f"- Thời lượng thực hiện: {duration} tiết\n"
+                f"- YÊU CẦU CẦN ĐẠT SGV / MỤC TIÊU BẮT BUỘC:\n{req_prompt}\n"
+                f"- CÁC YẾU TỐ TÍCH HỢP CẦN CÓ: {integration_str}\n\n"
+                f"YÊU CẦU CẤU TRÚC KẾ HOẠCH BÀI DẠY (CÔNG VĂN 5512):\n\n"
+                f"I. MỤC TIÊU\n"
+                f"1. Về kiến thức: Liệt kê chi tiết kiến thức học sinh thu nhận được.\n"
+                f
