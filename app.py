@@ -111,17 +111,18 @@ with st.sidebar:
         help="Nhập API Key từ Google AI Studio"
     )
     
+    # Sửa tên mô hình chuẩn API Google
     model_name = st.selectbox(
         "Mô hình AI xử lý:",
-        ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"],
+        ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"],
         index=0,
-        help="Nên chọn gemini-2.5-flash hoặc gemini-1.5-flash để đọc file PDF/Ảnh nhanh và mượt nhất"
+        help="Nên chọn gemini-1.5-flash hoặc gemini-2.0-flash để đọc file PDF/Ảnh nhanh và mượt nhất"
     )
     st.markdown("---")
     
     st.markdown('<div class="sidebar-title">👤 THÔNG TIN GIÁO VIÊN</div>', unsafe_allow_html=True)
     school_name = st.text_input("Trường THPT:", "THPT NGUYỄN VĂN TRỖI")
-    dept_name = st.text_input("Tổ chuyên môn:", "TỔ TOÁN")
+    dept_name = st.text_input("Tổ chuyên môn:", "TỔ NGỮ VĂN")
     teacher_name = st.text_input("Họ và tên GV:", "Dương Tấn Tiến")
 
 # ==========================================
@@ -148,7 +149,7 @@ with col_sub:
     st.markdown('<span class="custom-label">Môn học/Hoạt động GD:</span>', unsafe_allow_html=True)
     subject = st.selectbox(
         "Môn học:", 
-        ["Toán học", "Ngữ văn", "Tiếng Anh", "Vật lý", "Hóa học", "Sinh học", "Lịch sử", "Địa lý", "Tin học", "GDKT&PL", "Công nghệ"],
+        ["Ngữ văn", "Toán học", "Tiếng Anh", "Vật lý", "Hóa học", "Sinh học", "Lịch sử", "Địa lý", "Tin học", "GDKT&PL", "Công nghệ"],
         label_visibility="collapsed"
     )
 with col_grd:
@@ -159,6 +160,12 @@ with col_grd:
         label_visibility="collapsed"
     )
 
+# Reset lại danh sách bài học nếu người dùng đổi Môn hoặc Khối lớp
+if 'last_subject' not in st.session_state or st.session_state['last_subject'] != f"{subject}_{grade}":
+    st.session_state['last_subject'] = f"{subject}_{grade}"
+    if 'fetched_lessons' in st.session_state:
+        del st.session_state['fetched_lessons']
+
 # ==========================================
 # BƯỚC 2: TRA CỨU & NẠP TỆP SGV / SGK
 # ==========================================
@@ -168,7 +175,7 @@ col_btn_sync, col_file_upload = st.columns([1, 1], gap="medium")
 
 with col_btn_sync:
     st.markdown('<span class="custom-label">🌐 Tải danh mục bài học chuẩn (Bộ sách KNTT/GDPT 2018):</span>', unsafe_allow_html=True)
-    if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nxbgd.vn", use_container_width=True):
+    if st.button(f"🔍 Cập nhật danh sách Chương & Bài học môn {subject} - {grade}", use_container_width=True):
         clean_api_key = api_key.strip() if api_key else ""
         if not clean_api_key:
             st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
@@ -178,53 +185,48 @@ with col_btn_sync:
                 clean_model_name = model_name.replace("models/", "").strip()
                 model = genai.GenerativeModel(clean_model_name)
                 
-                # Prompt cải tiến ép AI phải liệt kê đầy đủ toàn bộ các bài học theo SGK chuẩn
                 prompt_fetch = f"""
-                Bạn là Chuyên gia Quản lý Dữ liệu Chương trình GDPT 2018 của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
-                Hãy liệt kê ĐẦY ĐỦ, CHÍNH XÁC TOÀN BỘ tất cả các Chương/Chủ đề và các Bài học chính thức của môn {subject} - {grade} thuộc bộ sách "Kết nối tri thức với cuộc sống".
+                Bạn là Cơ sở dữ liệu chính thức Chương trình GDPT 2018 Bộ sách Kết nối tri thức với cuộc sống.
+                Hãy liệt kê ĐẦY ĐỦ các Bài học thuộc môn {subject} - {grade}.
                 
-                YÊU CẦU:
-                - Liệt kê đủ tất cả các bài từ Học kỳ 1 đến Học kỳ 2.
-                - Ghi rõ tên Chương, Tên Bài, Số tiết dự kiến theo SGV, và Yêu cầu cần đạt chuẩn của từng bài.
+                YÊU CẦU BẮT BUỘC:
+                - Chỉ lấy danh mục bài học của đúng môn: {subject} - {grade}.
+                - Trả về danh sách gồm đầy đủ các chương/bài từ bài 1 đến bài cuối cùng trong SGK.
                 
-                Trả về duy nhất định dạng JSON Mảng đối tượng như sau (Không thêm văn bản giải thích hay markdown codeblock):
+                Trả về duy nhất mã JSON mảng đối tượng [ ... ] dạng:
                 [
                   {{
-                    "chapter": "Tên Chương/Chủ đề chính xác",
-                    "lesson": "Bài X: Tên bài học chính xác",
+                    "chapter": "Tên Bài / Bài học lớn / Bài mở đầu",
+                    "lesson": "Tên Văn bản / Tiết học / Bài chi tiết",
                     "duration": 2,
-                    "req": "Yêu cầu cần đạt chi tiết của bài theo chuẩn SGV"
+                    "req": "Yêu cầu cần đạt chuẩn SGV của bài học này"
                   }}
                 ]
+                Không kèm bất kỳ lời chào hay ký tự markdown codeblock thừa nào ngoài chuỗi JSON mảng.
                 """
                 
-                with st.spinner(f"✨ Đang cập nhật đầy đủ danh mục bài học môn {subject} - {grade}..."):
+                with st.spinner(f"✨ Đang lấy danh mục bài học chính xác cho môn {subject} {grade}..."):
                     res = call_gemini_multimodal(model, [prompt_fetch])
                     raw_text = res.text.strip()
                     json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
                     clean_json = json_match.group(0) if json_match else raw_text
                     parsed_lessons = json.loads(clean_json)
                     
-                    if len(parsed_lessons) > 0:
+                    if isinstance(parsed_lessons, list) and len(parsed_lessons) > 0:
                         st.session_state['fetched_lessons'] = parsed_lessons
-                        st.success(f"🎉 Đã nạp thành công {len(parsed_lessons)} bài học chuẩn SGK môn {subject} {grade}!")
+                        st.success(f"🎉 Đã nạp thành công {len(parsed_lessons)} bài học môn {subject} {grade}!")
                     else:
-                        raise ValueError("Dữ liệu danh sách trống.")
+                        raise ValueError("Dữ liệu nhận về không hợp lệ.")
 
             except Exception as e:
-                st.warning("⚠️ Đã nạp bài học mẫu chuẩn SGK môn Toán 10 (Chương III):")
+                st.warning(f"⚠️ Không thể tự động kết nối AI ({str(e)}). Đã tạo bài học mẫu đúng môn {subject} {grade}:")
+                # Tạo mẫu ĐỘNG theo đúng Môn và Khối lớp được chọn, không bị dính môn Toán
                 st.session_state['fetched_lessons'] = [
                     {
-                        "chapter": "Chương III. Giá trị lượng giác của một góc từ 0° đến 180°",
-                        "lesson": "Bài 5. Giá trị lượng giác của một góc từ 0° đến 180°",
+                        "chapter": f"Bài 1: Tạo lập văn bản / Chủ đề 1 ({subject} {grade})",
+                        "lesson": f"Văn bản 1: Tri thức ngữ văn / Bài học mẫu ({subject} {grade})",
                         "duration": 2,
-                        "req": "- Nhận biết và định nghĩa được giá trị lượng giác (sin, cos, tan, cot) của một góc từ 0° đến 180° trên nửa đường tròn đơn vị.\n- Giải thích được mối quan hệ giữa các giá trị lượng giác của hai góc bù nhau.\n- Biết cách sử dụng máy tính cầm tay để tính giá trị lượng giác."
-                    },
-                    {
-                        "chapter": "Chương III. Giá trị lượng giác của một góc từ 0° đến 180°",
-                        "lesson": "Bài 6. Hệ thức lượng trong tam giác",
-                        "duration": 3,
-                        "req": "- Nhận biết và giải thích được Định lý côsin, Định lý sin trong tam giác.\n- Vận dụng được các công thức tính diện tích tam giác và giải tam giác vào các bài toán thực tế."
+                        "req": f"- Đạt các yêu cầu về kiến thức và kỹ năng cơ bản của môn {subject} {grade}.\n- Phát triển năng lực đọc hiểu và viết theo chuẩn bộ sách KNTT."
                     }
                 ]
 
@@ -244,7 +246,7 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
     lessons_data = st.session_state['fetched_lessons']
     lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
     
-    st.markdown('<span class="custom-label">👉 Chọn Bài học từ danh sách:</span>', unsafe_allow_html=True)
+    st.markdown(f'<span class="custom-label">👉 Chọn Bài học môn {subject} từ danh sách:</span>', unsafe_allow_html=True)
     selected_idx = st.selectbox("Chọn bài:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x], label_visibility="collapsed")
     
     current_item = lessons_data[selected_idx]
@@ -267,10 +269,10 @@ else:
     col_i1, col_i2 = st.columns([1, 2], gap="large")
     with col_i1:
         st.markdown('<span class="custom-label">Chương / Chủ đề:</span>', unsafe_allow_html=True)
-        chapter_title = st.text_input("Chương:", value="", placeholder="Nhập tên chương...", label_visibility="collapsed")
+        chapter_title = st.text_input("Chương:", value="", placeholder=f"Nhập tên bài lớn/chủ đề môn {subject}...", label_visibility="collapsed")
         
         st.markdown('<span class="custom-label">Tên bài dạy:</span>', unsafe_allow_html=True)
-        lesson_title = st.text_input("Tên bài:", value="", placeholder="Nhập tên bài...", label_visibility="collapsed")
+        lesson_title = st.text_input("Tên bài:", value="", placeholder=f"Nhập tên bài học/văn bản môn {subject}...", label_visibility="collapsed")
         
         st.markdown('<span class="custom-label">Số tiết thực hiện:</span>', unsafe_allow_html=True)
         duration = st.number_input("Số tiết:", value=2, label_visibility="collapsed")
@@ -354,7 +356,7 @@ def generate_doc(content_text):
     style.font.size = Pt(13)
     style.font.color.rgb = RGBColor(0, 0, 0)
 
-    # 3. Tạo Bảng Đầu Trang (Trường / Tổ bên trái - Giáo viên bên phải)
+    # 3. Tạo Bảng Đầu Trang
     table = doc.add_table(rows=1, cols=2)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
@@ -522,7 +524,7 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
 
                III. TIẾN TRÌNH DẠY HỌC
-               Trình bày theo các Hoạt động (Khởi động, Khám phá, Luyện tập, Vận dụng) lấy đúng theo mạch nội dung của SGV/SGK. Mỗi hoạt động gồm đủ 4 mục:
+               Trình bày theo các Hoạt động (Khởi động, Khám phá, Luyện tập, Vận dụng) lấy đúng theo mạch nội dung của SGV/SGK môn {subject}. Mỗi hoạt động gồm đủ 4 mục:
                a) Mục tiêu
                b) Nội dung (Mô tả bài tập/câu hỏi bám sát SGK/SGV)
                c) Sản phẩm (Đáp án, lời giải)
@@ -547,7 +549,7 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                 contents.append(file_part)
                 st.toast("📄 Đã nạp dữ liệu từ File SGV! Đang ép AI chép chính xác 100%...", icon="✅")
 
-            with st.spinner("✨ AI đang trích xuất Y NGUYÊN từ SGV và xuất giáo án 5512..."):
+            with st.spinner(f"✨ AI đang trích xuất Y NGUYÊN từ SGV môn {subject} và xuất giáo án 5512..."):
                 response = call_gemini_multimodal(model, contents)
                 st.success("🎉 Đã tạo giáo án bám sát 100% SGV!")
                 doc_file = generate_doc(response.text)
@@ -555,7 +557,7 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                 st.download_button(
                     label="📥 TẢI FILE WORD GIÁO ÁN (.DOCX)",
                     data=doc_file,
-                    file_name=f"KHBD_5512_SGV_{lesson_title.replace(' ', '_')}.docx",
+                    file_name=f"KHBD_5512_{subject}_{lesson_title.replace(' ', '_')}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     use_container_width=True
                 )
