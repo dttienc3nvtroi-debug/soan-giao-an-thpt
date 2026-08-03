@@ -61,38 +61,55 @@ DATABASE_KNTT = {
     }
 }
 
-# HÀM GỌI GEMINI AN TOÀN - CHỈ DÙNG DÒNG GEMINI 1.5 CHUẨN
-def generate_content_safe(api_key, contents):
+# HÀM TỰ ĐỘNG QUÉT VÀ CHỌN MODEL HOẠT ĐỘNG
+def get_working_model(api_key):
     genai.configure(api_key=api_key)
+    valid_model_name = None
     
-    # Chỉ dùng các model Gemini 1.5 đã được Google kích hoạt hoàn toàn
-    candidate_names = ["gemini-1.5-flash", "gemini-1.5-pro"]
+    try:
+        # Lấy toàn bộ danh sách model mà Google cấp cho API Key này
+        available_models = list(genai.list_models())
+        flash_models = []
+        other_models = []
+        
+        for m in available_models:
+            if 'generateContent' in m.supported_generation_methods:
+                if 'flash' in m.name.lower():
+                    flash_models.append(m.name)
+                else:
+                    other_models.append(m.name)
+                    
+        # Ưu tiên các dòng Flash, nếu không có thì lấy dòng khác
+        sorted_models = flash_models + other_models
+        
+        if sorted_models:
+            valid_model_name = sorted_models[0]
+    except Exception:
+        pass
+        
+    # Nếu không quét được, dùng dự phòng các tên phổ biến
+    if not valid_model_name:
+        valid_model_name = "gemini-1.5-flash-latest"
+        
+    return genai.GenerativeModel(valid_model_name)
+
+# HÀM GỌI AI XỬ LÝ
+def generate_content_safe(api_key, contents):
+    model = get_working_model(api_key)
     
-    selected_model = None
-    for name in candidate_names:
-        try:
-            m = genai.GenerativeModel(name)
-            selected_model = m
-            break
-        except Exception:
-            continue
-
-    if not selected_model:
-        selected_model = genai.GenerativeModel("gemini-1.5-flash")
-
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            return selected_model.generate_content(contents)
+            return model.generate_content(contents)
         except Exception as e:
             err_msg = str(e)
             if "429" in err_msg or "Quota" in err_msg:
                 if attempt < max_retries - 1:
-                    wait_time = (attempt + 1) * 12
-                    st.warning(f"⏳ Tạm thời chạm hạn ngạch Google. Tự động thử lại sau {wait_time}s... (Lần {attempt + 1}/{max_retries})")
+                    wait_time = (attempt + 1) * 10
+                    st.warning(f"⏳ Hệ thống bận. Tự động thử lại sau {wait_time}s... (Lần {attempt + 1}/{max_retries})")
                     time.sleep(wait_time)
                 else:
-                    raise Exception("❌ Đã vượt quá giới hạn lượt gọi trong phút này! Vui lòng chờ 1-2 phút hoặc dán API Key từ một Gmail mới.")
+                    raise Exception("❌ Địa chỉ IP hoặc API Key tạm thời quá tải. Vui lòng thử lại sau 1 phút.")
             else:
                 raise e
 
@@ -159,7 +176,7 @@ with col_load_ycd:
         else:
             try:
                 prompt_ycd = f"Liệt kê ngắn gọn Yêu cầu cần đạt SGV Kết nối tri thức - {grade}, môn {subject}, bài '{selected_lesson}'."
-                with st.spinner("⚡ AI đang tải YCĐ..."):
+                with st.spinner("⚡ AI đang kết nối và tải YCĐ..."):
                     res = generate_content_safe(api_key.strip(), [prompt_ycd])
                     st.session_state['auto_ycd'] = res.text
                     st.success("✅ Đã tải xong YCĐ!")
@@ -292,8 +309,7 @@ if st.button("🚀 BẤM TẠO GIÁO ÁN WORD CHUẨN 5512", type="primary", use
                 
             res1 = generate_content_safe(api_key.strip(), contents1)
             
-            # Nghỉ 5s giữa 2 lượt gọi để tránh 429
-            time.sleep(5)
+            time.sleep(4)
             
             # PHẦN 2
             st.info("🔄 Đang xử lý Phần 2: Hình thành kiến thức, Luyện tập & Vận dụng...")
