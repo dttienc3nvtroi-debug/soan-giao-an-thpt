@@ -87,27 +87,25 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# HÀM BÓC TÁCH JSON CHỐNG LỖI EXTRA DATA
+# HÀM BÓC TÁCH JSON NÂNG CẤP AN TOÀN
 # ==========================================
 def clean_and_parse_json(raw_text):
     """
-    Lọc bỏ các đoạn Markdown hoặc văn bản thừa do AI tạo ra để tránh lỗi Extra Data.
+    Lọc và bóc tách khối JSON chuẩn kể cả khi AI trả về văn bản phụ.
     """
     text = raw_text.strip()
     
-    # Xoá markdown fence ```json ... ```
+    # Xoá các đoạn markdown ```json
     text = re.sub(r'^```(?:json)?\s*', '', text, flags=re.MULTILINE)
     text = re.sub(r'\s*```$', '', text, flags=re.MULTILINE)
     text = text.strip()
 
-    # Thử parse trực tiếp
     try:
         return json.loads(text)
     except Exception:
         pass
 
-    # Nếu thất bại, dùng Regex bóc tách chính xác khối JSON đầu tiên
-    # Tìm khối JSON dạng Array [...] hoặc Object {...}
+    # Tìm mảng JSON [...]
     array_match = re.search(r'\[\s*\{.*\}\s*\]', text, re.DOTALL)
     if array_match:
         try:
@@ -115,6 +113,7 @@ def clean_and_parse_json(raw_text):
         except Exception:
             pass
 
+    # Tìm đối tượng JSON {...}
     object_match = re.search(r'\{\s*".*"\s*:.*\}', text, re.DOTALL)
     if object_match:
         try:
@@ -122,10 +121,10 @@ def clean_and_parse_json(raw_text):
         except Exception:
             pass
 
-    raise ValueError("Lỗi cấu trúc phản hồi từ AI. Thầy vui lòng bấm lại lần nữa!")
+    raise ValueError("AI trả về phản hồi không đúng dạng JSON. Thầy vui lòng bấm tra cứu lại lần nữa hoặc nhập tên bài thủ công!")
 
 # ==========================================
-# HÀM XỬ LÝ TỆP ĐÍNH KÈM
+# HÀM XỬ LÝ TỆP ĐÍNH KÈM (PDF/ẢNH)
 # ==========================================
 def process_uploaded_file(uploaded_file):
     if uploaded_file is None:
@@ -143,9 +142,9 @@ def process_uploaded_file(uploaded_file):
     return {"mime_type": mime, "data": bytes_data}
 
 # ==========================================
-# HÀM GỌI API ĐỘNG (DÒ MÔ HÌNH SỐNG TRÊN API KEY)
+# HÀM GỌI API GEMINI (CÓ CHẾ ĐỘ NGHỆN ÉP JSON)
 # ==========================================
-def call_gemini(api_key, preferred_model, contents):
+def call_gemini(api_key, preferred_model, contents, force_json=False):
     genai.configure(api_key=api_key)
     
     available_models = []
@@ -160,11 +159,12 @@ def call_gemini(api_key, preferred_model, contents):
     pref_clean = preferred_model.replace("models/", "").strip()
     models_to_try = [pref_clean] + [m for m in available_models if m != pref_clean]
 
-    generation_config = genai.types.GenerationConfig(
-        temperature=0.1,
-        top_p=0.8,
-        top_k=40
-    )
+    # Cấu hình buộc Gemini trả về định dạng JSON nếu cần
+    config_dict = {"temperature": 0.1, "top_p": 0.8, "top_k": 40}
+    if force_json:
+        config_dict["response_mime_type"] = "application/json"
+        
+    generation_config = genai.types.GenerationConfig(**config_dict)
 
     for m_name in models_to_try:
         try:
@@ -173,21 +173,25 @@ def call_gemini(api_key, preferred_model, contents):
             return response
         except Exception as e:
             err_str = str(e)
-            if "429" in err_str or "Quota exceeded" in err_str or "ResourceHasBeenExhausted" in err_str:
-                time.sleep(3)
+            if "429" in err_str or "Quota exceeded" in err_str:
+                time.sleep(2)
                 continue
-            elif "404" in err_str or "not found" in err_str:
-                continue
+            elif force_json:
+                # Nếu mô hình cũ không hỗ trợ response_mime_type, thử lại không có config này
+                try:
+                    model_retry = genai.GenerativeModel(model_name=m_name)
+                    return model_retry.generate_content(contents)
+                except:
+                    continue
             else:
                 continue
                 
     raise Exception(
-        f"❌ API Key hiện tại chưa kết nối được mô hình AI nào hoặc đã hết dung lượng ngày.\n"
-        f"💡 Thầy hãy mở trang https://aistudio.google.com/ tạo 1 API Key mới và thay vào thanh bên trái nhé!"
+        f"❌ Không thể kết nối với Gemini. Thầy vui lòng kiểm tra lại API Key ở menu bên trái!"
     )
 
 # ==========================================
-# THANH BÊN (SIDEBAR) ĐĂNG NHẬP & CẤU HÌNH
+# THANH BÊN (SIDEBAR)
 # ==========================================
 with st.sidebar:
     st.markdown('<div class="sidebar-title">🔑 ĐĂNG NHẬP & CẤU HÌNH</div>', unsafe_allow_html=True)
@@ -201,7 +205,7 @@ with st.sidebar:
     teacher_name = st.text_input("Họ và tên GV:", "Dương Tấn Tiến")
 
 # ==========================================
-# TIÊU ĐỀ CHÍNH CỦA ỨNG DỤNG
+# TIÊU ĐỀ CHÍNH
 # ==========================================
 st.markdown("""
     <div style="text-align: center; margin-bottom: 20px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 18px; border-radius: 12px; border: 1px solid #bfdbfe;">
@@ -228,13 +232,13 @@ with col_book:
     book_series = st.selectbox("Bộ sách Giáo khoa:", ["Kết nối tri thức với cuộc sống", "Cánh diều", "Chân trời sáng tạo"])
 
 # ==========================================
-# BƯỚC 2: TRA CỨU TẠO BÀI HỌC VÀ MỤC TIÊU CẦN ĐẠT
+# BƯỚC 2: XÁC ĐỊNH BÀI HỌC
 # ==========================================
 st.markdown('<div class="step-header">📖 BƯỚC 2: XÁC ĐỊNH BÀI HỌC VÀ YÊU CẦU CẦN ĐẠT (CHUẨN SGV)</div>', unsafe_allow_html=True)
 
 input_mode = st.radio(
     "Phương thức lấy thông tin bài học:",
-    ["📂 Đọc từ Tệp đính kèm (SGV / Cấu trúc chương trình PDF/Ảnh)", "🤖 Tra cứu tự động bằng AI Gemini", "✍️ Nhập thủ công (Khuyên dùng khi cần tên bài chính xác 100%)"],
+    ["📂 Đọc từ Tệp đính kèm (SGV/Mục lục từ taphuan.nxbgd.vn)", "🤖 Tra cứu tự động bằng AI Gemini", "✍️ Nhập thủ công (Đảm bảo chính xác 100%)"],
     horizontal=True
 )
 
@@ -244,6 +248,7 @@ requirements = ""
 duration = 3
 
 if "📂 Đọc từ Tệp" in input_mode:
+    st.info("💡 **Mẹo:** Thầy có thể tải File SGV hoặc chụp ảnh trang Mục lục trên trang `taphuan.nxbgd.vn` rồi tải lên đây để AI đọc chuẩn 100%!")
     uploaded_file = st.file_uploader("Tải lên File PDF hoặc Ảnh trang SGV/Nội dung bài dạy:", type=["pdf", "png", "jpg", "jpeg"])
     clean_api_key = api_key.strip() if api_key else ""
     
@@ -253,7 +258,7 @@ if "📂 Đọc từ Tệp" in input_mode:
                 try:
                     file_part = process_uploaded_file(uploaded_file)
                     prompt_extract = """
-                    Hãy đọc chính xác nội dung trong file/ảnh SGV này và trích xuất dữ liệu dưới dạng JSON thuần túy (không dùng markdown code block, không thêm văn bản phụ):
+                    Hãy đọc chính xác nội dung trong file/ảnh SGV này và trích xuất dữ liệu dưới dạng JSON thuần túy theo cấu trúc:
                     {
                         "chapter": "Tên Chương/Chủ đề đầy đủ",
                         "lesson": "Tên bài học nguyên văn đầy đủ",
@@ -261,7 +266,7 @@ if "📂 Đọc từ Tệp" in input_mode:
                         "requirements": "Liệt kê chính xác, đầy đủ từng gạch đầu dòng các Yêu cầu cần đạt nguyên văn theo SGV"
                     }
                     """
-                    res = call_gemini(clean_api_key, model_name, [file_part, prompt_extract])
+                    res = call_gemini(clean_api_key, model_name, [file_part, prompt_extract], force_json=True)
                     data = clean_and_parse_json(res.text)
                     st.session_state['extracted_data'] = data
                     st.success("✅ Trích xuất thành công! Thầy có thể kiểm tra và chỉnh sửa lại bên dưới.")
@@ -271,7 +276,7 @@ if "📂 Đọc từ Tệp" in input_mode:
     if 'extracted_data' in st.session_state:
         ext = st.session_state['extracted_data']
         chapter_title = st.text_input("Chương / Chủ đề (Đầy đủ):", value=ext.get('chapter', ''))
-        lesson_title = st.text_input("Tên Bài dạy đầy đủ nguyên văn SGK (Thầy có thể sửa lại trực tiếp ở đây):", value=ext.get('lesson', ''))
+        lesson_title = st.text_input("Tên Bài dạy đầy đủ nguyên văn SGK:", value=ext.get('lesson', ''))
         try:
             duration = int(ext.get('duration', 3))
         except:
@@ -294,18 +299,18 @@ elif "🤖 Tra cứu tự động" in input_mode:
             with st.spinner("⚡ AI đang tìm kiếm chương trình chính xác..."):
                 try:
                     prompt_lookup = f"""
-                    Bạn là Chuyên gia SGK. Hãy tra cứu và liệt kê chính xác TẤT CẢ các Bài học và Yêu cầu cần đạt chuẩn SGV môn {subject} {grade} ({book_series}).
-                    YÊU CẦU BẮT BUỘC: Chỉ trả về duy nhất 1 mảng JSON thuần túy (không viết bất kỳ chữ nào bên ngoài mảng):
+                    Bạn là Chuyên gia SGK. Tra cứu và trả về mảng JSON chứa các Bài học và Yêu cầu cần đạt chuẩn SGV môn {subject} {grade} ({book_series}).
+                    Cấu trúc JSON bắt buộc:
                     [
                         {{
                             "chapter": "Tên Chương đầy đủ...",
-                            "lesson": "Tên Bài học nguyên văn đầy đủ...",
+                            "lesson": "Tên Bài học nguyên văn...",
                             "duration": 3,
                             "requirements": "Yêu cầu cần đạt chuẩn SGV..."
                         }}
                     ]
                     """
-                    res = call_gemini(clean_api_key, model_name, [prompt_lookup])
+                    res = call_gemini(clean_api_key, model_name, [prompt_lookup], force_json=True)
                     data = clean_and_parse_json(res.text)
                     if isinstance(data, list):
                         st.session_state['ai_lessons'] = data
@@ -313,7 +318,7 @@ elif "🤖 Tra cứu tự động" in input_mode:
                     else:
                         st.error("Dữ liệu trả về không đúng cấu trúc mảng.")
                 except Exception as e:
-                    st.error(f"❌ Lỗi tra cứu: {e}")
+                    st.error(f"❌ {e}")
                     
     if 'ai_lessons' in st.session_state:
         lessons_list = st.session_state['ai_lessons']
@@ -322,7 +327,7 @@ elif "🤖 Tra cứu tự động" in input_mode:
         
         sel = lessons_list[selected_idx]
         chapter_title = st.text_input("Chương / Chủ đề (Đầy đủ):", value=sel.get('chapter', ''))
-        lesson_title = st.text_input("Tên Bài dạy đầy đủ nguyên văn SGK (Thầy có thể bổ sung/sửa lại ở đây):", value=sel.get('lesson', ''))
+        lesson_title = st.text_input("Tên Bài dạy đầy đủ nguyên văn SGK:", value=sel.get('lesson', ''))
         try:
             dur_val = int(sel.get('duration', 3))
         except:
@@ -342,7 +347,7 @@ else:
     requirements = st.text_area("Yêu cầu cần đạt chuẩn SGV (Dán từ SGV hoặc để trống AI tự soạn):", value="", height=150)
 
 # ==========================================
-# BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ & CÔNG NGHỆ 4.0
+# BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ & CÔNG NGHỆ
 # ==========================================
 st.markdown('<div class="step-header">🚀 BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ & YẾU TỐ CHUYỂN ĐỔI SỐ</div>', unsafe_allow_html=True)
 
@@ -362,7 +367,7 @@ integrations = st.multiselect(
 )
 
 # ==========================================
-# HÀM TẠO FILE WORD CHUẨN ĐỊNH DẠNG CÔNG VĂN 5512
+# HÀM TẠO FILE WORD CHUẨN ĐỊNH DẠNG 5512
 # ==========================================
 def generate_doc(content_text, locked_chapter_title, locked_lesson_title):
     doc = docx.Document()
@@ -403,7 +408,7 @@ def generate_doc(content_text, locked_chapter_title, locked_lesson_title):
             tcBorders = parse_xml(r'<w:tcBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>' % nsdecls('w'))
             tcPr.append(tcBorders)
 
-    # 2. TIÊU ĐỀ BÀI DẠY (KHÓA NGUYÊN VĂN TỪ GIAO DIỆN)
+    # 2. TIÊU ĐỀ BÀI DẠY
     if locked_chapter_title:
         p_chap = doc.add_paragraph()
         p_chap.alignment = WD_ALIGN_PARAGRAPH.CENTER
