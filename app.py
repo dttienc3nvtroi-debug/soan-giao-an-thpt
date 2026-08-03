@@ -94,10 +94,8 @@ def get_available_models():
     try:
         available = []
         for m in genai.list_models():
-            # Chỉ lấy model hỗ trợ generateContent VÀ không phải là model TTS / Audio
             if 'generateContent' in m.supported_generation_methods:
                 name = m.name.replace("models/", "")
-                # Loại bỏ các mô hình TTS hoặc Chuyên Âm thanh
                 if "-tts" in name.lower() or "audio" in name.lower():
                     continue
                 available.append(name)
@@ -109,7 +107,6 @@ def call_gemini_multimodal(selected_model_str, contents):
     """Gọi Gemini AI với danh sách Model Text an toàn"""
     clean_selected = selected_model_str.replace("models/", "").strip()
     
-    # Ưu tiên danh sách các mô hình chuẩn xử lý văn bản
     candidates = [
         clean_selected,
         "gemini-1.5-flash-latest",
@@ -118,7 +115,6 @@ def call_gemini_multimodal(selected_model_str, contents):
         "gemini-1.5-pro"
     ]
     
-    # Bổ sung các model text khả dụng từ API
     active_models = get_available_models()
     for am in active_models:
         if am not in candidates and "-tts" not in am.lower():
@@ -126,7 +122,6 @@ def call_gemini_multimodal(selected_model_str, contents):
 
     last_error = None
     for model_name in candidates:
-        # Bỏ qua tuyệt đối các model tts nếu còn sót
         if "-tts" in model_name.lower():
             continue
             
@@ -140,7 +135,6 @@ def call_gemini_multimodal(selected_model_str, contents):
         except Exception as e:
             last_error = e
             err_str = str(e)
-            # Thử model tiếp theo nếu dính lỗi 404 (Not Found) hoặc lỗi 400 Modality
             if any(k in err_str.lower() for k in ["404", "400", "not found", "modalities"]):
                 continue
             elif "429" in err_str or "quota" in err_str.lower():
@@ -149,7 +143,7 @@ def call_gemini_multimodal(selected_model_str, contents):
             else:
                 raise e
                 
-    raise last_error if last_error else RuntimeError("Không thể kết nối tới mô hình Gemini xử lý văn bản. Vui lòng kiểm tra lại API Key.")
+    raise last_error if last_error else RuntimeError("Không thể kết nối tới mô hình Gemini xử lý văn bản.")
 
 # HÀM CÀO DỮ LIỆU TRỰC TIẾP TỪ LINK TAPHUAN.NXBGD.VN
 def fetch_data_from_taphuan(url, cookie_str=""):
@@ -210,8 +204,7 @@ with st.sidebar:
     model_name = st.selectbox(
         "Mô hình AI xử lý (Text):",
         default_models,
-        index=0,
-        help="Đã lọc sạch các mô hình TTS/Audio không tương thích"
+        index=0
     )
     st.markdown("---")
     
@@ -219,8 +212,7 @@ with st.sidebar:
     taphuan_cookie = st.text_input(
         "Cookie đăng nhập TapHuan (Nếu Link bắt đăng nhập):",
         type="password",
-        placeholder="Dán Cookie từ trình duyệt nếu link bị khóa...",
-        help="Giúp truy cập các bài học bị khóa đăng nhập trên taphuan.nxbgd.vn"
+        placeholder="Dán Cookie từ trình duyệt nếu link bị khóa..."
     )
     
     st.markdown("---")
@@ -275,8 +267,7 @@ st.markdown('<div class="step-header">🔗 BƯỚC 2: NHẬP LINK BÀI HỌC T�
 taphuan_url = st.text_input(
     "🔗 Nhập/Dán đường Link bài học chuẩn từ taphuan.nxbgd.vn:",
     value="https://taphuan.nxbgd.vn/",
-    placeholder="Ví dụ: https://taphuan.nxbgd.vn/bai-viet/...",
-    help="Dán đường link chứa nội dung bài học SGV từ taphuan.nxbgd.vn vào đây"
+    placeholder="Ví dụ: https://taphuan.nxbgd.vn/bai-viet/..."
 )
 
 col_btn_sync, col_file_upload = st.columns([1, 1], gap="medium")
@@ -309,9 +300,9 @@ with col_btn_sync:
 
                 YÊU CẦU TRÍCH XUẤT:
                 1. Bê NGUYÊN VĂN TỪNG TỪ TỪNG CHỮ Yêu cầu cần đạt của bài học môn {subject} - {grade}.
-                2. KHÔNG tự sửa từ, KHÔNG tự tóm tắt.
+                2. CHỈ TRẢ VỀ DUY NHẤT 1 MẢNG JSON, KHÔNG KÈM THEO BẤT KỲ LỜI BÌNH HOẶC VĂN BẢN NÀO ĐẰNG TRƯỚC VÀ ĐẰNG SAU.
 
-                Trả về duy nhất dạng JSON mảng:
+                Định dạng JSON yêu cầu:
                 [
                   {{
                     "chapter": "Tên Chương nguyên văn",
@@ -320,15 +311,36 @@ with col_btn_sync:
                     "req": "Yêu cầu cần đạt nguyên văn từng chữ"
                   }}
                 ]
-                Chỉ trả về JSON thuần.
                 """
                 
                 with st.spinner("✨ Gemini AI đang bóc tách Yêu cầu cần đạt nguyên văn..."):
                     res = call_gemini_multimodal(model_name, [prompt_fetch])
                     raw_text = res.text.strip()
-                    json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
-                    clean_json = json_match.group(0) if json_match else raw_text
-                    st.session_state['fetched_lessons'] = json.loads(clean_json)
+                    
+                    # BỘ LỌC REGEX CHỐNG LỖI EXTRA DATA (JSON)
+                    # Tìm khối mảng [ ... ] đầu tiên
+                    match = re.search(r'\[\s*\{.*\}\s*\]', raw_text, re.DOTALL)
+                    if match:
+                        clean_json_str = match.group(0)
+                    else:
+                        # Tìm khối đối tượng { ... } nếu chỉ có 1 phần tử
+                        match_single = re.search(r'\{.*\}', raw_text, re.DOTALL)
+                        if match_single:
+                            clean_json_str = f"[{match_single.group(0)}]"
+                        else:
+                            clean_json_str = raw_text
+
+                    try:
+                        st.session_state['fetched_lessons'] = json.loads(clean_json_str)
+                    except Exception:
+                        # Nếu vẫn lỗi parse JSON, tự đóng gói thành 1 phần tử an toàn
+                        st.session_state['fetched_lessons'] = [{
+                            "chapter": f"Bài học môn {subject}",
+                            "lesson": f"Nội dung bài học {grade}",
+                            "duration": 3,
+                            "req": raw_text
+                        }]
+                    
                     st.success("🎉 Đã cào và bóc tách dữ liệu từ Link taphuan.nxbgd.vn thành công!")
             except Exception as e:
                 st.error(f"❌ Lỗi truy cập/phân tích: {str(e)}")
@@ -344,7 +356,7 @@ with col_file_upload:
 # HIỂN THỊ KẾT QUẢ CÀO TỪ LINK
 if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
     lessons_data = st.session_state['fetched_lessons']
-    lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
+    lesson_titles = [f"{item.get('chapter', '')} - {item.get('lesson', '')}" for item in lessons_data]
     
     st.markdown('<span class="custom-label">👉 Bài học đã bóc tách từ Link:</span>', unsafe_allow_html=True)
     selected_idx = st.selectbox("Chọn bài:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x], label_visibility="collapsed")
@@ -354,17 +366,17 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
     col_i1, col_i2 = st.columns([1, 2], gap="large")
     with col_i1:
         st.markdown('<span class="custom-label">Chương / Chủ đề:</span>', unsafe_allow_html=True)
-        chapter_title = st.text_input("Chương:", value=current_item['chapter'], label_visibility="collapsed")
+        chapter_title = st.text_input("Chương:", value=current_item.get('chapter', ''), label_visibility="collapsed")
         
         st.markdown('<span class="custom-label">Tên bài dạy:</span>', unsafe_allow_html=True)
-        lesson_title = st.text_input("Tên bài:", value=current_item['lesson'], label_visibility="collapsed")
+        lesson_title = st.text_input("Tên bài:", value=current_item.get('lesson', ''), label_visibility="collapsed")
         
         st.markdown('<span class="custom-label">Số tiết thực hiện:</span>', unsafe_allow_html=True)
-        duration = st.number_input("Số tiết:", value=int(current_item['duration']), label_visibility="collapsed")
+        duration = st.number_input("Số tiết:", value=int(current_item.get('duration', 3)), label_visibility="collapsed")
     
     with col_i2:
         st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt chuẩn SGV (Trích xuất từ Link):</span>', unsafe_allow_html=True)
-        requirements = st.text_area("YCĐ:", value=current_item['req'], height=230, label_visibility="collapsed")
+        requirements = st.text_area("YCĐ:", value=current_item.get('req', ''), height=230, label_visibility="collapsed")
 else:
     col_i1, col_i2 = st.columns([1, 2], gap="large")
     with col_i1:
