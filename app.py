@@ -121,9 +121,9 @@ with st.sidebar:
 
   model_name = st.selectbox(
       "Mô hình AI xử lý:",
-      ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash"],
+      ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
       index=0,
-      help="Nên chọn gemini-2.5-flash để đọc file PDF/Ảnh nhanh và mượt nhất",
+      help="Nên chọn gemini-1.5-flash để đọc file PDF/Ảnh nhanh và mượt nhất",
   )
   st.markdown("---")
 
@@ -417,11 +417,11 @@ integrations = st.multiselect(
 
 
 # ==========================================
-# XỬ LÝ XUẤT FILE WORD 5512 (ĐÃ ĐIỀU CHỈNH ĐỊNH DẠNG HOÀN HẢO)
+# XỬ LÝ XUẤT FILE WORD 5512 (ĐÃ ĐIỀU CHỈNH ĐỊNH DẠNG)
 # ==========================================
 def add_formatted_text(paragraph, text):
-  """Hỗ trợ phân tích và giữ nguyên định dạng in đậm (**), in nghiêng (*), code (`) từ AI"""
-  pattern = r"(\*\*.*?\*\*|\*.*?\*|`.*?`)"
+  """Hỗ trợ phân tích và giữ nguyên định dạng in đậm (**), in nghiêng (*) từ AI"""
+  pattern = r"(\*\*.*?\*\*|\*.*?\*)"
   tokens = re.split(pattern, text)
   for token in tokens:
     if not token:
@@ -432,9 +432,6 @@ def add_formatted_text(paragraph, text):
     elif token.startswith("*") and token.endswith("*"):
       run = paragraph.add_run(token[1:-1])
       run.italic = True
-    elif token.startswith("`") and token.endswith("`"):
-      run = paragraph.add_run(token[1:-1])
-      run.font.name = "Consolas"
     else:
       paragraph.add_run(token)
 
@@ -454,35 +451,28 @@ def generate_doc(content_text):
   style.font.name = "Times New Roman"
   style.font.size = Pt(13)
 
-  # 3. Tạo Bảng Khung Tiêu đề Cân Đối
+  # 3. Tạo Bảng Khung Tiêu đề
   table = doc.add_table(rows=1, cols=2)
   table.alignment = WD_TABLE_ALIGNMENT.CENTER
-  table.autofit = False
-
-  # Thiết lập độ rộng cột
   table.columns[0].width = Inches(3.3)
   table.columns[1].width = Inches(3.3)
 
   # Ô trái: Trường & Tổ
-  cell_left = table.cell(0, 0)
-  cell_left.width = Inches(3.3)
-  p_left = cell_left.paragraphs[0]
+  p_left = table.cell(0, 0).paragraphs[0]
   p_left.paragraph_format.line_spacing = 1.15
   p_left.paragraph_format.space_after = Pt(0)
   p_left.add_run(f"Trường: {school_name}\n").bold = True
   p_left.add_run(f"Tổ: {dept_name}").bold = True
 
   # Ô phải: Giáo viên
-  cell_right = table.cell(0, 1)
-  cell_right.width = Inches(3.3)
-  p_right = cell_right.paragraphs[0]
+  p_right = table.cell(0, 1).paragraphs[0]
   p_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
   p_right.paragraph_format.line_spacing = 1.15
   p_right.paragraph_format.space_after = Pt(0)
   p_right.add_run("Họ và tên giáo viên: ").bold = True
   p_right.add_run(teacher_name).bold = True
 
-  # Ẩn viền bảng hoàn toàn
+  # Xóa viền bảng
   for row in table.rows:
     for cell in row.cells:
       tcPr = cell._tc.get_or_add_tcPr()
@@ -493,18 +483,13 @@ def generate_doc(content_text):
       )
       tcPr.append(tcBorders)
 
-  # 4. Tên Bài dạy & Thông tin môn học
+  # 4. Tên Bài dạy & Môn học
   p_title = doc.add_paragraph()
   p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
   p_title.paragraph_format.space_before = Pt(14)
   p_title.paragraph_format.space_after = Pt(2)
   p_title.paragraph_format.line_spacing = 1.15
-
-  title_text = lesson_title.strip().upper()
-  if not title_text.startswith("TÊN BÀI DẠY:"):
-    title_text = f"TÊN BÀI DẠY: {title_text}"
-
-  r_title = p_title.add_run(title_text)
+  r_title = p_title.add_run(f"TÊN BÀI DẠY: {lesson_title.upper()}")
   r_title.bold = True
   r_title.font.size = Pt(14)
 
@@ -518,14 +503,14 @@ def generate_doc(content_text):
   )
   r_sub.italic = True
 
-  # 5. Đọc và phân tích từng dòng để áp dụng chuẩn định dạng 5512
+  # 5. Đọc và tạo từng đoạn văn bản chuẩn định dạng
   lines = content_text.split("\n")
   for line in lines:
     line_str = line.strip()
     if not line_str or line_str.startswith("---"):
       continue
 
-    # Bỏ ký tự # Markdown nếu AI có trả về
+    # Bỏ các dấu # dư thừa nếu AI trả về Markdown Heading
     if line_str.startswith("#"):
       line_str = re.sub(r"^#+\s*", "", line_str)
 
