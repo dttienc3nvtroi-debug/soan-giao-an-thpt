@@ -83,7 +83,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# HÀM XỬ LÝ TỆP ĐÍNH KÈM CHUẨN GEMINI API (KHÔNG CẦN THƯ VIỆN BÊN NGOÀI)
+# HÀM XỬ LÝ TỆP ĐÍNH KÈM CHUẨN GEMINI API (DÙNG TÍNH NĂNG ĐỌC FILE TRỰC TIẾP CỦA GEMINI)
 def process_uploaded_file(uploaded_file):
     if uploaded_file is None:
         return None
@@ -91,7 +91,7 @@ def process_uploaded_file(uploaded_file):
     file_type = uploaded_file.type
     bytes_data = uploaded_file.getvalue()
     
-    # Đặt MIME type chính xác cho Gemini API
+    # Gán MIME type chuẩn cho Gemini API
     if "pdf" in file_type:
         mime = "application/pdf"
     elif "png" in file_type:
@@ -106,13 +106,13 @@ def process_uploaded_file(uploaded_file):
         "data": bytes_data
     }
 
-# HÀM GỌI GEMINI VỚI CẤU HÌNH AN TOÀN & TỐI ƯU TỐC ĐỘ
+# HÀM GỌI GEMINI API
 def call_gemini(api_key, model_choice, contents):
     genai.configure(api_key=api_key)
     clean_model_name = model_choice.replace("models/", "").strip()
     
     generation_config = genai.types.GenerationConfig(
-        temperature=0.1,  # Đảm bảo giữ chính xác nội dung SGV
+        temperature=0.1,
         top_p=0.8,
         top_k=40
     )
@@ -122,7 +122,6 @@ def call_gemini(api_key, model_choice, contents):
         response = model.generate_content(contents)
         return response
     except Exception as e:
-        # Tự động chuyển mô hình dự phòng nếu lỗi
         if clean_model_name != "gemini-2.0-flash":
             model = genai.GenerativeModel(model_name="gemini-2.0-flash", generation_config=generation_config)
             return model.generate_content(contents)
@@ -393,7 +392,7 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
             
             contents = []
             
-            # Nếu người dùng có upload file -> Nạp file vào danh sách xử lý cho Gemini đọc
+            # Nếu người dùng có upload file PDF/Ảnh -> Đưa trực tiếp vào API của Gemini
             file_part = process_uploaded_file(uploaded_sgv_file)
             if file_part is not None:
                 contents.append(file_part)
