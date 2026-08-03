@@ -95,7 +95,6 @@ def call_gemini(api_key, preferred_model, contents, force_json=False):
     genai.configure(api_key=api_key)
     
     pref_clean = preferred_model.replace("models/", "").strip()
-    # Chỉ giữ các mô hình còn hoạt động trên API hiện tại
     models_to_try = [pref_clean, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"]
     
     seen = set()
@@ -177,14 +176,7 @@ with col_left:
         else:
             with st.spinner("⚡ Đang tra cứu danh sách bài học..."):
                 try:
-                    prompt_lookup = f"""
-                    Yêu cầu: Liệt kê danh sách bài học môn {subject} {grade} theo chương trình GDPT 2018.
-                    ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ LÀ MẢNG JSON. KHÔNG VIẾT THÊM LỜI DẪN.
-                    Cấu trúc:
-                    [
-                        {{ "chapter": "Tên Chương/Chủ đề", "lesson": "Tên Bài học", "duration": 3 }}
-                    ]
-                    """
+                    prompt_lookup = f"Yêu cầu: Liệt kê danh sách bài học môn {subject} {grade} theo chương trình GDPT 2018. ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ LÀ MẢNG JSON. KHÔNG VIẾT THÊM LỜI DẪN. Cấu trúc: [{{\"chapter\": \"Tên Chương/Chủ đề\", \"lesson\": \"Tên Bài học\", \"duration\": 3}}]"
                     res = call_gemini(clean_api_key, model_name, [prompt_lookup], force_json=True)
                     data = clean_and_parse_json(res.text)
                     if isinstance(data, list) and len(data) > 0:
@@ -383,6 +375,64 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
             integration_str = ", ".join(integrations) if integrations else "Không"
             req_prompt = requirements_text if requirements_text.strip() else "Hãy tự xây dựng hệ thống Yêu cầu cần đạt chuẩn SGV cho bài học này."
             
-            prompt_main = f"""
-            Bạn là Chuyên gia Giáo dục hàng đầu của Bộ Giáo dục và Đào tạo Việt Nam.
-            Hãy biên soạn Kế hoạch bài dạy (Giáo án) CHI TIẾT KỸ LƯỠNG, CHUẨN 100% C
+            prompt_main = (
+                f"Bạn là Chuyên gia Giáo dục hàng đầu của Bộ Giáo dục và Đào tạo Việt Nam.\n"
+                f"Hãy biên soạn Kế hoạch bài dạy (Giáo án) CHI TIẾT KỸ LƯỠNG, CHUẨN 100% CÔNG VĂN 5512/BGDĐT (Chương trình GDPT 2018).\n\n"
+                f"THÔNG TIN BÀI DẠY:\n"
+                f"- Môn học: {subject} | {grade}\n"
+                f"- Chương/Chủ đề: {chapter_title}\n"
+                f"- Tên Bài dạy chính xác nguyên văn: {lesson_title}\n"
+                f"- Thời lượng thực hiện: {duration} tiết\n"
+                f"- YÊU CẦU CẦN ĐẠT SGV / MỤC TIÊU BẮT BUỘC:\n{req_prompt}\n"
+                f"- CÁC YẾU TỐ TÍCH HỢP CẦN CÓ: {integration_str}\n\n"
+                f"YÊU CẦU CẤU TRÚC KẾ HOẠCH BÀI DẠY (CÔNG VĂN 5512):\n\n"
+                f"I. MỤC TIÊU\n"
+                f"1. Về kiến thức: Liệt kê chi tiết kiến thức học sinh thu nhận được.\n"
+                f"2. Về năng lực:\n"
+                f"   - Năng lực chung: Tự chủ và tự học, Giao tiếp và hợp tác, Giải quyết vấn đề và sáng tạo.\n"
+                f"   - Năng lực đặc thù môn học: Chi tiết theo từng nội dung.\n"
+                f"   - Năng lực Số / Ứng dụng CNTT & AI (Nếu có chọn tích hợp): Nêu rõ học sinh sử dụng công cụ nào (Padlet, Kahoot, Geogebra, AI...).\n"
+                f"3. Về phẩm chất: Yêu nước, Nhân ái, Chăm chỉ, Trung thực, Trách nhiệm.\n\n"
+                f"II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU\n"
+                f"1. Giáo viên: KHBD, SGK, SGV, thiết bị CNTT, phần mềm, phiếu học tập...\n"
+                f"2. Học sinh: SGK, vở ghi, thiết bị thông minh (nếu có)...\n\n"
+                f"III. TIẾN TRÌNH DẠY HỌC\n"
+                f"(Phân bổ hợp lý chi tiết cho {duration} tiết dạy)\n\n"
+                f"MỖI HOẠT ĐỘNG DẠY HỌC PHẢI BẮT BUỘC ĐỦ 4 MỤC CHUẨN 5512:\n"
+                f"a) Mục tiêu\n"
+                f"b) Nội dung\n"
+                f"c) Sản phẩm\n"
+                f"d) Tổ chức thực hiện:\n"
+                f"   - Bước 1: Chuyển giao nhiệm vụ (GV giao nhiệm vụ cụ thể, rõ ràng)\n"
+                f"   - Bước 2: Thực hiện nhiệm vụ (HS làm việc cá nhân/nhóm; GV quan sát, hỗ trợ)\n"
+                f"   - Bước 3: Báo cáo, thảo luận (Đại diện báo cáo; lớp nhận xét, phản biện)\n"
+                f"   - Bước 4: Kết luận, nhận định (GV chốt kiến thức, đánh giá)\n\n"
+                f"CÁC HOẠT ĐỘNG CẦN CÓ:\n"
+                f"- HOẠT ĐỘNG 1: MỞ ĐẦU / KHỞI ĐỘNG (Tạo tình huống / Kết nối)\n"
+                f"- HOẠT ĐỘNG 2: HÌNH THÀNH KIẾN THỨC MỚI / KHÁM PHÁ (Chi tiết theo từng đơn vị kiến thức)\n"
+                f"- HOẠT ĐỘNG 3: LUYỆN TẬP (Hệ thống bài tập phân hóa)\n"
+                f"- HOẠT ĐỘNG 4: VẬN DỤNG (Bài tập thực tiễn)\n\n"
+                f"Trình bày rõ ràng, văn phong sư phạm chuẩn mực, chi tiết không tóm tắt."
+            )
+
+            with st.spinner("⚡ AI đang soạn thảo Giáo án chi tiết chuẩn 5512... Vui lòng chờ trong giây lát..."):
+                response = call_gemini(clean_api_key, model_name, [prompt_main])
+                
+                st.success("🎉 Đã hoàn thành biên soạn Giáo án chuẩn 5512!")
+                
+                doc_file = generate_doc(response.text, locked_chapter_title=chapter_title, locked_lesson_title=lesson_title)
+                safe_file_name = re.sub(r'[\\/*?:"<>|]', "", lesson_title).replace(" ", "_")
+                
+                st.download_button(
+                    label="📥 TẢI FILE WORD GIÁO ÁN (.DOCX) CHUẨN 5512",
+                    data=doc_file,
+                    file_name=f"KHBD_5512_{safe_file_name}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    use_container_width=True
+                )
+
+                st.markdown("---")
+                st.markdown(response.text)
+
+        except Exception as e:
+            st.error(f"❌ {e}")
