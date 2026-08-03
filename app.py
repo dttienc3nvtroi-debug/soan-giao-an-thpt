@@ -61,32 +61,54 @@ DATABASE_KNTT = {
     }
 }
 
-# HÀM GỌI AI THÔNG MINH - TỰ ĐỘNG CHUYỂN MODEL KHI TRÚNG NGHẼN QUOTA
+# HÀM KỸ THUẬT CAO: QUÉT & TỰ ĐỘNG KẾT NỐI MÔ HÌNH HỢP LỆ
+def get_valid_model_name(api_key):
+    genai.configure(api_key=api_key)
+    try:
+        # Lấy danh sách thực tế các model mà API Key này được phép dùng
+        all_models = [
+            m.name for m in genai.list_models() 
+            if 'generateContent' in m.supported_generation_methods
+        ]
+        if not all_models:
+            return "gemini-2.5-flash"
+        
+        # Ưu tiên các model flash/chính thức hiện có
+        for target in ["models/gemini-2.5-flash", "models/gemini-2.0-flash", "models/gemini-1.5-flash-latest", "models/gemini-1.5-flash"]:
+            if target in all_models:
+                return target.replace("models/", "")
+                
+        # Nếu không trùng khớp ưu tiên, lấy model generateContent đầu tiên tìm thấy
+        return all_models[0].replace("models/", "")
+    except Exception:
+        # Fallback an toàn nhất
+        return "gemini-2.5-flash"
+
+# HÀM TẠO NỘI DUNG VỚI CƠ CHẾ CHỐNG LỖI 404 & 429
 def generate_content_safe(api_key, contents):
     genai.configure(api_key=api_key)
     
-    # Danh sách ưu tiên model hoạt động tốt nhất cho Free Tier
-    candidate_models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
+    # Tự động lấy Model Name chuẩn nhất từ API Key
+    selected_model_name = get_valid_model_name(api_key)
     
-    last_error = None
-    for model_name in candidate_models:
+    model = genai.GenerativeModel(selected_model_name)
+    
+    max_retries = 3
+    for attempt in range(max_retries):
         try:
-            model = genai.GenerativeModel(model_name)
-            # Thử tối đa 3 lần cho mỗi model nếu dính Rate Limit ngắn
-            for attempt in range(2):
-                try:
-                    return model.generate_content(contents)
-                except Exception as e:
-                    err_str = str(e)
-                    if "429" in err_str or "Quota" in err_str:
-                        time.sleep(12)  # Đợi 12s theo khuyến nghị từ Google API
-                    else:
-                        raise e
-        except Exception as err:
-            last_error = err
-            continue  # Chuyển sang model tiếp theo trong danh sách
-
-    raise Exception(f"❌ Không thể kết nối API Google Gemini (Lỗi Quota/Key). Chi tiết: {str(last_error)}")
+            return model.generate_content(contents)
+        except Exception as e:
+            err_msg = str(e)
+            # Xử lý lỗi Rate Limit / Quota Exceeded (429)
+            if "429" in err_msg or "Quota" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 12
+                    st.warning(f"⏳ API chạm giới hạn lượt gọi (Rate Limit). Tự động thử lại sau {wait_time} giây... (Lần {attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
+                else:
+                    raise Exception("❌ API Key Free Tier hiện đã hết lượt request trong phút này. Thầy vui lòng chờ 1 phút rồi bấm lại nhé!")
+            else:
+                raise e
 
 # SIDEBAR
 with st.sidebar:
@@ -284,8 +306,8 @@ if st.button("🚀 BẤM TẠO GIÁO ÁN WORD CHUẨN 5512", type="primary", use
                 
             res1 = generate_content_safe(api_key.strip(), contents1)
             
-            # Đợi ngắn để tránh nghẽn luồng API
-            time.sleep(3)
+            # Tự động giãn cách 5s để tránh dính Quota Per Minute (RPM)
+            time.sleep(5)
             
             # PHẦN 2
             st.info("🔄 Đang xử lý Phần 2: Hình thành kiến thức, Luyện tập & Vận dụng...")
