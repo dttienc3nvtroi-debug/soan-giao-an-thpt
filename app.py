@@ -11,9 +11,7 @@ from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 from docx.shared import Inches, Pt
 
-# ==========================================
-# CẤU HÌNH TRANG STREAMLIT
-# ==========================================
+# Cấu hình trang Streamlit
 st.set_page_config(
     page_title="Hệ thống Soạn Giáo án Tự Động 5512 (Bám sát SGV)",
     layout="wide",
@@ -123,7 +121,7 @@ with st.sidebar:
 
   model_name = st.selectbox(
       "Mô hình AI xử lý:",
-      ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-exp"],
+      ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
       index=0,
       help="Nên chọn gemini-1.5-flash để đọc file PDF/Ảnh nhanh và mượt nhất",
   )
@@ -419,10 +417,10 @@ integrations = st.multiselect(
 
 
 # ==========================================
-# HÀM XỬ LÝ CHUỖI MARKDOWN VÀ ĐỊNH DẠNG WORD NÂNG CAO
+# XỬ LÝ XUẤT FILE WORD 5512 (ĐÃ ĐIỀU CHỈNH ĐỊNH DẠNG)
 # ==========================================
 def add_formatted_text(paragraph, text):
-  """Hàm hỗ trợ đọc và định dạng in đậm (**) / in nghiêng (*) từ chuỗi text của AI"""
+  """Hỗ trợ phân tích và giữ nguyên định dạng in đậm (**), in nghiêng (*) từ AI"""
   pattern = r"(\*\*.*?\*\*|\*.*?\*)"
   tokens = re.split(pattern, text)
   for token in tokens:
@@ -443,150 +441,134 @@ def generate_doc(content_text):
 
   # 1. Cấu hình lề trang chuẩn Công văn 5512 (Trên: 2cm, Dưới: 2cm, Trái: 3cm, Phải: 2cm)
   for section in doc.sections:
-    section.top_margin = Inches(0.79)  # ~2.0 cm
-    section.bottom_margin = Inches(0.79)  # ~2.0 cm
-    section.left_margin = Inches(1.18)  # ~3.0 cm
-    section.right_margin = Inches(0.79)  # ~2.0 cm
+    section.top_margin = Inches(0.79)  # 2.0 cm
+    section.bottom_margin = Inches(0.79)  # 2.0 cm
+    section.left_margin = Inches(1.18)  # 3.0 cm
+    section.right_margin = Inches(0.79)  # 2.0 cm
 
-  # 2. Thiết lập kiểu mặc định Normal (Times New Roman, 13pt)
-  style = doc.styles['Normal']
-  style.font.name = 'Times New Roman'
+  # 2. Định dạng phông chữ mặc định (Times New Roman, 13pt)
+  style = doc.styles["Normal"]
+  style.font.name = "Times New Roman"
   style.font.size = Pt(13)
 
-  # 3. Tạo bảng Header (Thông tin trường & giáo viên)
+  # 3. Tạo Bảng Khung Tiêu đề
   table = doc.add_table(rows=1, cols=2)
   table.alignment = WD_TABLE_ALIGNMENT.CENTER
-  table.autofit = False
+  table.columns[0].width = Inches(3.3)
+  table.columns[1].width = Inches(3.3)
 
-  # Thiết lập độ rộng cột (3.2 inches mỗi bên)
-  table.columns[0].width = Inches(3.2)
-  table.columns[1].width = Inches(3.2)
-
-  # Ô Bên trái (Trường / Tổ)
-  cell_left = table.cell(0, 0)
-  cell_left.width = Inches(3.2)
-  p_left = cell_left.paragraphs[0]
-  p_left.alignment = WD_ALIGN_PARAGRAPH.CENTER
+  # Ô trái: Trường & Tổ
+  p_left = table.cell(0, 0).paragraphs[0]
   p_left.paragraph_format.line_spacing = 1.15
   p_left.paragraph_format.space_after = Pt(0)
-  r1 = p_left.add_run(f'TRƯỜNG: {school_name.upper()}\n')
-  r1.bold = True
-  r2 = p_left.add_run(f'TỔ: {dept_name.upper()}')
-  r2.bold = True
+  p_left.add_run(f"Trường: {school_name}\n").bold = True
+  p_left.add_run(f"Tổ: {dept_name}").bold = True
 
-  # Ô Bên phải (Giáo viên)
-  cell_right = table.cell(0, 1)
-  cell_right.width = Inches(3.2)
-  p_right = cell_right.paragraphs[0]
-  p_right.alignment = WD_ALIGN_PARAGRAPH.CENTER
+  # Ô phải: Giáo viên
+  p_right = table.cell(0, 1).paragraphs[0]
+  p_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
   p_right.paragraph_format.line_spacing = 1.15
   p_right.paragraph_format.space_after = Pt(0)
-  r3 = p_right.add_run('Họ và tên giáo viên:\n')
-  r3.bold = True
-  r4 = p_right.add_run(teacher_name)
-  r4.bold = True
+  p_right.add_run("Họ và tên giáo viên: ").bold = True
+  p_right.add_run(teacher_name).bold = True
 
-  # Bỏ đường viền của Bảng Header
+  # Xóa viền bảng
   for row in table.rows:
     for cell in row.cells:
       tcPr = cell._tc.get_or_add_tcPr()
       tcBorders = parse_xml(
           r'<w:tcBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom'
           r' w:val="none"/><w:right w:val="none"/></w:tcBorders>'
-          % nsdecls('w')
+          % nsdecls("w")
       )
       tcPr.append(tcBorders)
 
-  # 4. Tiêu đề chính của bài học
+  # 4. Tên Bài dạy & Môn học
   p_title = doc.add_paragraph()
   p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
   p_title.paragraph_format.space_before = Pt(14)
   p_title.paragraph_format.space_after = Pt(2)
   p_title.paragraph_format.line_spacing = 1.15
-
-  r_title = p_title.add_run(f'TÊN BÀI DẠY: {lesson_title.upper()}')
+  r_title = p_title.add_run(f"TÊN BÀI DẠY: {lesson_title.upper()}")
   r_title.bold = True
   r_title.font.size = Pt(14)
 
-  # Dòng mô tả Môn học / Lớp / Thời gian
   p_sub = doc.add_paragraph()
   p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
   p_sub.paragraph_format.space_after = Pt(12)
   p_sub.paragraph_format.line_spacing = 1.15
   r_sub = p_sub.add_run(
-      f'Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade}\nThời gian thực'
-      f' hiện: ({duration} tiết)'
+      f"Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade}\nThời gian thực"
+      f" hiện: ({duration} tiết)"
   )
   r_sub.italic = True
-  r_sub.font.size = Pt(13)
 
-  # 5. Phân tích và nạp nội dung chi tiết
-  lines = content_text.split('\n')
+  # 5. Đọc và tạo từng đoạn văn bản chuẩn định dạng
+  lines = content_text.split("\n")
   for line in lines:
     line_str = line.strip()
-    if not line_str or line_str.startswith('---'):
+    if not line_str or line_str.startswith("---"):
       continue
 
-    # Loại bỏ các ký tự Markdown tiêu đề cấp cao nếu AI tự sinh (#)
-    if line_str.startswith('#'):
-      line_str = re.sub(r'^#+\s*', '', line_str)
+    # Bỏ các dấu # dư thừa nếu AI trả về Markdown Heading
+    if line_str.startswith("#"):
+      line_str = re.sub(r"^#+\s*", "", line_str)
 
     p = doc.add_paragraph()
     p.paragraph_format.line_spacing = 1.15
     p.paragraph_format.space_after = Pt(3)
     p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
-    # A. CẤP MỤC LỚN: I. MỤC TIÊU, II. THIẾT BỊ..., III. TIẾN TRÌNH DẠY HỌC
-    if re.match(r'^(I|II|III|IV|V)\.\s', line_str, re.IGNORECASE):
+    # A. CẤP MỤC LỚN (I. MỤC TIÊU, II. THIẾT BỊ..., III. TIẾN TRÌNH...)
+    if re.match(r"^(I|II|III|IV|V)\.\s", line_str, re.IGNORECASE):
       p.paragraph_format.space_before = Pt(12)
       p.paragraph_format.space_after = Pt(4)
       p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
-      clean_text = line_str.replace('**', '').replace('*', '')
+      clean_text = line_str.replace("**", "").replace("*", "")
       run = p.add_run(clean_text)
       run.bold = True
       run.font.size = Pt(14)
 
-    # B. CẤP MỤC CON HOẠT ĐỘNG / NỘI DUNG / TIẾT
+    # B. CẤP HOẠT ĐỘNG / TIẾT / NỘI DUNG
     elif re.match(
-        r'^(HOẠT ĐỘNG|NỘI DUNG|TIẾT|Khối kiến thức)\s*\d*[:\.]',
+        r"^(HOẠT ĐỘNG|NỘI DUNG|TIẾT|Khối kiến thức)\s*\d*[:\.]",
         line_str,
         re.IGNORECASE,
     ):
       p.paragraph_format.space_before = Pt(8)
       p.paragraph_format.space_after = Pt(3)
       p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
-      clean_text = line_str.replace('**', '').replace('*', '')
+      clean_text = line_str.replace("**", "").replace("*", "")
       run = p.add_run(clean_text)
       run.bold = True
       run.font.size = Pt(13)
 
-    # C. CẤP SỐ THỨ TỰ: 1., 2., 2.1, 2.2,...
-    elif re.match(r'^\d+(\.\d+)*\.\s', line_str):
+    # C. CẤP SỐ THỨ TỰ (1., 2., 2.1., 2.2....)
+    elif re.match(r"^\d+(\.\d+)*\.\s", line_str):
       p.paragraph_format.space_before = Pt(4)
-      clean_text = line_str.replace('**', '').replace('*', '')
+      clean_text = line_str.replace("**", "").replace("*", "")
       run = p.add_run(clean_text)
       run.bold = True
 
-    # D. CẤP TIỂU MỤC 5512: a) Mục tiêu, b) Nội dung, c) Sản phẩm, d) Tổ chức thực hiện
-    elif re.match(r'^[a-d]\)\s', line_str, re.IGNORECASE):
+    # D. CẤP TIỂU MỤC 5512 (a) Mục tiêu, b) Nội dung, c) Sản phẩm, d) Tổ chức thực hiện)
+    elif re.match(r"^[a-d]\)\s", line_str, re.IGNORECASE):
       p.paragraph_format.space_before = Pt(4)
       p.paragraph_format.left_indent = Inches(0.15)
-      clean_text = line_str.replace('**', '').replace('*', '')
+      clean_text = line_str.replace("**", "").replace("*", "")
       run = p.add_run(clean_text)
       run.bold = True
 
-    # E. CẤP BƯỚC THỰC HIỆN: Bước 1:, Bước 2:...
-    elif re.match(r'^Bước\s*\d+[:\.]', line_str, re.IGNORECASE):
+    # E. CẤP BƯỚC THỰC HIỆN (Bước 1:, Bước 2:...)
+    elif re.match(r"^Bước\s*\d+[:\.]", line_str, re.IGNORECASE):
       p.paragraph_format.space_before = Pt(3)
       p.paragraph_format.left_indent = Inches(0.2)
       add_formatted_text(p, line_str)
 
-    # F. CÁC DÒNG GẠCH ĐẦU DÒNG HOẶC NỘI DUNG THƯỜNG
+    # F. CÁC DÒNG GẠCH ĐẦU DÒNG / NỘI DUNG THƯỜNG
     else:
-      if line_str.startswith(('-', '+', '* ')):
-        p.paragraph_format.left_indent = Inches(0.25)
-        # Chuẩn hóa gạch đầu dòng
-        line_str = '• ' + re.sub(r'^[\-\+\*]\s*', '', line_str)
+      if line_str.startswith(("-", "+", "* ")):
+        p.paragraph_format.left_indent = Inches(0.2)
+        line_str = "- " + re.sub(r"^[\-\+\*]\s*", "", line_str)
       add_formatted_text(p, line_str)
 
   bio = io.BytesIO()
@@ -595,9 +577,6 @@ def generate_doc(content_text):
   return bio
 
 
-# ==========================================
-# THỰC THI TẠO BÀI DẠY (STREAMLIT ACTION)
-# ==========================================
 st.markdown("<br>", unsafe_allow_html=True)
 if st.button(
     "🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512",
@@ -615,7 +594,7 @@ if st.button(
       clean_model_name = model_name.replace("models/", "").strip()
       model = genai.GenerativeModel(clean_model_name)
       integration_str = (
-          ", ".join(integrations) if integrations else "Không có"
+          ", ".join(integrations) if integrations else "Không"
       )
 
       # PROMPT TẬP TRUNG TRÍCH XUẤT NGUYÊN BẢN TỪ SGV (CÁCH A)
@@ -625,28 +604,23 @@ if st.button(
             NGUYÊN TẮC VÀNG CHÍNH XÁC 100% (BẮT BUỘC TUÂN THỦ):
             1. TRÍCH XUẤT CHÍNH XÁC TỪ FILE SGV: 
                - Nếu có tệp tài liệu đính kèm (SGV/Ảnh trang sách), bạn BẮT BUỘC phải đọc nguyên văn phần "I. MỤC TIÊU" (Kiến thức, kỹ năng, phẩm chất, năng lực) từ file SGV đó sang. 
-               - TUYỆT ĐỐI KHÔNG TỰ VIẾT THÊM, KHÔNG TỰ BỞI DÃI, KHÔNG TỰ MỞ RỘNG các khái niệm kiến thức nếu trong SGV không ghi. Chép chính xác từng gạch đầu dòng!
+               - TUYỆT ĐỐI KHÔNG TỰ VIẾT THÊM, KHÔNG TỰ BỞI DÃI, KHÔNG TỰ MỞ RỘNG các khái niệm kiến thức nếu trong SGV không ghi. Chép chính exact từng gạch đầu dòng!
                - Nếu không có file đính kèm, sử dụng chính xác nội dung ghi ở phần "Yêu cầu cần đạt / Mục tiêu SGV": {requirements}
 
             2. CẤU TRÚC BÁM SÁT 5512:
                I. MỤC TIÊU
-               1. Kiến thức
-               2. Năng lực
-               2.1. Năng lực Toán học (Đặc thù)
-               2.2. Năng lực chung
-               2.3. Năng lực Số / Ứng dụng CNTT và AI (Tích hợp): ({integration_str})
-               3. Phẩm chất
+               1. Về kiến thức, kỹ năng: (Chép Y NGUYÊN các gạch đầu dòng từ SGV/ảnh)
+               2. Về phẩm chất, năng lực: (Chép Y NGUYÊN các gạch đầu dòng năng lực, phẩm chất từ SGV/ảnh)
+               - Thêm mục nhỏ: "Năng lực Số / Tích hợp AI:" (Nêu ngắn gọn việc dùng {integration_str})
 
                II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
-               1. Giáo viên (GV)
-               2. Học sinh (HS)
 
                III. TIẾN TRÌNH DẠY HỌC
-               Trình bày theo các Hoạt động (Khởi động, Khám phá/Hình thành kiến thức, Luyện tập, Vận dụng) lấy đúng theo mạch nội dung của SGV/SGK. Mỗi hoạt động gồm đủ 4 mục:
-               a) Mục tiêu:
-               b) Nội dung:
-               c) Sản phẩm:
-               d) Tổ chức thực hiện: (Gồm đủ 4 bước: Bước 1: Chuyển giao nhiệm vụ -> Bước 2: Thực hiện nhiệm vụ -> Bước 3: Báo cáo, thảo luận -> Bước 4: Kết luận, nhận định).
+               Trình bày theo các Hoạt động (Khởi động, Khám phá, Luyện tập, Vận dụng) lấy đúng theo mạch nội dung của SGV/SGK. Mỗi hoạt động gồm đủ 4 mục:
+               a) Mục tiêu
+               b) Nội dung (Mô tả bài tập/câu hỏi bám sát SGK/SGV)
+               c) Sản phẩm (Đáp án, lời giải)
+               d) Tổ chức thực hiện (Bước 1: Chuyển giao nhiệm vụ -> Bước 2: Thực hiện nhiệm vụ -> Bước 3: Báo cáo, thảo luận -> Bước 4: Kết luận, nhận định).
 
             THÔNG TIN BÀI DẠY:
             - Môn: {subject} ({grade})
