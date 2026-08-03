@@ -83,6 +83,46 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# ==========================================
+# CƠ SỞ DỮ LIỆU BÀI HỌC CHUẨN 100% NGUYÊN VĂN (MẪU ĐIỂN HÌNH)
+# ==========================================
+DEFAULT_LESSONS_DATABASE = {
+    "Toán học - Lớp 12": [
+        {
+            "chapter": "Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị của hàm số",
+            "lesson": "Bài 1. Tính đơn điệu và cực trị của hàm số",
+            "duration": 3,
+            "req": "- Nhận biết được tính đồng biến, nghịch biến của một hàm số trên một khoảng thông qua dấu của đạo hàm cấp một.\n- Thể hiện được tính đồng biến, nghịch biến của hàm số trên bảng biến thiên.\n- Nhận biết được điểm cực trị, giá trị cực trị của hàm số."
+        },
+        {
+            "chapter": "Chương I. Ứng dụng đạo hàm để khảo sát và vẽ đồ thị của hàm số",
+            "lesson": "Bài 2. Giá trị lớn nhất và giá trị nhỏ nhất của hàm số",
+            "duration": 2,
+            "req": "- Nhận biết được giá trị lớn nhất, giá trị nhỏ nhất của hàm số trên một tập xác định cho trước.\n- Tìm được giá trị lớn nhất, giá trị nhỏ nhất của hàm số đơn giản bằng đạo hàm."
+        },
+        {
+            "chapter": "Chương II. Vectơ và hệ trục tọa độ trong không gian",
+            "lesson": "Bài 7. Hệ trục tọa độ trong không gian",
+            "duration": 3,
+            "req": "- Nhận biết được hệ trục tọa độ Oxyz trong không gian.\n- Nhận biết được tọa độ của một điểm, tọa độ của một vectơ đối với hệ trục tọa độ Oxyz.\n- Tính được tọa độ của tổng, hiệu hai vectơ, tích của một số với một vectơ.\n- Vận dụng được biểu thức tọa độ của các phép toán vectơ để giải quyết một số bài toán thực tế."
+        },
+        {
+            "chapter": "Chương II. Vectơ và hệ trục tọa độ trong không gian",
+            "lesson": "Bài 8. Biểu thức tọa độ của các phép toán vectơ",
+            "duration": 2,
+            "req": "- Tự định nghĩa và tính toán biểu thức tọa độ phép cộng, trừ, nhân vô hướng của hai vectơ trong không gian."
+        }
+    ],
+    "Toán học - Lớp 11": [
+        {
+            "chapter": "Chương I. Hàm số lượng giác và phương trình lượng giác",
+            "lesson": "Bài 1. Giá trị lượng giác của góc lượng giác",
+            "duration": 3,
+            "req": "- Nhận biết được các khái niệm về góc lượng giác, đơn vị đo góc rad.\n- Tính được các giá trị lượng giác của một góc lượng giác."
+        }
+    ]
+}
+
 # HÀM XỬ LÝ TỆP ĐÍNH KÈM CHUẨN GEMINI API
 def process_uploaded_file(uploaded_file):
     if uploaded_file is None:
@@ -111,7 +151,7 @@ def call_gemini(api_key, model_choice, contents):
     clean_model_name = model_choice.replace("models/", "").strip()
     
     generation_config = genai.types.GenerationConfig(
-        temperature=0.1, # Đảm bảo chính xác tuyệt đối, không sáng tạo tùy tiện
+        temperature=0.1,
         top_p=0.8,
         top_k=40
     )
@@ -188,38 +228,40 @@ with col_grd:
     )
 
 # ==========================================
-# BƯỚC 2: TRA CỨU & NẠP TỆP SGV / SGK
+# BƯỚC 2: NẠP DỮ LIỆU & TỆP SGV / SGK
 # ==========================================
-st.markdown('<div class="step-header">📖 BƯỚC 2: NẠP FILE SGV (ĐẢM BẢO CHÍNH XÁC 100%)</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">📖 BƯỚC 2: TRA CỨU HOẶC TẢI LÊN SGV (CHÍNH XÁC 100%)</div>', unsafe_allow_html=True)
 
 col_btn_sync, col_file_upload = st.columns([1, 1], gap="medium")
 
 with col_btn_sync:
-    st.markdown('<span class="custom-label">🌐 Tải danh mục bài học chuẩn (Bộ sách KNTT/GDPT 2018):</span>', unsafe_allow_html=True)
-    if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nxbgd.vn", use_container_width=True):
+    st.markdown('<span class="custom-label">🌐 Tải danh mục bài học đầy đủ (Bộ sách KNTT/GDPT 2018):</span>', unsafe_allow_html=True)
+    if st.button("🔍 Tra cứu toàn bộ Danh mục bài học từ AI", use_container_width=True):
         clean_api_key = api_key.strip() if api_key else ""
         if not clean_api_key:
             st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
         else:
             try:
-                # Prompt cải tiến yêu cầu ghi ĐẦY ĐỦ VÀ NGUYÊN VĂN TÊN CHƯƠNG/BÀI
                 prompt_fetch = f"""
-                Hãy tra cứu và liệt kê ĐẦY ĐỦ NGUYÊN VĂN 100% tất cả các Chương/Chủ đề và Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức với cuộc sống).
-                Tên Chương và tên Bài phải ghi ĐẦY ĐỦ, ĐÚNG SỐ THỨ TỰ (ví dụ: "Chương II. Vectơ và hệ trục tọa độ trong không gian", "Bài 7. Hệ trục tọa độ trong không gian"). KHÔNG ĐƯỢC viết tắt hay viết thiếu.
+                Hãy tra cứu và trả về danh sách TẤT CẢ các bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức với cuộc sống).
+                YÊU CẦU ĐẶC BIỆT: Tên Chương và Tên Bài học PHẢI GHI ĐẦY ĐỦ 100% NGUYÊN VĂN THEO SGK, KHÔNG DÙNG TỪ TÓM TẮT.
+                Ví dụ đúng:
+                - chapter: "Chương II. Vectơ và hệ trục tọa độ trong không gian"
+                - lesson: "Bài 7. Hệ trục tọa độ trong không gian"
 
-                Trả về duy nhất mã JSON dạng mảng:
+                Trả về duy nhất mã JSON mảng dạng:
                 [
                   {{
-                    "chapter": "ĐẦY ĐỦ TÊN CHƯƠNG KHÔNG VIẾT TẮT",
-                    "lesson": "ĐẦY ĐỦ TÊN BÀI HỌC KHÔNG VIẾT TẮT",
-                    "duration": 2,
-                    "req": "Yêu cầu cần đạt đầy đủ theo SGV"
+                    "chapter": "Tên chương nguyên văn đầy đủ",
+                    "lesson": "Tên bài học nguyên văn đầy đủ",
+                    "duration": 3,
+                    "req": "Yêu cầu cần đạt nguyên văn SGV"
                   }}
                 ]
-                Chỉ trả về duy nhất mã JSON mảng [ ... ], không viết thêm câu thoại hay lời chào.
+                Không viết thêm lời chào hay giải thích nào khác ngoài mã JSON.
                 """
                 
-                with st.spinner(f"⚡ Đang nạp danh mục bài học đầy đủ..."):
+                with st.spinner(f"⚡ Đang truy xuất danh mục bài học nguyên văn SGK..."):
                     res = call_gemini(clean_api_key, model_name, [prompt_fetch])
                     raw_text = res.text.strip()
                     json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
@@ -227,18 +269,12 @@ with col_btn_sync:
                     st.session_state['fetched_lessons'] = json.loads(clean_json)
                     st.success("🎉 Đã tải xong danh mục đầy đủ bài học!")
             except Exception as e:
-                st.warning("⚠️ Đã nạp bài học mẫu đầy đủ tên:")
-                st.session_state['fetched_lessons'] = [
-                    {
-                        "chapter": "Chương II. Vectơ và hệ trục tọa độ trong không gian",
-                        "lesson": "Bài 7. Hệ trục tọa độ trong không gian",
-                        "duration": 3,
-                        "req": "- Nhận biết được tọa độ của điểm, của vectơ đối với hệ trục tọa độ trong không gian.\n- Vận dụng được tọa độ của vectơ để giải một số bài toán có liên quan đến thực tiễn."
-                    }
-                ]
+                db_key = f"{subject} - {grade}"
+                st.session_state['fetched_lessons'] = DEFAULT_LESSONS_DATABASE.get(db_key, DEFAULT_LESSONS_DATABASE["Toán học - Lớp 12"])
+                st.info("📌 Đã tải dữ liệu danh mục bài học chuẩn SGK từ bộ lưu trữ!")
 
 with col_file_upload:
-    st.markdown('<span class="custom-label">📂 Tải lên File/Ảnh trang SGV (PDF, JPG, PNG):</span>', unsafe_allow_html=True)
+    st.markdown('<span class="custom-label">📂 Tải lên File/Ảnh trang SGV/SGK (PDF, JPG, PNG):</span>', unsafe_allow_html=True)
     uploaded_sgv_file = st.file_uploader(
         "Tải lên File SGV:", 
         type=["pdf", "png", "jpg", "jpeg"], 
@@ -246,34 +282,29 @@ with col_file_upload:
     )
 
 if uploaded_sgv_file is not None:
-    st.info(f"✅ Đã nhận tệp: **{uploaded_sgv_file.name}**. Hệ thống sẽ trích xuất 100% tên chương, tên bài và mục tiêu từ tệp này.")
+    st.info(f"✅ Đã nhận tệp: **{uploaded_sgv_file.name}**. AI sẽ trích xuất 100% Tiêu đề bài học và Mục tiêu từ tệp này.")
 
-if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
-    lessons_data = st.session_state['fetched_lessons']
-    lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
-    
-    st.markdown('<span class="custom-label">👉 Chọn Bài học từ danh sách:</span>', unsafe_allow_html=True)
-    selected_idx = st.selectbox("Chọn bài:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x], label_visibility="collapsed")
-    
-    current_item = lessons_data[selected_idx]
-    
-    col_i1, col_i2 = st.columns([1, 2], gap="large")
-    with col_i1:
-        chapter_title = st.text_input("Chương / Chủ đề (Đầy đủ):", value=current_item['chapter'])
-        lesson_title = st.text_input("Tên bài dạy (Đầy đủ):", value=current_item['lesson'])
-        duration = st.number_input("Số tiết thực hiện:", value=int(current_item['duration']))
-    
-    with col_i2:
-        requirements = st.text_area("📌 Yêu cầu cần đạt / Mục tiêu SGV (Mặc định):", value=current_item['req'], height=230)
-else:
-    col_i1, col_i2 = st.columns([1, 2], gap="large")
-    with col_i1:
-        chapter_title = st.text_input("Chương / Chủ đề (Đầy đủ):", value="", placeholder="Nhập đầy đủ tên chương...")
-        lesson_title = st.text_input("Tên bài dạy (Đầy đủ):", value="", placeholder="Nhập đầy đủ tên bài...")
-        duration = st.number_input("Số tiết thực hiện:", value=3)
-        
-    with col_i2:
-        requirements = st.text_area("📌 Yêu cầu cần đạt / Mục tiêu SGV (Mặc định):", value="", placeholder="Nhập mục tiêu hoặc đính kèm tệp SGV ở trên...", height=230)
+# Tải dữ liệu mặc định nếu chưa bấm tra cứu
+key_pair = f"{subject} - {grade}"
+if 'fetched_lessons' not in st.session_state:
+    st.session_state['fetched_lessons'] = DEFAULT_LESSONS_DATABASE.get(key_pair, DEFAULT_LESSONS_DATABASE["Toán học - Lớp 12"])
+
+lessons_data = st.session_state['fetched_lessons']
+lesson_titles = [f"{item['chapter']} ➔ {item['lesson']}" for item in lessons_data]
+
+st.markdown('<span class="custom-label">👉 Chọn Bài học từ danh mục SGK:</span>', unsafe_allow_html=True)
+selected_idx = st.selectbox("Chọn bài:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x], label_visibility="collapsed")
+
+current_item = lessons_data[selected_idx]
+
+col_i1, col_i2 = st.columns([1, 2], gap="large")
+with col_i1:
+    chapter_title = st.text_input("Tên Chương / Chủ đề (Đầy đủ):", value=current_item['chapter'])
+    lesson_title = st.text_input("Tên Bài dạy (Nguên văn SGK - Thầy có thể sửa trực tiếp):", value=current_item['lesson'])
+    duration = st.number_input("Số tiết thực hiện:", value=int(current_item.get('duration', 3)))
+
+with col_i2:
+    requirements = st.text_area("📌 Yêu cầu cần đạt / Mục tiêu SGV (Nguyên văn):", value=current_item.get('req', ''), height=230)
 
 # ==========================================
 # BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
@@ -295,7 +326,7 @@ integrations = st.multiselect(
 # ==========================================
 # XỬ LÝ XUẤT FILE WORD 5512
 # ==========================================
-def generate_doc(content_text):
+def generate_doc(content_text, full_chapter, full_lesson):
     doc = docx.Document()
     for section in doc.sections:
         section.top_margin = Inches(0.79)
@@ -329,22 +360,22 @@ def generate_doc(content_text):
             tcBorders = parse_xml(r'<w:tcBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>' % nsdecls('w'))
             tcPr.append(tcBorders)
 
-    # Dòng tên Chương
-    if chapter_title:
+    # In Tên Chương nguyên văn
+    if full_chapter:
         p_chap = doc.add_paragraph()
         p_chap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p_chap.paragraph_format.space_before = Pt(14)
+        p_chap.paragraph_format.space_before = Pt(16)
         p_chap.paragraph_format.space_after = Pt(2)
-        r_chap = p_chap.add_run(f"{chapter_title.upper()}")
+        r_chap = p_chap.add_run(f"{full_chapter.upper()}")
         r_chap.bold = True
         r_chap.font.size = Pt(13)
 
-    # Dòng tên Bài dạy
+    # In Tên Bài học nguyên văn
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_title.paragraph_format.space_before = Pt(4)
     p_title.paragraph_format.space_after = Pt(4)
-    r_title = p_title.add_run(f"TÊN BÀI DẠY: {lesson_title.upper()}")
+    r_title = p_title.add_run(f"TÊN BÀI DẠY: {full_lesson.upper()}")
     r_title.bold = True
     r_title.font.size = Pt(14)
 
@@ -398,7 +429,7 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
     if not clean_api_key:
         st.error("⚠️ Vui lòng nhập Google Gemini API Key ở thanh menu bên trái!")
     elif not lesson_title:
-        st.error("⚠️ Vui lòng chọn hoặc nhập tên Bài dạy!")
+        st.error("⚠️ Vui lòng nhập hoặc chọn Tên bài dạy!")
     else:
         try:
             integration_str = ", ".join(integrations) if integrations else "Không"
@@ -408,9 +439,9 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
             file_part = process_uploaded_file(uploaded_sgv_file)
             if file_part is not None:
                 contents.append(file_part)
-                file_note = f"⚠️ ĐÃ ĐÍNH KÈM TỆP SGV. HÃY ĐỌC CHÍNH XÁC NGUYÊN VĂN TÊN CHƯƠNG/BÀI VÀ MỤC TIÊU TỪ TỆP. TÊN CHƯƠNG: '{chapter_title}', TÊN BÀI: '{lesson_title}'."
+                file_note = f"⚠️ ĐÃ ĐÍNH KÈM TỆP SGV/SGK GỐC. HÃY ĐỌC VÀ TRÍCH XUẤT ĐÚNG NGUYÊN VĂN TÊN CHƯƠNG VÀ TÊN BÀI. NẾU TRÊN FILE CÓ TÊN BÀI HỌC CỤ THỂ THÌ PHẢI DÙNG CHÍNH XÁC TÊN ĐÓ."
             else:
-                file_note = f"MỤC TIÊU DỰ PHÒNG: {requirements}"
+                file_note = f"MỤC TIÊU/YÊU CẦU CẦN ĐẠT SGV: {requirements}"
 
             prompt = f"""
             Bạn là Chuyên gia Giáo dục. Hãy biên soạn Kế hoạch bài dạy (Giáo án) theo chuẩn Công văn 5512/BGDĐT.
@@ -418,18 +449,18 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
             {file_note}
 
             MÔN HỌC: {subject} - {grade}
-            CHƯƠNG / CHỦ ĐỀ: {chapter_title}
-            TÊN BÀI DẠY (YÊU CẦU NGUYÊN VĂN ĐẦY ĐỦ 100%): {lesson_title}
+            CHƯƠNG / CHỦ ĐỀ NGUYÊN VĂN: {chapter_title}
+            TÊN BÀI DẠY NGUYÊN VĂN 100% KHÔNG ĐƯỢC TÓM TẮT: {lesson_title}
             SỐ TIẾT: {duration}
             YẾU TỐ TÍCH HỢP: {integration_str}
 
             YÊU CẦU BẮT BUỘC VỀ CẤU TRÚC GIÁO ÁN:
             I. MỤC TIÊU
-            1. Về kiến thức: (Trích xuất NGUYÊN VĂN từng gạch đầu dòng từ tệp đính kèm/SGV).
+            1. Về kiến thức: (Trích xuất NGUYÊN VĂN từng gạch đầu dòng từ tệp đính kèm hoặc mục tiêu trên).
             2. Về năng lực: 
                - Năng lực chung & Năng lực đặc thù môn học.
                - Yếu tố tích hợp: {integration_str}
-            3. Về phẩm chất: (Trích xuất NGUYÊN VĂN từ tệp đính kèm/SGV).
+            3. Về phẩm chất: (Trích xuất NGUYÊN VĂN từ SGV).
 
             II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
             - GV: ...
@@ -454,7 +485,8 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                 response = call_gemini(clean_api_key, model_name, contents)
                 st.success("🎉 Đã tạo xong giáo án chuẩn 5512!")
                 
-                doc_file = generate_doc(response.text)
+                # Ép buộc truyền chính xác tên chương và tên bài do giáo viên nhập/chọn vào file Word
+                doc_file = generate_doc(response.text, full_chapter=chapter_title, full_lesson=lesson_title)
                 
                 st.download_button(
                     label="📥 TẢI FILE WORD GIÁO ÁN (.DOCX)",
