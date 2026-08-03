@@ -83,7 +83,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# HÀM XỬ LÝ TỆP ĐÍNH KÈM CHUẨN GEMINI API (DÙNG TÍNH NĂNG ĐỌC FILE TRỰC TIẾP CỦA GEMINI)
+# HÀM XỬ LÝ TỆP ĐÍNH KÈM CHUẨN GEMINI API
 def process_uploaded_file(uploaded_file):
     if uploaded_file is None:
         return None
@@ -91,7 +91,6 @@ def process_uploaded_file(uploaded_file):
     file_type = uploaded_file.type
     bytes_data = uploaded_file.getvalue()
     
-    # Gán MIME type chuẩn cho Gemini API
     if "pdf" in file_type:
         mime = "application/pdf"
     elif "png" in file_type:
@@ -112,7 +111,7 @@ def call_gemini(api_key, model_choice, contents):
     clean_model_name = model_choice.replace("models/", "").strip()
     
     generation_config = genai.types.GenerationConfig(
-        temperature=0.1,
+        temperature=0.1, # Đảm bảo chính xác tuyệt đối, không sáng tạo tùy tiện
         top_p=0.8,
         top_k=40
     )
@@ -203,35 +202,38 @@ with col_btn_sync:
             st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
         else:
             try:
+                # Prompt cải tiến yêu cầu ghi ĐẦY ĐỦ VÀ NGUYÊN VĂN TÊN CHƯƠNG/BÀI
                 prompt_fetch = f"""
-                Liệt kê ĐẦY ĐỦ tất cả các Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức).
-                Trả về duy nhất dạng JSON mảng:
+                Hãy tra cứu và liệt kê ĐẦY ĐỦ NGUYÊN VĂN 100% tất cả các Chương/Chủ đề và Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức với cuộc sống).
+                Tên Chương và tên Bài phải ghi ĐẦY ĐỦ, ĐÚNG SỐ THỨ TỰ (ví dụ: "Chương II. Vectơ và hệ trục tọa độ trong không gian", "Bài 7. Hệ trục tọa độ trong không gian"). KHÔNG ĐƯỢC viết tắt hay viết thiếu.
+
+                Trả về duy nhất mã JSON dạng mảng:
                 [
                   {{
-                    "chapter": "Tên Chương 1",
-                    "lesson": "Tên Bài 1",
+                    "chapter": "ĐẦY ĐỦ TÊN CHƯƠNG KHÔNG VIẾT TẮT",
+                    "lesson": "ĐẦY ĐỦ TÊN BÀI HỌC KHÔNG VIẾT TẮT",
                     "duration": 2,
-                    "req": "Yêu cầu cần đạt chuẩn của bài"
+                    "req": "Yêu cầu cần đạt đầy đủ theo SGV"
                   }}
                 ]
-                Chỉ trả về mã JSON mảng [ ... ], không viết lời chào.
+                Chỉ trả về duy nhất mã JSON mảng [ ... ], không viết thêm câu thoại hay lời chào.
                 """
                 
-                with st.spinner(f"⚡ Đang nạp danh mục bài học..."):
+                with st.spinner(f"⚡ Đang nạp danh mục bài học đầy đủ..."):
                     res = call_gemini(clean_api_key, model_name, [prompt_fetch])
                     raw_text = res.text.strip()
                     json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
                     clean_json = json_match.group(0) if json_match else raw_text
                     st.session_state['fetched_lessons'] = json.loads(clean_json)
-                    st.success("🎉 Đã tải xong danh mục bài học!")
+                    st.success("🎉 Đã tải xong danh mục đầy đủ bài học!")
             except Exception as e:
-                st.warning("⚠️ Đã nạp bài học mẫu chuẩn SGK:")
+                st.warning("⚠️ Đã nạp bài học mẫu đầy đủ tên:")
                 st.session_state['fetched_lessons'] = [
                     {
                         "chapter": "Chương II. Vectơ và hệ trục tọa độ trong không gian",
                         "lesson": "Bài 7. Hệ trục tọa độ trong không gian",
                         "duration": 3,
-                        "req": "- Nhận biết được tọa độ của điểm, của vectơ đối với hệ trục tọa độ.\n- Vận dụng được tọa độ của vectơ để giải một số bài toán có liên quan đến thực tiễn."
+                        "req": "- Nhận biết được tọa độ của điểm, của vectơ đối với hệ trục tọa độ trong không gian.\n- Vận dụng được tọa độ của vectơ để giải một số bài toán có liên quan đến thực tiễn."
                     }
                 ]
 
@@ -244,7 +246,7 @@ with col_file_upload:
     )
 
 if uploaded_sgv_file is not None:
-    st.info(f"✅ Đã nhận tệp: **{uploaded_sgv_file.name}**. Hệ thống sẽ trích xuất 100% MỤC TIÊU từ tệp này.")
+    st.info(f"✅ Đã nhận tệp: **{uploaded_sgv_file.name}**. Hệ thống sẽ trích xuất 100% tên chương, tên bài và mục tiêu từ tệp này.")
 
 if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
     lessons_data = st.session_state['fetched_lessons']
@@ -257,8 +259,8 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
     
     col_i1, col_i2 = st.columns([1, 2], gap="large")
     with col_i1:
-        chapter_title = st.text_input("Chương / Chủ đề:", value=current_item['chapter'])
-        lesson_title = st.text_input("Tên bài dạy:", value=current_item['lesson'])
+        chapter_title = st.text_input("Chương / Chủ đề (Đầy đủ):", value=current_item['chapter'])
+        lesson_title = st.text_input("Tên bài dạy (Đầy đủ):", value=current_item['lesson'])
         duration = st.number_input("Số tiết thực hiện:", value=int(current_item['duration']))
     
     with col_i2:
@@ -266,8 +268,8 @@ if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']
 else:
     col_i1, col_i2 = st.columns([1, 2], gap="large")
     with col_i1:
-        chapter_title = st.text_input("Chương / Chủ đề:", value="", placeholder="Nhập tên chương...")
-        lesson_title = st.text_input("Tên bài dạy:", value="", placeholder="Nhập tên bài...")
+        chapter_title = st.text_input("Chương / Chủ đề (Đầy đủ):", value="", placeholder="Nhập đầy đủ tên chương...")
+        lesson_title = st.text_input("Tên bài dạy (Đầy đủ):", value="", placeholder="Nhập đầy đủ tên bài...")
         duration = st.number_input("Số tiết thực hiện:", value=3)
         
     with col_i2:
@@ -327,9 +329,20 @@ def generate_doc(content_text):
             tcBorders = parse_xml(r'<w:tcBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>' % nsdecls('w'))
             tcPr.append(tcBorders)
 
+    # Dòng tên Chương
+    if chapter_title:
+        p_chap = doc.add_paragraph()
+        p_chap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_chap.paragraph_format.space_before = Pt(14)
+        p_chap.paragraph_format.space_after = Pt(2)
+        r_chap = p_chap.add_run(f"{chapter_title.upper()}")
+        r_chap.bold = True
+        r_chap.font.size = Pt(13)
+
+    # Dòng tên Bài dạy
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p_title.paragraph_format.space_before = Pt(18)
+    p_title.paragraph_format.space_before = Pt(4)
     p_title.paragraph_format.space_after = Pt(4)
     r_title = p_title.add_run(f"TÊN BÀI DẠY: {lesson_title.upper()}")
     r_title.bold = True
@@ -392,11 +405,10 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
             
             contents = []
             
-            # Nếu người dùng có upload file PDF/Ảnh -> Đưa trực tiếp vào API của Gemini
             file_part = process_uploaded_file(uploaded_sgv_file)
             if file_part is not None:
                 contents.append(file_part)
-                file_note = "⚠️ ĐÃ ĐÍNH KÈM TỆP SGV. HÃY ĐỌC VÀ TRÍCH XUẤT CHÍNH XÁC NGUYÊN VĂN 100% PHẦN MỤC TIÊU TỪ TỆP ĐÍNH KÈM BÊN TRÊN."
+                file_note = f"⚠️ ĐÃ ĐÍNH KÈM TỆP SGV. HÃY ĐỌC CHÍNH XÁC NGUYÊN VĂN TÊN CHƯƠNG/BÀI VÀ MỤC TIÊU TỪ TỆP. TÊN CHƯƠNG: '{chapter_title}', TÊN BÀI: '{lesson_title}'."
             else:
                 file_note = f"MỤC TIÊU DỰ PHÒNG: {requirements}"
 
@@ -406,7 +418,8 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
             {file_note}
 
             MÔN HỌC: {subject} - {grade}
-            TÊN BÀI DẠY: {lesson_title}
+            CHƯƠNG / CHỦ ĐỀ: {chapter_title}
+            TÊN BÀI DẠY (YÊU CẦU NGUYÊN VĂN ĐẦY ĐỦ 100%): {lesson_title}
             SỐ TIẾT: {duration}
             YẾU TỐ TÍCH HỢP: {integration_str}
 
@@ -437,9 +450,9 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
 
             contents.append(prompt)
 
-            with st.spinner("⚡ AI đang phân tích dữ liệu tệp SGV và khởi tạo giáo án 5512..."):
+            with st.spinner("⚡ AI đang phân tích dữ liệu SGV và khởi tạo giáo án 5512..."):
                 response = call_gemini(clean_api_key, model_name, contents)
-                st.success("🎉 Đã tạo xong giáo án chuẩn 5512 từ SGV!")
+                st.success("🎉 Đã tạo xong giáo án chuẩn 5512!")
                 
                 doc_file = generate_doc(response.text)
                 
