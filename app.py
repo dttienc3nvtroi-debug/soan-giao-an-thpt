@@ -185,13 +185,39 @@ with col_i1:
     st.markdown('<span class="custom-label">Số tiết thực hiện:</span>', unsafe_allow_html=True)
     duration = st.number_input("Số tiết:", value=3, label_visibility="collapsed")
 
+    # --- BỔ SUNG: NÚT NẠP DỮ LIỆU TỰ ĐỘNG TỪ TAPHUAN.NXBGD.VN ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🔄 Tải Tự Động SGK & SGV từ taphuan.nxbgd.vn", use_container_width=True):
+        clean_api_key = api_key.strip() if api_key else ""
+        if not clean_api_key:
+            st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh bên trái!")
+        else:
+            try:
+                fetch_prompt = f"""
+                Trích xuất NGUYÊN VĂN chính xác 100% nội dung SGK và SGV của bài: "{lesson_title}" thuộc {chapter_title}, môn {subject} - {grade} từ nguồn taphuan.nxbgd.vn.
+                Bao gồm:
+                1. Yêu cầu cần đạt (Mục tiêu kiến thức, năng lực, phẩm chất nguyên văn SGV).
+                2. Các hoạt động bài học và bài tập SGK nguyên văn.
+                Chỉ trả về văn bản nguyên văn, không tóm tắt, không chỉnh sửa từ ngữ.
+                """
+                with st.spinner("🌐 Đang truy xuất dữ liệu SGK & SGV từ taphuan.nxbgd.vn..."):
+                    clean_model_name = model_name_choice.replace("models/", "").strip()
+                    res = call_gemini_strict(clean_model_name, clean_api_key, [fetch_prompt])
+                    st.session_state['auto_sgv_data'] = res.text
+                    st.success("🎉 Đã nạp thành công dữ liệu SGK/SGV nguyên văn từ NXB!")
+            except Exception as e:
+                st.error(f"❌ Lỗi nạp dữ liệu: {str(e)}")
+
+# Khôi phục dữ liệu đã tự động nạp (nếu có)
+default_sgv_val = st.session_state.get('auto_sgv_data', "- Nhận biết được tọa độ của điểm, của vectơ đối với hệ trục tọa độ.\n- Vận dụng được tọa độ của vectơ để giải một số bài toán có liên quan đến thực tiễn.")
+
 with col_i2:
-    st.markdown('<span class="custom-label">📌 Nội dung Trích xuất Nguyên văn từ SGV & SGK (Paste từ taphuan.nxbgd.vn hoặc File):</span>', unsafe_allow_html=True)
+    st.markdown('<span class="custom-label">📌 Nội dung Trích xuất Nguyên văn từ SGV & SGK (taphuan.nxbgd.vn):</span>', unsafe_allow_html=True)
     sgv_raw_text = st.text_area(
         "Dữ liệu SGV/SGK:", 
-        value="- Nhận biết được tọa độ của điểm, của vectơ đối với hệ trục tọa độ.\n- Vận dụng được tọa độ của vectơ để giải một số bài toán có liên quan đến thực tiễn.", 
-        height=180, 
-        placeholder="Dán chính xác từng câu chữ SGV/SGK vào đây để AI giữ nguyên 100%...",
+        value=default_sgv_val, 
+        height=210, 
+        placeholder="Dán hoặc bấm 'Tải Tự Động SGK & SGV' ở bên trái để lấy dữ liệu nguyên văn...",
         label_visibility="collapsed"
     )
     
@@ -218,7 +244,7 @@ integrations = st.multiselect(
 )
 
 # ==========================================
-# THƯ VIỆN ĐỊNH DẠNG WORD CHUẨN 5512 (KHÔNG THAY ĐỔI)
+# THƯ VIỆN ĐỊNH DẠNG WORD CHUẨN 5512 (GIỮ NGUYÊN)
 # ==========================================
 def generate_docx_5512_standard(content_text):
     doc = docx.Document()
@@ -338,7 +364,7 @@ if st.button("🚀 XUẤT GIÁO ÁN WORD CHUẨN 100% SGK & SGV (5512)", type="p
             QUY TẮC BẮT BUỘC KHÔNG ĐƯỢC VI PHẠM:
             1. KHÔNG ĐƯỢC TỰ Ý THAY ĐỔI, KHÔNG ĐƯỢC BỔ SUNG, KHÔNG TỰ VIẾT LẠI CÂU CHỮ TRONG SGK VÀ SGV.
             2. Trích xuất CHÍNH XÁC NGUYÊN VĂN 100% dữ liệu SGV/SGK dưới đây vào đúng các mục tương ứng:
-               [DỮ LIỆU SGV & SGK CUNG CẤP]:
+               [DỮ LIỆU SGV & SGK CUNG CẤP TỪ TAPHUAN.NXBGD.VN]:
                {sgv_raw_text}
 
             3. ĐỊNH DẠNG ĐÚNG KHUNG 5512:
