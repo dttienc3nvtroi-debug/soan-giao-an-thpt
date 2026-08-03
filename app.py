@@ -104,7 +104,7 @@ with st.sidebar:
     # Ưu tiên gemini-2.0-flash để hạn chế tối đa lỗi Quota 429
     model_name = st.selectbox(
         "Mô hình AI xử lý:",
-        ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"],
+        ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
         index=0,
         help="Khuyên dùng 2.0-flash để tránh bị giới hạn lượt gọi API trong ngày"
     )
