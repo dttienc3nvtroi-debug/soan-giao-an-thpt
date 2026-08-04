@@ -32,7 +32,13 @@ st.markdown("""
 with st.sidebar:
     st.markdown('<div class="sidebar-title">🔑 ĐĂNG NHẬP & CẤU HÌNH</div>', unsafe_allow_html=True)
     api_key = st.text_input("Google Gemini API Key:", type="password", placeholder="Dán mã API Key vào đây...")
-    model_name = st.selectbox("Mô hình AI xử lý:", ["gemini-1.5-pro", "gemini-1.5-flash"], index=0)
+    
+    # CẬP NHẬT TÊN MODEL CHUẨN ĐỂ TRÁNH LỖI 404
+    model_name = st.selectbox(
+        "Mô hình AI xử lý:", 
+        ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"], 
+        index=0
+    )
     
     st.markdown("---")
     st.markdown('<div class="sidebar-title">👤 THÔNG TIN GIÁO VIÊN</div>', unsafe_allow_html=True)
@@ -252,7 +258,6 @@ def generate_doc(content_text, final_chapter, final_lesson):
             p.paragraph_format.space_before = Pt(8)
             run = p.add_run(raw_line)
             run.bold = True
-            # Nếu là I. Mục tiêu thì chỉ hoa chữ M, còn lại HOA toàn bộ theo mẫu
             if raw_line.startswith("I. Mục tiêu"):
                 run.text = "I. Mục tiêu"
 
