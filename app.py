@@ -101,12 +101,11 @@ with st.sidebar:
         help="Nhập API Key để kích hoạt trợ lý AI"
     )
     
-    # Ưu tiên gemini-2.0-flash để hạn chế tối đa lỗi Quota 429
     model_name = st.selectbox(
         "Mô hình AI xử lý:",
-        ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"],
+        ["gemini-2.5-flash", "gemini-2.5-pro"],
         index=0,
-        help="Khuyên dùng 2.0-flash để tránh bị giới hạn lượt gọi API trong ngày"
+        help="Khuyên dùng 2.5-flash để phản hồi nhanh và chính xác"
     )
     
     st.markdown("---")
@@ -203,7 +202,7 @@ if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nx
             err_msg = str(e)
             if "429" in err_msg or "Quota exceeded" in err_msg:
                 st.error("⚠️ **API Key của thầy đã hết lượt dùng miễn phí trong ngày đối với mô hình này!**")
-                st.warning("👉 **Cách khắc phục nhanh:** Hãy nhìn sang menu bên trái, đổi mục **'Mô hình AI xử lý'** thành **`gemini-2.0-flash`** rồi bấm thử lại nhé!")
+                st.warning("👉 **Cách khắc phục nhanh:** Hãy chọn sang mô hình `gemini-2.5-flash` ở menu bên trái nhé!")
             else:
                 st.error(f"Lỗi khi tải danh mục bài học: {e}")
 
@@ -253,6 +252,21 @@ else:
     with col_i2:
         st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt:</span>', unsafe_allow_html=True)
         requirements = st.text_area("YCĐ:", value="", placeholder="Nhập yêu cầu cần đạt...", height=185, label_visibility="collapsed")
+
+# ==========================================
+# BƯỚC CẢI TIẾN: CUNG CẤP DỮ LIỆU NỘI DUNG SGK CHUẨN
+# ==========================================
+st.markdown('<div class="step-header">📖 BƯỚC BỔ SUNG: NỘI DUNG CHÍNH XÁC TỪ SÁCH GIÁO KHOA</div>', unsafe_allow_html=True)
+
+st.markdown('<span class="custom-label">📁 Tải file PDF bài học SGK hoặc dán nội dung SGK vào đây (Để AI lấy chuẩn 100%):</span>', unsafe_allow_html=True)
+
+uploaded_file = st.file_uploader("Tải lên file bài học (PDF / Ảnh / Word):", type=["pdf", "png", "jpg", "jpeg", "docx"])
+
+sgk_text_input = st.text_area(
+    "Hoặc dán trực tiếp nội dung các HĐ, Ví dụ, Bài tập trong SGK vào đây:",
+    placeholder="Ví dụ: Copy nội dung HĐ1, Khái niệm, Ví dụ 1, Ví dụ 2 trong sách Kết nối tri thức dán vào đây...",
+    height=150
+)
 
 # ==========================================
 # BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
@@ -397,21 +411,37 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
 
             integration_str = ", ".join(integrations) if integrations else "Không"
 
+            # Đưa nội dung SGK đính kèm vào prompt nếu thầy nhập hoặc up file
+            sgk_context = ""
+            if sgk_text_input:
+                sgk_context += f"\nNỘI DUNG SÁCH GIÁO KHOA DO GIÁO VIÊN CUNG CẤP:\n{sgk_text_input}\n"
+            
             prompt = f"""
-            Hãy soạn Kế hoạch bài dạy chuẩn 100% CÔNG VĂN 5512/BGDĐT:
+            Hãy đóng vai là Giáo viên Cốt cán xuất sắc bộ môn {subject}.
+            Nhiệm vụ của bạn là soạn Kế hoạch bài dạy chuẩn 100% CÔNG VĂN 5512/BGDĐT:
             - Môn: {subject} ({grade})
+            - Bộ sách: Kết nối tri thức với cuộc sống (Chương trình GDPT 2018)
             - Chương/Chủ đề: {chapter_title}
             - Bài dạy: {lesson_title}
             - Thời lượng: {duration} tiết
             - Yêu cầu cần đạt: {requirements}
             - YẾU TỐ TÍCH HỢP: {integration_str}
+            {sgk_context}
+
+            YÊU CẦU QUAN TRỌNG VỀ NỘI DUNG CHUYÊN MÔN:
+            1. BÁM SÁT 100% NỘI DUNG SÁCH GIÁO KHOA: Trích dẫn CHÍNH XÁC các Hoạt động khởi động, Khám phá, Ví dụ, Luyện tập, Vận dụng và Bài tập từ SGK môn {subject} {grade} (Bộ Kết nối tri thức). Không tự bịa câu hỏi hay ví dụ khác nếu không có trong chương trình chuẩn.
+            2. Tiến trình bài dạy phải đủ 4 Hoạt động chuẩn 5512:
+               - Hoạt động 1: Mở đầu / Khởi động
+               - Hoạt động 2: Hình thành kiến thức mới (Ghi rõ từng Đơn vị kiến thức theo SGK)
+               - Hoạt động 3: Luyện tập
+               - Hoạt động 4: Vận dụng
 
             QUY ĐỊNH ĐỊNH DẠNG VĂN BẢN TRẢ VỀ (RẤT QUAN TRỌNG):
             - Xuất nội dung trực tiếp, không có lời chào hỏi, không dùng ký tự kẻ ngang (---).
             - Trình bày chính xác theo cấu trúc mục tiêu và tiến trình chuẩn Công văn 5512:
               I. MỤC TIÊU (In hoa hoàn toàn)
               1. Kiến thức:
-              2. Năng lực: (2.1. Năng lực toán học/chuyên môn, 2.2. Năng lực chung, 2.3. Năng lực Số / Ứng dụng CNTT và AI)
+              2. Năng lực: (2.1. Năng lực chuyên môn, 2.2. Năng lực chung, 2.3. Năng lực Số / Ứng dụng CNTT và AI)
               3. Phẩm chất:
               II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU (In hoa hoàn toàn)
               1. Giáo viên:
@@ -422,9 +452,20 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
               Trong phần d) Tổ chức thực hiện trình bày rõ 4 bước: - Bước 1: Chuyển giao nhiệm vụ, - Bước 2: Thực hiện nhiệm vụ, - Bước 3: Báo cáo, thảo luận, - Bước 4: Kết luận, nhận định.
             """
 
-            with st.spinner("✨ AI đang tạo Kế hoạch bài dạy 5512..."):
-                response = model.generate_content(prompt)
-                st.success("🎉 Tạo giáo án thành công!")
+            with st.spinner("✨ AI đang tạo Kế hoạch bài dạy chuẩn SGK 5512..."):
+                
+                # Nếu có up file PDF/Image, truyền thẳng file vào Gemini API
+                if uploaded_file is not None:
+                    bytes_data = uploaded_file.getvalue()
+                    mime_type = uploaded_file.type
+                    response = model.generate_content([
+                        prompt,
+                        {"mime_type": mime_type, "data": bytes_data}
+                    ])
+                else:
+                    response = model.generate_content(prompt)
+
+                st.success("🎉 Tạo giáo án chuẩn SGK thành công!")
                 doc_file = generate_doc(response.text)
                 
                 st.download_button(
@@ -457,6 +498,6 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
             err_msg = str(e)
             if "429" in err_msg or "Quota exceeded" in err_msg:
                 st.error("⚠️ **API Key đã hết hạn mức sử dụng trong ngày đối với mô hình này.**")
-                st.warning("👉 Hãy chọn sang mô hình **`gemini-2.0-flash`** ở bên thanh menu trái và nhấn tạo lại!")
+                st.warning("👉 Hãy chọn sang mô hình **`gemini-2.5-flash`** ở bên thanh menu trái và nhấn tạo lại!")
             else:
                 st.error(f"Đã có lỗi xảy ra: {e}")
