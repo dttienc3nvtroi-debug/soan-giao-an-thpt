@@ -32,7 +32,7 @@ st.markdown("""
 with st.sidebar:
     st.markdown('<div class="sidebar-title">🔑 ĐĂNG NHẬP & CẤU HÌNH</div>', unsafe_allow_html=True)
     api_key = st.text_input("Google Gemini API Key:", type="password", placeholder="Dán mã API Key vào đây...")
-    model_name = st.selectbox("Mô hình AI xử lý:", ["gemini-3.6-pro", "gemini-3.6-pro"], index=0)
+    model_name = st.selectbox("Mô hình AI xử lý:", ["gemini-1.5-pro", "gemini-1.5-flash"], index=0)
     
     st.markdown("---")
     st.markdown('<div class="sidebar-title">👤 THÔNG TIN GIÁO VIÊN</div>', unsafe_allow_html=True)
