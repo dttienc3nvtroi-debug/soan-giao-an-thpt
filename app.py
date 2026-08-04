@@ -51,7 +51,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# BƯỚC 1: THÔNG TIN MÔN HỌC & BÀI DẠY
+# BƯỚC 1: THÔNG TIN MÔN HỌC & BÀI DẠY (CẬP NHẬT TỪ TAPHUAN.NXBGD.VN)
 # ==========================================
 st.markdown('<div class="step-header">📚 BƯỚC 1: THÔNG TIN MÔN HỌC & BÀI DẠY</div>', unsafe_allow_html=True)
 
@@ -63,11 +63,39 @@ with col_grd:
 with col_dur:
     duration = st.number_input("Số tiết:", value=2, min_value=1)
 
+# Tra cứu dữ liệu chuẩn từ taphuan.nxbgd.vn ngay tại Bước 1
+if st.button("🔍 Cập nhật Tên chương & Bài dạy từ https://taphuan.nxbgd.vn", use_container_width=True):
+    if not api_key:
+        st.error("⚠️ Vui lòng nhập Gemini API Key ở menu bên trái!")
+    else:
+        try:
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel(model_name)
+            prompt_fetch = f"""
+            Đóng vai hệ thống tra cứu tập huấn của NXB Giáo dục Việt Nam (https://taphuan.nxbgd.vn).
+            Liệt kê các Bài học chuẩn môn {subject} - {grade} (Bộ Kết nối tri thức). 
+            Trả về duy nhất định dạng JSON mảng: [{{"chapter": "...", "lesson": "...", "duration": 2}}]
+            """
+            with st.spinner("Đang kết nối và lấy danh mục bài học từ https://taphuan.nxbgd.vn..."):
+                res = model.generate_content(prompt_fetch)
+                clean_json = re.search(r'\[.*\]', res.text.strip(), re.DOTALL).group(0)
+                st.session_state['fetched_lessons'] = json.loads(clean_json)
+                st.success("Tải danh mục từ https://taphuan.nxbgd.vn thành công!")
+        except Exception as e:
+            st.error(f"Lỗi tải danh mục: {e}")
+
+if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
+    lessons_data = st.session_state['fetched_lessons']
+    lesson_options = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
+    selected_idx = st.selectbox("👉 Chọn Bài học từ taphuan.nxbgd.vn:", range(len(lesson_options)), format_func=lambda x: lesson_options[x])
+    st.session_state['chapter_val'] = lessons_data[selected_idx]['chapter']
+    st.session_state['lesson_val'] = lessons_data[selected_idx]['lesson']
+
 col_c, col_l = st.columns(2)
 with col_c:
     input_chapter = st.text_input("Chương / Chủ đề:", value=st.session_state.get('chapter_val', ''), placeholder="Ví dụ: Chương I. Mệnh đề và Tập hợp")
 with col_l:
-    input_lesson = st.text_input("Tên bài dạy:", value=st.session_state.get('lesson_val', ''), placeholder="Ví dụ: Bài 1. Mệnh đề")
+    input_lesson = st.text_input("Tên bài dạy:", value=st.session_state.get('lesson_val', ''), placeholder="Ví dụ: Bài 5: Giá trị lượng giác của một góc từ 0° đến 180°")
 
 # ==========================================
 # BƯỚC 2: CUNG CẤP DỮ LIỆU SGK & SGV
@@ -77,7 +105,7 @@ st.markdown('<div class="step-header">📂 BƯỚC 2: CUNG CẤP DỮ LIỆU SÁ
 data_source_mode = st.radio(
     "Lựa chọn phương thức cung cấp dữ liệu:",
     ["📌 Tải File / Dán trực tiếp nội dung SGK & SGV (Khuyên dùng - Chính xác 100%)", 
-     "🔍 Tự động tra cứu danh mục bài học từ thư viện NXB"],
+     "🔍 Dùng danh mục bài học từ NXB"],
     index=0
 )
 
@@ -97,30 +125,6 @@ if "📌" in data_source_mode:
         st.markdown("**📕 2. NỘI DUNG SÁCH GIÁO VIÊN (Mục tiêu bài học):**")
         uploaded_sgv = st.file_uploader("Tải File SGV (PDF/Ảnh):", type=["pdf", "png", "jpg", "jpeg"], key="sgv_file")
         sgv_text = st.text_area("Hoặc DÁN MỤC TIÊU TỪ SGV:", height=140, placeholder="Dán mục tiêu từ SGV vào đây...")
-else:
-    if st.button("🔍 Cập nhật danh sách Chương & Bài học từ NXB", use_container_width=True):
-        if not api_key:
-            st.error("⚠️ Vui lòng nhập Gemini API Key ở menu bên trái!")
-        else:
-            try:
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel(model_name)
-                prompt_fetch = f"Liệt kê các Bài học môn {subject} - {grade} (Bộ Kết nối tri thức). Trả về JSON: [{{\"chapter\": \"...\", \"lesson\": \"...\", \"duration\": 2}}]"
-                with st.spinner("Đang tải danh mục..."):
-                    res = model.generate_content(prompt_fetch)
-                    clean_json = re.search(r'\[.*\]', res.text.strip(), re.DOTALL).group(0)
-                    st.session_state['fetched_lessons'] = json.loads(clean_json)
-                    st.success("Tải danh mục thành công!")
-            except Exception as e:
-                st.error(f"Lỗi tải danh mục: {e}")
-
-    if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
-        lessons_data = st.session_state['fetched_lessons']
-        lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
-        selected_idx = st.selectbox("👉 Chọn Bài học:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x])
-        st.session_state['chapter_val'] = lessons_data[selected_idx]['chapter']
-        st.session_state['lesson_val'] = lessons_data[selected_idx]['lesson']
-        st.experimental_rerun()
 
 # ==========================================
 # BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
@@ -133,14 +137,13 @@ integrations = st.multiselect(
 )
 
 # ==========================================
-# XỬ LÝ LỌC CÂU THỪA & TẠO FILE WORD
+# XỬ LÝ LỌC CÂU THỪA & TẠO FILE WORD CHUẨN MAU
 # ==========================================
 def clean_ai_response(text):
     """Lọc bỏ toàn bộ câu rặn dò, prompt thừa mà AI trả về"""
     lines = text.split('\n')
     cleaned_lines = []
     
-    # Các cụm từ rác cần loại bỏ triệt để
     banned_keywords = [
         "bắt buộc trích dẫn", "yêu cầu nghiêm ngặt", "quy định định dạng",
         "dưới đây là kế hoạch bài dạy", "dưới đây là giáo án", "chúc bạn dạy tốt",
@@ -149,7 +152,6 @@ def clean_ai_response(text):
     
     for line in lines:
         line_low = line.lower().strip()
-        # Bỏ qua dòng trống rác hoặc chứa từ khóa cấm
         if any(keyword in line_low for keyword in banned_keywords):
             continue
         cleaned_lines.append(line)
@@ -172,7 +174,7 @@ def format_paragraph_with_markdown(paragraph, text):
 def generate_doc(content_text, final_chapter, final_lesson):
     doc = docx.Document()
 
-    # Cấu hình lề trang chuẩn Công văn 5512 (2cm - 2cm - 3cm - 2cm)
+    # Lề chuẩn (2cm - 2cm - 3cm - 2cm)
     for section in doc.sections:
         section.top_margin = Inches(0.79)
         section.bottom_margin = Inches(0.79)
@@ -183,7 +185,7 @@ def generate_doc(content_text, final_chapter, final_lesson):
     style.font.name = 'Times New Roman'
     style.font.size = Pt(13)
 
-    # 1. Khung Thông tin Đầu trang (2 cột không viền)
+    # 1. BẢNG TIÊU ĐỀ ĐẦU TRANG KHÔNG VIỀN (ĐÚNG MẪU THẦY CUNG CẤP)
     table = doc.add_table(rows=1, cols=2)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
@@ -193,26 +195,25 @@ def generate_doc(content_text, final_chapter, final_lesson):
     cell_left = table.cell(0, 0)
     p_left = cell_left.paragraphs[0]
     p_left.paragraph_format.line_spacing = 1.15
-    p_left.add_run(f"TRƯỜNG: {school_name.upper()}\nTỔ: {dept_name.upper()}").bold = True
+    p_left.add_run(f"Trường: {school_name}\nTổ: {dept_name}").bold = True
 
     cell_right = table.cell(0, 1)
     p_right = cell_right.paragraphs[0]
     p_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     p_right.paragraph_format.line_spacing = 1.15
-    p_right.add_run(f"Họ và tên giáo viên:\n{teacher_name}").bold = True
+    p_right.add_run(f"Họ và tên giáo viên:{teacher_name}").bold = True
 
-    # Xóa viền bảng
     for row in table.rows:
         for cell in row.cells:
             tcPr = cell._tc.get_or_add_tcPr()
             tcBorders = parse_xml(r'<w:tcBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>' % nsdecls('w'))
             tcPr.append(tcBorders)
 
-    # 2. CHƯƠNG VÀ TÊN BÀI DẠY (CẬP NHẬT CHÍNH XÁC)
-    if final_chapter:
+    # 2. TÊN BÀI DẠY VÀ THÔNG TIN BÀI HỌC (CHUẨN THEO FILE CUNG CẤP)
+    if final_chapter and final_chapter.strip():
         p_chap = doc.add_paragraph()
         p_chap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p_chap.paragraph_format.space_before = Pt(14)
+        p_chap.paragraph_format.space_before = Pt(12)
         p_chap.paragraph_format.space_after = Pt(2)
         r_chap = p_chap.add_run(final_chapter.upper())
         r_chap.bold = True
@@ -229,10 +230,9 @@ def generate_doc(content_text, final_chapter, final_lesson):
     p_sub = doc.add_paragraph()
     p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_sub.paragraph_format.space_after = Pt(12)
-    r_sub = p_sub.add_run(f"Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade}\nThời gian thực hiện: ({duration} tiết)")
-    r_sub.italic = True
+    p_sub.add_run(f"Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade}\nThời gian thực hiện: ({duration} tiết)")
 
-    # 3. NỘI DUNG GIÁO ÁN
+    # 3. XỬ LÝ NỘI DUNG GIÁO ÁN
     clean_text = clean_ai_response(content_text)
     lines = clean_text.split('\n')
 
@@ -245,47 +245,44 @@ def generate_doc(content_text, final_chapter, final_lesson):
         p.paragraph_format.line_spacing = 1.15
         p.paragraph_format.space_after = Pt(4)
 
-        # Lấy bản rõ không chứa ký tự markdown
         raw_line = line_str.replace("**", "").replace("*", "")
 
-        # Tiêu đề lớn I, II, III, IV -> In đậm, size 14
+        # Mục I., II., III., IV...
         if re.match(r'^(I|II|III|IV|V)\.\s', raw_line):
             p.paragraph_format.space_before = Pt(10)
             run = p.add_run(raw_line)
             run.bold = True
-            run.font.size = Pt(14)
+            run.font.size = Pt(13)
 
-        # Tiêu đề Hoạt động -> In đậm, size 13
-        elif raw_line.upper().startswith("HOẠT ĐỘNG") or raw_line.upper().startswith("TIẾT "):
+        # Hoạt động hoặc Nội dung
+        elif raw_line.upper().startswith("HOẠT ĐỘNG") or raw_line.upper().startswith("NỘI DUNG"):
             p.paragraph_format.space_before = Pt(8)
             run = p.add_run(raw_line)
             run.bold = True
             run.font.size = Pt(13)
 
-        # Mục nhỏ 1, 2, 3...
-        elif re.match(r'^\d+\.\s', raw_line):
+        # Mục số 1., 2., 2.1...
+        elif re.match(r'^\d+(\.\d+)*\.\s', raw_line):
             p.paragraph_format.space_before = Pt(4)
-            run = p.add_run(raw_line)
-            run.bold = True
+            format_paragraph_with_markdown(p, line_str)
 
-        # Tiến trình a), b), c), d)
+        # Mục a), b), c), d)
         elif re.match(r'^[a-d]\)\s', raw_line):
             p.paragraph_format.space_before = Pt(4)
             p.paragraph_format.left_indent = Inches(0.15)
-            run = p.add_run(raw_line)
-            run.bold = True
-
-        # Các Bước thực hiện
-        elif "Bước 1:" in raw_line or "Bước 2:" in raw_line or "Bước 3:" in raw_line or "Bước 4:" in raw_line:
-            p.paragraph_format.left_indent = Inches(0.3)
             format_paragraph_with_markdown(p, line_str)
 
-        # Dòng gạch đầu dòng
+        # Các bước thực hiện
+        elif "Bước " in raw_line:
+            p.paragraph_format.left_indent = Inches(0.2)
+            format_paragraph_with_markdown(p, line_str)
+
+        # Dấu gạch đầu dòng
         elif raw_line.startswith("- ") or raw_line.startswith("+ "):
-            p.paragraph_format.left_indent = Inches(0.3)
+            p.paragraph_format.left_indent = Inches(0.2)
             format_paragraph_with_markdown(p, line_str)
 
-        # Văn bản thông thường
+        # Đoạn văn thông thường
         else:
             format_paragraph_with_markdown(p, line_str)
 
@@ -325,16 +322,21 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
             LƯU Ý QUAN TRỌNG:
             - Trả về trực tiếp nội dung bài soạn theo Công văn 5512.
             - KHÔNG viết thêm các câu chào hỏi, lời dẫn, hoặc lặp lại các câu mệnh lệnh/prompt trong bài viết.
-            - Chỉ dùng ** ** để tô đậm các từ khóa quan trọng, không tô đậm cả đoạn.
+            - Giữ nguyên các công thức Toán học dạng LaTeX ($...$).
 
             Cấu trúc bắt buộc:
-            I. MỤC TIÊU
+            I. Mục tiêu
             1. Kiến thức
             2. Năng lực
+            2.1. Năng lực Toán học (Đặc thù)
+            2.2. Năng lực chung
+            2.3. Năng lực Số / Ứng dụng CNTT và AI (Tích hợp)
             3. Phẩm chất
             II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
+            1. Giáo viên (GV)
+            2. Học sinh (HS)
             III. TIẾN TRÌNH DẠY HỌC
-            HOẠT ĐỘNG 1: MỞ ĐẦU / KHỞI ĐỘNG
+            HOẠT ĐỘNG 1: MỞ ĐẦU
             a) Mục tiêu
             b) Nội dung
             c) Sản phẩm
@@ -343,7 +345,8 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
             - Bước 2: Thực hiện nhiệm vụ
             - Bước 3: Báo cáo, thảo luận
             - Bước 4: Kết luận, nhận định
-            (Làm tương tự cho HOẠT ĐỘNG 2, HOẠT ĐỘNG 3, HOẠT ĐỘNG 4)
+            HOẠT ĐỘNG 2: HÌNH THÀNH KIẾN THỨC
+            ...
             """
 
             content_payload = [prompt]
