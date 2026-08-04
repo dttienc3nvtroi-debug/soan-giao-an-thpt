@@ -16,7 +16,7 @@ st.set_page_config(page_title="Hệ thống Soạn Giáo án Tự Động 5512",
 # CSS chỉnh giao diện chữ to, rõ ràng
 st.markdown("""
     <style>
-    .block-container { padding-top: 1.5rem !important; padding-bottom: 2rem !important; }
+    .block-container { padding-top: 2.7rem !important; padding-bottom: 2rem !important; }
     html, body, [class*="css"] { font-family: 'Segoe UI', Roboto, Arial, sans-serif; }
     .sidebar-title { color: #1e293b; font-size: 20px !important; font-weight: 700; margin-bottom: 10px; }
     .step-header { color: #DC2626 !important; font-size: 20px !important; font-weight: 700 !important; margin-top: 15px !important; margin-bottom: 10px !important; }
@@ -32,7 +32,7 @@ st.markdown("""
 with st.sidebar:
     st.markdown('<div class="sidebar-title">🔑 ĐĂNG NHẬP & CẤU HÌNH</div>', unsafe_allow_html=True)
     api_key = st.text_input("Google Gemini API Key:", type="password", placeholder="Dán mã API Key vào đây...")
-    model_name = st.selectbox("Mô hình AI xử lý:", ["gemini-1.5-flash", "gemini-1.5-pro"], index=0)
+    model_name = st.selectbox("Mô hình AI xử lý:", ["gemini-3.6-flash", "gemini-3.6-flash"], index=0)
     
     st.markdown("---")
     st.markdown('<div class="sidebar-title">👤 THÔNG TIN GIÁO VIÊN</div>', unsafe_allow_html=True)
