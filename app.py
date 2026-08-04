@@ -64,8 +64,8 @@ st.markdown("""
     div[data-baseweb="select"] span,
     div[data-baseweb="select"] div,
     ul[role="listbox"] li {
-        font-size: 26px !important;
-        font-weight: 700 !important;
+        font-size: 22px !important;
+        font-weight: 600 !important;
         color: #1E3A8A !important;
     }
 
@@ -97,7 +97,7 @@ with st.sidebar:
         "Mô hình AI xử lý:",
         ["gemini-3.6-flash", "gemini-3.6-flash"],
         index=0,
-        help="Khuyên dùng gemini-3.6-flash để phản hồi nhanh và chính xác"
+        help="Khuyên dùng 2.5-flash để phản hồi nhanh và chính xác"
     )
     
     st.markdown("---")
@@ -130,142 +130,96 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP
+# BƯỚC 1: THÔNG TIN BÀI DẠY
 # ==========================================
-st.markdown('<div class="step-header">📚 BƯỚC 1: CHỌN MÔN HỌC & KHỐI LỚP</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">📚 BƯỚC 1: THÔNG TIN MÔN HỌC & BÀI DẠY</div>', unsafe_allow_html=True)
 
-col_sub, col_grd = st.columns(2)
+col_sub, col_grd, col_dur = st.columns([2, 1, 1])
 with col_sub:
-    st.markdown('<span class="custom-label">Môn học/Hoạt động GD:</span>', unsafe_allow_html=True)
-    subject = st.selectbox(
-        "Môn học/Hoạt động GD:", 
-        ["Toán học", "Ngữ văn", "Tiếng Anh", "Vật lý", "Hóa học", "Sinh học", "Lịch sử", "Địa lý", "Tin học", "GDKT&PL", "Công nghệ"],
-        label_visibility="collapsed"
-    )
+    subject = st.selectbox("Môn học/Hoạt động GD:", ["Toán học", "Ngữ văn", "Tiếng Anh", "Vật lý", "Hóa học", "Sinh học", "Lịch sử", "Địa lý", "Tin học", "GDKT&PL", "Công nghệ"])
 with col_grd:
-    st.markdown('<span class="custom-label">Khối lớp:</span>', unsafe_allow_html=True)
-    grade = st.selectbox(
-        "Khối lớp:", 
-        ["Lớp 10", "Lớp 11", "Lớp 12"],
-        label_visibility="collapsed"
-    )
+    grade = st.selectbox("Khối lớp:", ["Lớp 10", "Lớp 11", "Lớp 12"])
+with col_dur:
+    duration = st.number_input("Số tiết:", value=2, min_value=1)
+
+col_c, col_l = st.columns(2)
+with col_c:
+    chapter_title = st.text_input("Chương / Chủ đề:", placeholder="Ví dụ: Chương I. Mệnh đề và Tập hợp")
+with col_l:
+    lesson_title = st.text_input("Tên bài dạy:", placeholder="Ví dụ: Bài 1. Mệnh đề")
 
 # ==========================================
-# BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN
+# BƯỚC 2: CHỌN NGUỒN DỮ LIỆU DẠY HỌC (TỐI ƯU RÕ RÀNG)
 # ==========================================
-st.markdown('<div class="step-header">📖 BƯỚC 2: TRA CỨU & CHỌN BÀI HỌC CHUẨN</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">📂 BƯỚC 2: CUNG CẤP DỮ LIỆU SÁCH GIÁO KHOA & SÁCH GIÁO VIÊN</div>', unsafe_allow_html=True)
 
-if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nxbgd.vn", use_container_width=True):
-    if not api_key:
-        st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
-    else:
-        try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(model_name)
-            
-            prompt_fetch = f"""
-            Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
-            Liệt kê ĐẦY ĐỦ, ĐÚNG THỨ TỰ tất cả các Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức/GDPT 2018).
-            
-            LƯU Ý ĐẶC BIỆT: Bắt buộc phải bao gồm đầy đủ cả các bài đánh số VÀ các bài "Bài tập cuối chương...", "Ôn tập chương..." ở cuối mỗi chương.
-            
-            Trả về duy nhất dạng JSON theo cấu trúc mảng:
-            [
-              {{
-                "chapter": "Tên Chương 1",
-                "lesson": "Tên Bài 1 hoặc Bài tập cuối chương...",
-                "duration": 2,
-                "req": "Yêu cầu cần đạt chuẩn của bài"
-              }}
-            ]
-            Chỉ trả về mã JSON nguyên bản trong mảng [ ... ], không thêm bất kỳ văn bản giải thích nào khác.
-            """
-            
-            with st.spinner(f"✨ Đang đồng bộ danh mục bài học {subject} {grade}..."):
-                res = model.generate_content(prompt_fetch)
-                raw_text = res.text.strip()
-                
-                json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
-                clean_json = json_match.group(0) if json_match else raw_text
-                
-                st.session_state['fetched_lessons'] = json.loads(clean_json)
-                st.success("🎉 Đã tải xong danh mục bài học chuẩn đầy đủ!")
-        except Exception as e:
-            err_msg = str(e)
-            if "429" in err_msg or "Quota exceeded" in err_msg:
-                st.error("⚠️ **API Key của thầy đã hết lượt dùng miễn phí trong ngày đối với mô hình này!**")
-                st.warning("👉 **Cách khắc phục nhanh:** Hãy chọn sang mô hình `gemini-2.5-flash` ở menu bên trái nhé!")
-            else:
-                st.error(f"Lỗi khi tải danh mục bài học: {e}")
+data_source_mode = st.radio(
+    "Lựa chọn phương thức cung cấp dữ liệu:",
+    ["📌 Cách 1: Tải File / Dán trực tiếp nội dung SGK & SGV (Chính xác 100%)", 
+     "🔍 Cách 2: Tự động tra cứu danh mục bài học từ thư viện NXB"],
+    index=0
+)
 
-if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
-    lessons_data = st.session_state['fetched_lessons']
-    lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
+uploaded_sgk = None
+uploaded_sgv = None
+sgk_text = ""
+sgv_text = ""
+requirements = ""
+
+if "Cách 1" in data_source_mode:
+    st.info("💡 **Khuyên dùng:** Dán văn bản trực tiếp hoặc tải file sẽ giúp AI lấy **chính xác 100% từng ví dụ, câu hỏi SGK và mục tiêu SGV**.")
     
-    st.markdown('<span class="custom-label">👉 Chọn Bài học chuẩn từ danh sách vừa tải:</span>', unsafe_allow_html=True)
-    selected_idx = st.selectbox(
-        "👉 Chọn Bài học chuẩn từ danh sách vừa tải:", 
-        range(len(lesson_titles)), 
-        format_func=lambda x: lesson_titles[x],
-        label_visibility="collapsed"
-    )
-    
-    current_item = lessons_data[selected_idx]
-    
-    col_i1, col_i2 = st.columns([1, 2])
-    with col_i1:
-        st.markdown('<span class="custom-label">Chương:</span>', unsafe_allow_html=True)
-        chapter_title = st.text_input("Chương:", value=current_item['chapter'], label_visibility="collapsed")
-        
-        st.markdown('<span class="custom-label">Tên bài:</span>', unsafe_allow_html=True)
-        lesson_title = st.text_input("Tên bài:", value=current_item['lesson'], label_visibility="collapsed")
-        
-        st.markdown('<span class="custom-label">Số tiết:</span>', unsafe_allow_html=True)
-        duration = st.number_input("Số tiết:", value=int(current_item['duration']), label_visibility="collapsed")
-    
-    with col_i2:
-        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt (Quy định chuẩn NXB Giáo dục):</span>', unsafe_allow_html=True)
-        requirements = st.text_area("YCĐ:", value=current_item['req'], height=185, label_visibility="collapsed")
+    col_sgk_box, col_sgv_box = st.columns(2)
+    with col_sgk_box:
+        st.markdown("**📘 1. NỘI DUNG SÁCH GIÁO KHOA (Lấy ND bài học & Ví dụ):**")
+        uploaded_sgk = st.file_uploader("Tải File SGK (PDF/Ảnh):", type=["pdf", "png", "jpg", "jpeg"], key="sgk_file")
+        sgk_text = st.text_area("Hoặc DÁN VĂN BẢN SGK (Khởi động, HĐ, Ví dụ, Luyện tập):", height=150, placeholder="Copy các Hoạt động 1, 2, Ví dụ 1, 2 trong file PDF SGK dán vào đây...")
+
+    with col_sgv_box:
+        st.markdown("**📕 2. NỘI DUNG SÁCH GIÁO VIÊN (Lấy Mục tiêu):**")
+        uploaded_sgv = st.file_uploader("Tải File SGV (PDF/Ảnh):", type=["pdf", "png", "jpg", "jpeg"], key="sgv_file")
+        sgv_text = st.text_area("Hoặc DÁN MỤC TIÊU TỪ SGV (Mục tiêu bài học):", height=150, placeholder="Copy phần Mục tiêu (Kiến thức, Năng lực, Phẩm chất) trong SGV dán vào đây...")
 
 else:
-    st.info("💡 Thầy vui lòng bấm nút **'🔍 Cập nhật danh sách Chương & Bài học...'** ở trên để AI tự động tải toàn bộ bài học chuẩn nhé!")
-    
-    col_i1, col_i2 = st.columns([1, 2])
-    with col_i1:
-        st.markdown('<span class="custom-label">Chương:</span>', unsafe_allow_html=True)
-        chapter_title = st.text_input("Chương:", value="", placeholder="Nhập tên chương...", label_visibility="collapsed")
-        
-        st.markdown('<span class="custom-label">Tên bài:</span>', unsafe_allow_html=True)
-        lesson_title = st.text_input("Tên bài:", value="", placeholder="Nhập tên bài...", label_visibility="collapsed")
-        
-        st.markdown('<span class="custom-label">Số tiết:</span>', unsafe_allow_html=True)
-        duration = st.number_input("Số tiết:", value=2, label_visibility="collapsed")
-        
-    with col_i2:
-        st.markdown('<span class="custom-label">📌 Yêu cầu cần đạt:</span>', unsafe_allow_html=True)
-        requirements = st.text_area("YCĐ:", value="", placeholder="Nhập yêu cầu cần đạt...", height=185, label_visibility="collapsed")
+    # Cách 2: Tra cứu tự động
+    if st.button("🔍 Cập nhật danh sách Chương & Bài học từ taphuan.nxbgd.vn", use_container_width=True):
+        if not api_key:
+            st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh menu bên trái trước!")
+        else:
+            try:
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel(model_name)
+                
+                prompt_fetch = f"""
+                Hãy đóng vai Cơ sở dữ liệu chính thức của NXB Giáo dục Việt Nam (taphuan.nxbgd.vn).
+                Liệt kê ĐẦY ĐỦ các Bài học thuộc môn {subject} - {grade} (Bộ sách Kết nối tri thức).
+                Trả về dạng JSON mảng: [{"chapter": "...", "lesson": "...", "duration": 2, "req": "..."}]
+                """
+                with st.spinner("✨ Đang đồng bộ danh mục bài học..."):
+                    res = model.generate_content(prompt_fetch)
+                    raw_text = res.text.strip()
+                    json_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
+                    clean_json = json_match.group(0) if json_match else raw_text
+                    st.session_state['fetched_lessons'] = json.loads(clean_json)
+                    st.success("🎉 Đã tải xong danh mục bài học!")
+            except Exception as e:
+                st.error(f"Lỗi khi tải danh mục: {e}")
+
+    if 'fetched_lessons' in st.session_state and st.session_state['fetched_lessons']:
+        lessons_data = st.session_state['fetched_lessons']
+        lesson_titles = [f"{item['chapter']} - {item['lesson']}" for item in lessons_data]
+        selected_idx = st.selectbox("👉 Chọn Bài học chuẩn từ danh sách:", range(len(lesson_titles)), format_func=lambda x: lesson_titles[x])
+        current_item = lessons_data[selected_idx]
+        chapter_title = current_item['chapter']
+        lesson_title = current_item['lesson']
+        duration = int(current_item['duration'])
+        requirements = st.text_area("📌 Yêu cầu cần đạt:", value=current_item['req'], height=120)
 
 # ==========================================
-# BƯỚC 3: CUNG CẤP TÀI LIỆU SGK & SGV (TỐI GIẢN)
+# BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
 # ==========================================
-st.markdown('<div class="step-header">📂 BƯỚC 3: CUNG CẤP DỮ LIỆU SÁCH GIÁO KHOA & SÁCH GIÁO VIÊN</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">🚀 BƯỚC 3: TÍCH HỢP NĂNG LỰC ĐẶC THÙ</div>', unsafe_allow_html=True)
 
-col_sgk, col_sgv = st.columns(2)
-
-with col_sgk:
-    st.markdown('<span class="custom-label">📘 1. File/Ảnh SÁCH GIÁO KHOA (Dùng lấy ND bài học):</span>', unsafe_allow_html=True)
-    uploaded_sgk = st.file_uploader("Tải file SGK (PDF / PNG / JPG):", type=["pdf", "png", "jpg", "jpeg"], key="sgk_file")
-
-with col_sgv:
-    st.markdown('<span class="custom-label">📕 2. File/Ảnh SÁCH GIÁO VIÊN (Dùng lấy MỤC TIÊU):</span>', unsafe_allow_html=True)
-    uploaded_sgv = st.file_uploader("Tải file SGV (PDF / PNG / JPG):", type=["pdf", "png", "jpg", "jpeg"], key="sgv_file")
-
-# ==========================================
-# BƯỚC 4: TÍCH HỢP NĂNG LỰC ĐẶC THÙ
-# ==========================================
-st.markdown('<div class="step-header">🚀 BƯỚC 4: TÍCH HỢP NĂNG LỰC ĐẶC THÙ</div>', unsafe_allow_html=True)
-
-st.markdown('<span class="custom-label">Lựa chọn yếu tố tích hợp:</span>', unsafe_allow_html=True)
 integrations = st.multiselect(
     "Lựa chọn yếu tố tích hợp:",
     [
@@ -275,17 +229,30 @@ integrations = st.multiselect(
         "Phát triển Tư duy phản biện", 
         "Học tập qua Dự án (PBL)"
     ],
-    default=["Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)"],
-    label_visibility="collapsed"
+    default=["Năng lực Số / Ứng dụng CNTT (Padlet, Kahoot, Geogebra...)", "Tích hợp AI trong dạy và học (Gemini, ChatGPT, Canva...)"]
 )
 
 # ==========================================
-# XỬ LÝ XUẤT FILE WORD 5512 (ĐÃ SỬA LỖI TÔ ĐẬM TÙY TIỆN)
+# HÀM XUẤT FILE WORD TỐI ƯU (ĐỊNH DẠNG CHÍNH XÁC, KHÔNG IN ĐẬM TÙY TIỆN)
 # ==========================================
+def format_paragraph_with_markdown(paragraph, text):
+    """Phân tích chuỗi text chứa Markdown **tô đậm** và add vào paragraph chuẩn xác"""
+    # Tách đoạn văn thành các chuỗi thường và các chuỗi nằm trong **...**
+    parts = re.split(r'(\*\*.*?\*\*)', text)
+    for part in parts:
+        if part.startswith('**') and part.endswith('**'):
+            content = part[2:-2]
+            if content:
+                run = paragraph.add_run(content)
+                run.bold = True
+        else:
+            if part:
+                paragraph.add_run(part)
+
 def generate_doc(content_text):
     doc = docx.Document()
 
-    # Cấu hình lề trang chuẩn Công văn 5512
+    # Cấu hình lề trang chuẩn Công văn 5512 (2cm - 2cm - 3cm - 2cm)
     for section in doc.sections:
         section.top_margin = Inches(0.79)
         section.bottom_margin = Inches(0.79)
@@ -300,7 +267,6 @@ def generate_doc(content_text):
     table = doc.add_table(rows=1, cols=2)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
-    
     table.columns[0].width = Inches(3.2)
     table.columns[1].width = Inches(3.2)
 
@@ -321,7 +287,6 @@ def generate_doc(content_text):
     run_teacher_val = p_right.add_run(teacher_name)
     run_teacher_val.bold = True
 
-    # Xóa viền bảng
     for row in table.rows:
         for cell in row.cells:
             tcPr = cell._tc.get_or_add_tcPr()
@@ -343,7 +308,7 @@ def generate_doc(content_text):
     r_sub = p_sub.add_run(f"Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade}\nThời gian thực hiện: ({duration} tiết)")
     r_sub.italic = True
 
-    # ĐỌC & ĐỊNH DẠNG VĂN BẢN (CHỈ IN ĐẬM TIÊU ĐỀ CHUẨN, KHÔNG IN ĐẬM TÙY TIỆN)
+    # ĐỌC VÀ XỬ LÝ ĐỊNH DẠNG VĂN BẢN TỪNG DÒNG
     lines = content_text.split('\n')
     for line in lines:
         line_str = line.strip()
@@ -354,62 +319,65 @@ def generate_doc(content_text):
         p.paragraph_format.line_spacing = 1.15
         p.paragraph_format.space_after = Pt(4)
 
-        # Loại bỏ các ký tự markdown in đậm để kiểm soát chính xác bằng mã Python
+        # Lấy bản rõ không chứa markdown để kiểm tra tiêu đề
         clean_text = line_str.replace("**", "").replace("*", "")
 
-        # 1. TIÊU ĐỀ MỤC LỚN (I. MỤC TIÊU, II. THIẾT BỊ..., III. TIẾN TRÌNH...) -> In hoa, In đậm, Size 14
+        # 1. TIÊU ĐỀ MỤC LỚN (I. MỤC TIÊU, II. THIẾT BỊ..., III. TIẾN TRÌNH...) -> In đậm, size 14
         if clean_text.startswith("I. ") or clean_text.startswith("II. ") or clean_text.startswith("III. ") or clean_text.startswith("IV. "):
             p.paragraph_format.space_before = Pt(12)
             run = p.add_run(clean_text)
             run.bold = True
             run.font.size = Pt(14)
 
-        # 2. CÁC TIẾT VÀ HOẠT ĐỘNG (HOẠT ĐỘNG 1, HOẠT ĐỘNG 2...) -> In đậm, Size 13
+        # 2. TIẾT VÀ HOẠT ĐỘNG (HOẠT ĐỘNG 1, HOẠT ĐỘNG 2...) -> In đậm, size 13
         elif clean_text.startswith("TIẾT ") or clean_text.startswith("HOẠT ĐỘNG ") or clean_text.startswith("Hoạt động "):
             p.paragraph_format.space_before = Pt(8)
             run = p.add_run(clean_text)
             run.bold = True
             run.font.size = Pt(13)
 
-        # 3. CÁC MỤC CON CHÍNH (1. Kiến thức, 2. Năng lực...) -> In đậm
+        # 3. CÁC MỤC CON THUỘC MỤC I, II (1. Kiến thức, 2. Năng lực...) -> In đậm
         elif clean_text.startswith("1. ") or clean_text.startswith("2. ") or clean_text.startswith("3. ") or clean_text.startswith("4. "):
-            p.paragraph_format.space_before = Pt(6)
+            p.paragraph_format.space_before = Pt(4)
             run = p.add_run(clean_text)
             run.bold = True
 
-        # 4. BẤM TIẾN TRÌNH HOẠT ĐỘNG (a) Mục tiêu, b) Nội dung, c) Sản phẩm, d) Tổ chức thực hiện) -> In đậm, thụt vào chút
+        # 4. TIẾN TRÌNH HOẠT ĐỘNG (a) Mục tiêu, b) Nội dung, c) Sản phẩm, d) Tổ chức thực hiện) -> In đậm
         elif clean_text.startswith("a)") or clean_text.startswith("b)") or clean_text.startswith("c)") or clean_text.startswith("d)"):
             p.paragraph_format.space_before = Pt(4)
             p.paragraph_format.left_indent = Inches(0.15)
             run = p.add_run(clean_text)
             run.bold = True
 
-        # 5. BƯỚC THỰC HIỆN (Bước 1:, Bước 2:, Bước 3:, Bước 4:) -> In đậm
+        # 5. CÁC BƯỚC THỰC HIỆN (Bước 1:, Bước 2:, Bước 3:, Bước 4:) -> In đậm
         elif clean_text.startswith("Bước 1:") or clean_text.startswith("Bước 2:") or clean_text.startswith("Bước 3:") or clean_text.startswith("Bước 4:") or clean_text.startswith("- Bước 1:") or clean_text.startswith("- Bước 2:") or clean_text.startswith("- Bước 3:") or clean_text.startswith("- Bước 4:"):
             p.paragraph_format.left_indent = Inches(0.3)
-            run = p.add_run(clean_text)
-            run.bold = True
+            # Chỉ in đậm từ "Bước X: ..."
+            format_paragraph_with_markdown(p, line_str)
 
-        # 6. CÁC ĐẦU DÒNG THƯỜNG (- hoặc +) -> Không in đậm, chỉ thụt lề
+        # 6. ĐẦU DÒNG THƯỜNG (- hoặc +) -> Thụt lề, tô đậm ĐÚNG TỪNG TỪ CÓ **
         elif clean_text.startswith("- ") or clean_text.startswith("+ "):
             p.paragraph_format.left_indent = Inches(0.3)
-            p.add_run(clean_text)
+            format_paragraph_with_markdown(p, line_str)
 
-        # 7. CÁC ĐOẠN VĂN THƯỜNG -> Chữ thường 100%, không in đậm
+        # 7. VĂN BẢN THƯỜNG KHÁC -> Tô đậm ĐÚNG TỪNG TỪ CÓ ** (Không bao giờ in đậm cả đoạn)
         else:
-            p.add_run(clean_text)
+            format_paragraph_with_markdown(p, line_str)
 
     bio = io.BytesIO()
     doc.save(bio)
     bio.seek(0)
     return bio
 
+# ==========================================
+# XỬ LÝ TẠO KHBD
+# ==========================================
 st.markdown("<br>", unsafe_allow_html=True)
 if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", use_container_width=True):
     if not api_key:
         st.error("⚠️ Vui lòng nhập Google Gemini API Key ở thanh menu bên trái!")
     elif not lesson_title:
-        st.error("⚠️ Vui lòng chọn hoặc nhập tên Bài dạy!")
+        st.error("⚠️ Vui lòng nhập Tên Bài dạy ở Bước 1!")
     else:
         try:
             genai.configure(api_key=api_key)
@@ -417,29 +385,33 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
 
             integration_str = ", ".join(integrations) if integrations else "Không"
 
-            # Xây dựng Prompt chặt chẽ
+            # Xây dựng ngữ cảnh dữ liệu SGK / SGV
+            sgk_context = ""
+            if sgk_text:
+                sgk_context += f"\n[DỮ LIỆU SÁCH GIÁO KHOA DO GV CUNG CẤP]:\n{sgk_text}\n"
+            if sgv_text:
+                sgk_context += f"\n[DỮ LIỆU SÁCH GIÁO VIÊN DO GV CUNG CẤP]:\n{sgv_text}\n"
+
             prompt = f"""
-            Hãy đóng vai là Giáo viên Cốt cán xuất sắc bộ môn {subject}.
-            Nhiệm vụ của bạn là soạn Kế hoạch bài dạy chuẩn 100% CÔNG VĂN 5512/BGDĐT:
+            Bạn là Giáo viên Cốt cán giỏi nhất môn {subject}.
+            Nhiệm vụ: Soạn Kế hoạch bài dạy (Giáo án) chuẩn 100% CÔNG VĂN 5512/BGDĐT.
             - Môn: {subject} ({grade})
-            - Bộ sách: Kết nối tri thức với cuộc sống (Chương trình GDPT 2018)
             - Chương/Chủ đề: {chapter_title}
             - Bài dạy: {lesson_title}
             - Thời lượng: {duration} tiết
-            - Yêu cầu cần đạt: {requirements}
-            - YẾU TỐ TÍCH HỢP: {integration_str}
+            - Yếu tố tích hợp: {integration_str}
+            {sgk_context}
 
-            QUY ĐỊNH LẤY DỮ LIỆU CHÍNH XÁC:
-            1. PHẦN I. MỤC TIÊU: Nếu có đính kèm file SÁCH GIÁO VIÊN (SGV), hãy trích xuất CHÍNH XÁC mục tiêu (Kiến thức, Năng lực, Phẩm chất) từ SGV.
-            2. PHẦN III. TIẾN TRÌNH DẠY HỌC: Nếu có đính kèm file SÁCH GIÁO KHOA (SGK), hãy lấy CHÍNH XÁC 100% các câu hỏi khởi động, bài tập, ví dụ, hoạt động trong SGK.
+            YÊU CẦU NGHIÊM NGẠT VỀ NỘI DUNG:
+            1. VỀ MỤC TIÊU (Mục I): Bắt buộc lấy chính xác từ dữ liệu Sách giáo viên (SGV) nếu có cung cấp ở trên.
+            2. VỀ TIẾN TRÌNH DẠY HỌC (Mục III): Bắt buộc trích dẫn CHÍNH XÁC 100% các câu hỏi Khởi động, Hoạt động khám phá, Ví dụ, Luyện tập, Bài tập từ Sách giáo khoa (SGK) được cung cấp. KHÔNG tự bịa ví dụ hay bài tập khác.
 
-            QUY ĐỊNH ĐỊNH DẠNG VĂN BẢN TRẢ VỀ (KHÔNG DÙNG KÝ TỰ ** ĐỂ TÔ ĐẬM TÙY TIỆN):
-            - Trả về văn bản thuần túy, trình bày rõ ràng, KHÔNG tự ý tô đậm (**) các câu văn thường.
-            - Chỉ trình bày theo đúng khung 5512 chuẩn sau:
-
+            QUY ĐỊNH ĐỊNH DẠNG VĂN BẢN (TRÁNH LỖI IN ĐẬM TÙY TIỆN):
+            - CHỈ dùng ký tự ** ** cho các từ khóa quan trọng cần nhấn mạnh. Tuyệt đối KHÔNG bao bọc toàn bộ câu hay toàn bộ đoạn văn bằng ** **.
+            - Đảm bảo đúng cấu trúc chuẩn 5512:
               I. MỤC TIÊU
               1. Kiến thức:
-              2. Năng lực: (2.1. Năng lực chuyên môn, 2.2. Năng lực chung, 2.3. Năng lực Số / Ứng dụng CNTT và AI)
+              2. Năng lực:
               3. Phẩm chất:
               II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU
               1. Giáo viên:
@@ -463,18 +435,16 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
               ...
             """
 
-            # Thu thập các file gửi cho AI
             content_payload = [prompt]
-            
             if uploaded_sgk is not None:
                 content_payload.append({"mime_type": uploaded_sgk.type, "data": uploaded_sgk.getvalue()})
             if uploaded_sgv is not None:
                 content_payload.append({"mime_type": uploaded_sgv.type, "data": uploaded_sgv.getvalue()})
 
-            with st.spinner("✨ AI đang tổng hợp từ SGK, SGV và tạo Giáo án Word..."):
+            with st.spinner("✨ AI đang tổng hợp chính xác từ SGK & SGV để tạo Giáo án Word..."):
                 response = model.generate_content(content_payload)
 
-                st.success("🎉 Tạo giáo án chuẩn thành công!")
+                st.success("🎉 Tạo giáo án thành công!")
                 doc_file = generate_doc(response.text)
                 
                 st.download_button(
@@ -486,27 +456,7 @@ if st.button("🚀 BẮT ĐẦU TẠO KHBD WORD CHUẨN 5512", type="primary", u
                 )
 
                 st.markdown("---")
-                
-                preview_header = f"""
-<table style="width:100%; border:none; margin-bottom: 20px;">
-  <tr>
-    <td style="text-align:left; border:none;"><b>TRƯỜNG: {school_name.upper()}</b><br><b>TỔ: {dept_name.upper()}</b></td>
-    <td style="text-align:right; border:none;"><b>Họ và tên giáo viên:</b><br><b>{teacher_name}</b></td>
-  </tr>
-</table>
-
-<h3 style="text-align: center; margin-top: 10px;">TÊN BÀI DẠY: {lesson_title.upper()}</h3>
-<p style="text-align: center; font-style: italic;">Môn học/Hoạt động giáo dục: {subject}; Lớp: {grade}<br>Thời gian thực hiện: ({duration} tiết)</p>
-
----
-                """
-                st.markdown(preview_header, unsafe_allow_html=True)
                 st.markdown(response.text)
 
         except Exception as e:
-            err_msg = str(e)
-            if "429" in err_msg or "Quota exceeded" in err_msg:
-                st.error("⚠️ **API Key đã hết hạn mức sử dụng trong ngày đối với mô hình này.**")
-                st.warning("👉 Hãy chọn sang mô hình **`gemini-2.5-flash`** ở bên thanh menu trái và nhấn tạo lại!")
-            else:
-                st.error(f"Đã có lỗi xảy ra: {e}")
+            st.error(f"Đã có lỗi xảy ra: {e}")
